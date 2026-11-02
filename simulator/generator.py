@@ -22,7 +22,7 @@ def make_customers(n, rng, positions=None):
                 iv = rng.normal(base * rate, 5.0)
             intervals.append(max(5.0, iv))
         customers.append({
-            "id": i, "x": x, "y": y, "pattern": pattern,
+            "id": i, "x": x, "y": y, "pattern": pattern, "base": base,
             "intervals": intervals,
             "days_since": rng.uniform(0, base * 1.1),
             "demand": int(rng.integers(1, 3)),

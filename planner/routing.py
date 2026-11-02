@@ -13,9 +13,10 @@ def travel_minutes(a, b):
     return int(round(km / SPEED_KMH * 60))
 
 
-def plan(customers, risks, urgent_ids=(), tm=None):
+def plan(customers, risks, urgent_ids=(), tm=None, seconds=None):
     """Returns (routes, visited) or None. routes = list of (stop list, minutes).
-    tm = ready road-time matrix in minutes (index 0 = depot). If None, straight-line is used."""
+    tm = ready road-time matrix in minutes (index 0 = depot). If None, straight-line is used.
+    seconds = solver time limit (default from config)."""
     depot = {"id": 0, "x": 0.0, "y": 0.0, "demand": 0}
     nodes = [depot] + customers
     n = len(nodes)
@@ -47,7 +48,7 @@ def plan(customers, risks, urgent_ids=(), tm=None):
     params = pywrapcp.DefaultRoutingSearchParameters()
     params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     params.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-    params.time_limit.seconds = SOLVER_SECONDS
+    params.time_limit.FromMilliseconds(int((seconds or SOLVER_SECONDS) * 1000))
 
     sol = routing.SolveWithParameters(params)
     if sol is None:
