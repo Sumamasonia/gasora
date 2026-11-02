@@ -13,12 +13,14 @@ def travel_minutes(a, b):
     return int(round(km / SPEED_KMH * 60))
 
 
-def plan(customers, risks, urgent_ids=()):
-    """Returns (routes, visited) or None. routes = list of (stop list, minutes)."""
+def plan(customers, risks, urgent_ids=(), tm=None):
+    """Returns (routes, visited) or None. routes = list of (stop list, minutes).
+    tm = ready road-time matrix in minutes (index 0 = depot). If None, straight-line is used."""
     depot = {"id": 0, "x": 0.0, "y": 0.0, "demand": 0}
     nodes = [depot] + customers
     n = len(nodes)
-    tm = [[travel_minutes(nodes[i], nodes[j]) for j in range(n)] for i in range(n)]
+    if tm is None:
+        tm = [[travel_minutes(nodes[i], nodes[j]) for j in range(n)] for i in range(n)]
 
     manager = pywrapcp.RoutingIndexManager(n, N_VEHICLES, 0)
     routing = pywrapcp.RoutingModel(manager)

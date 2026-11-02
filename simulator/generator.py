@@ -4,10 +4,13 @@ Two hidden usage patterns: steady, and irregular (rate changes after 3 deliverie
 import numpy as np
 
 
-def make_customers(n, rng):
+def make_customers(n, rng, positions=None):
+    """positions = optional list of (x_km, y_km), for example real map places."""
     customers = []
     for i in range(1, n + 1):
         x, y = rng.uniform(-8, 8, size=2)          # km from the depot
+        if positions is not None:
+            x, y = positions[i - 1]
         pattern = "steady" if rng.random() < 0.6 else "irregular"
         base = rng.uniform(15, 30)                 # usual days between refills
         intervals = []
