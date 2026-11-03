@@ -1,9 +1,7 @@
 import { useEffect } from 'react'
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-
-export const BAND_COLOR = { Normal: '#6b8f71', High: '#e08a00', Critical: '#c62828' }
-export const VEHICLE_COLORS = ['#1565c0', '#6a1b9a', '#00838f', '#ef6c00']
+import { BAND_COLOR, VEHICLE_COLORS } from './colors'
 
 function FitToPoints({ points }) {
   const map = useMap()
@@ -41,24 +39,23 @@ export default function PlanMap({ plan, coords }) {
         const c = coords[row.customer_id]
         if (!c) return null
         const visited = inRoute.has(row.customer_id)
+        const color = row.urgent ? BAND_COLOR.Urgent : BAND_COLOR[row.band]
         return (
           <CircleMarker
             key={row.customer_id}
             center={[c.lat, c.lon]}
             radius={visited ? 8 : 5}
-            pathOptions={{
-              color: BAND_COLOR[row.band],
-              fillColor: BAND_COLOR[row.band],
-              fillOpacity: visited ? 0.9 : 0.45,
-              weight: visited ? 2 : 1,
-            }}
+            pathOptions={{ color, fillColor: color, fillOpacity: visited ? 0.9 : 0.45, weight: visited ? 2 : 1 }}
           >
             <Popup>
               <strong>{row.name}</strong>
               <br />
+              {row.urgent && <>Urgent request<br /></>}
               Risk {Math.round(row.risk * 100)}% ({row.band})
               <br />
-              {row.days_since_delivery} days since last delivery
+              {row.days_since_delivery === null
+                ? 'No delivery history'
+                : `${row.days_since_delivery} days since last delivery`}
               <br />
               {visited ? 'In today\u2019s plan' : 'Not in today\u2019s plan'}
             </Popup>
@@ -66,11 +63,7 @@ export default function PlanMap({ plan, coords }) {
         )
       })}
 
-      <CircleMarker
-        center={depot}
-        radius={10}
-        pathOptions={{ color: '#111', fillColor: '#111', fillOpacity: 1 }}
-      >
+      <CircleMarker center={depot} radius={10} pathOptions={{ color: '#111', fillColor: '#111', fillOpacity: 1 }}>
         <Popup>Depot (placeholder position)</Popup>
       </CircleMarker>
     </MapContainer>

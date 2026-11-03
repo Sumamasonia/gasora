@@ -74,6 +74,28 @@ class DeliveryOut(BaseModel):
     event_id: Optional[int]
 
 
+class UrgentIn(BaseModel):
+    customer_id: int
+    note: Optional[str] = Field(default=None, max_length=200)
+
+
+class PublishIn(BaseModel):
+    day: Optional[date] = None
+    seconds: float = Field(default=2.0, ge=0.1, le=30)
+
+
+class AssignIn(BaseModel):
+    username: str
+
+
+class DeliverIn(BaseModel):
+    cylinders: Optional[int] = Field(default=None, ge=1, le=10)
+
+
+class SkipIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=200)
+
+
 # ---------- dependencies ----------
 def get_session(request: Request):
     with request.app.state.SessionLocal() as session:
@@ -186,6 +208,86 @@ def audit_verify(request: Request, me: User = Depends(require("owner"))):
     ok, message = eventlog.verify(events)
     n = events.execute("SELECT COUNT(*) FROM events").fetchone()[0]
     return {"ok": ok, "message": message, "events": n, "head": eventlog.head(events)}
+
+
+@router.get("/users", response_model=list[UserOut])
+def list_users(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    return session.scalars(select(User).order_by(User.id)).all()
+
+
+@router.post("/urgent", status_code=201)
+def create_urgent(body: UrgentIn, request: Request, session: Session = Depends(get_session),
+                  me: User = Depends(require("owner"))):
+    try:
+        u = services.create_urgent(session, request.app.state.events, me.username, body.customer_id, body.note)
+    except LookupError:
+        raise HTTPException(404, "customer not found")
+    session.commit()
+    return {"urgent_id": u.id}
+
+
+@router.get("/urgent")
+def list_urgent(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    return services.open_urgent(session)
+
+
+@router.post("/plan/publish", status_code=201)
+def publish(body: PublishIn, request: Request, session: Session = Depends(get_session),
+            me: User = Depends(require("owner"))):
+    day = body.day or date.today()
+    try:
+        services.publish_plan(session, request.app.state.events, me.username, day, body.seconds)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    session.commit()
+    return services.routes_view(session, day)
+
+
+@router.get("/routes")
+def list_routes(day: Optional[date] = None, session: Session = Depends(get_session),
+                me: User = Depends(require("owner"))):
+    return services.routes_view(session, day or date.today())
+
+
+@router.patch("/routes/{route_id}/assign")
+def assign(route_id: int, body: AssignIn, request: Request, session: Session = Depends(get_session),
+           me: User = Depends(require("owner"))):
+    try:
+        services.assign_route(session, request.app.state.events, me.username, route_id, body.username)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    session.commit()
+    return {"ok": True}
+
+
+@router.get("/my-routes")
+def my_routes(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver"))):
+    return services.routes_view(session, date.today(), driver_id=me.id)
+
+
+def _stop_action(stop_id, action, request, session, me, cylinders=None, reason=None):
+    try:
+        services.complete_stop(session, request.app.state.events, me, stop_id, action, cylinders, reason)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    session.commit()
+    return {"ok": True}
+
+
+@router.post("/route-stops/{stop_id}/deliver")
+def deliver_stop(stop_id: int, body: DeliverIn, request: Request, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner", "driver"))):
+    return _stop_action(stop_id, "deliver", request, session, me, cylinders=body.cylinders)
+
+
+@router.post("/route-stops/{stop_id}/skip")
+def skip_stop(stop_id: int, body: SkipIn, request: Request, session: Session = Depends(get_session),
+              me: User = Depends(require("owner", "driver"))):
+    return _stop_action(stop_id, "skip", request, session, me, reason=body.reason)
 
 
 # ---------- app factory ----------

@@ -35,3 +35,37 @@ class Delivery(Base):
     cylinders: Mapped[int] = mapped_column(default=1)
     driver: Mapped[str] = mapped_column(String(50))
     event_id: Mapped[int | None] = mapped_column(default=None)   # id in the event log
+
+
+class UrgentRequest(Base):
+    __tablename__ = "urgent_requests"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"))
+    note: Mapped[str | None] = mapped_column(String(200), default=None)
+    status: Mapped[str] = mapped_column(String(10), default="open")      # open or done
+    created_by: Mapped[str] = mapped_column(String(50))
+    created_on: Mapped[date]
+
+
+class Route(Base):
+    """A published route for one day and one vehicle."""
+    __tablename__ = "routes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[date]
+    vehicle: Mapped[int]
+    minutes: Mapped[int]
+    driver_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), default=None)
+
+
+class RouteStop(Base):
+    __tablename__ = "route_stops"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("routes.id"))
+    seq: Mapped[int]
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"))
+    risk: Mapped[float]
+    band: Mapped[str] = mapped_column(String(10))
+    urgent: Mapped[bool] = mapped_column(default=False)
+    status: Mapped[str] = mapped_column(String(10), default="pending")   # pending, delivered, skipped
+    reason: Mapped[str | None] = mapped_column(String(200), default=None)
+    delivery_id: Mapped[int | None] = mapped_column(default=None)

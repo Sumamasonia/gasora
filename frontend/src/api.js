@@ -34,3 +34,17 @@ export const login = (username, password) =>
   request('/auth/login', { method: 'POST', body: { username, password } })
 export const getCustomers = (token) => request('/customers', { token })
 export const getPlan = (token, seconds) => request(`/plan/today?seconds=${seconds}`, { token })
+export const getUsers = (token) => request('/users', { token })
+export const getUrgent = (token) => request('/urgent', { token })
+export const createUrgent = (token, customer_id, note) =>
+  request('/urgent', { token, method: 'POST', body: { customer_id, note: note || null } })
+export const publishPlan = (token, seconds) =>
+  request('/plan/publish', { token, method: 'POST', body: { seconds } })
+export const getRoutes = (token) => request('/routes', { token })
+export const assignRoute = (token, routeId, username) =>
+  request(`/routes/${routeId}/assign`, { token, method: 'PATCH', body: { username } })
+export const getMyRoutes = (token) => request('/my-routes', { token })
+export const deliverStop = (token, stopId) =>
+  request(`/route-stops/${stopId}/deliver`, { token, method: 'POST', body: {} })
+export const skipStop = (token, stopId, reason) =>
+  request(`/route-stops/${stopId}/skip`, { token, method: 'POST', body: { reason } })
