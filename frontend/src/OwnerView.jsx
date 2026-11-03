@@ -7,14 +7,19 @@ import PlanMap from './PlanMap'
 import { PublishedRoutes, UrgentForm } from './OwnerPanels'
 import { Badge, UrgentTag } from './ui'
 
-function PlanPanel({ plan }) {
+function PlanPanel({ plan, published }) {
   const counts = { Normal: 0, High: 0, Critical: 0 }
   plan.risk_table.forEach((r) => { if (counts[r.band] !== undefined) counts[r.band] += 1 })
   const urgentCount = plan.risk_table.filter((r) => r.urgent).length
   return (
     <>
-      <h2>Proposed plan for {plan.date}</h2>
-      <p className="muted">{plan.settings_note}. Lines on the map are straight lines between stops, not road paths.</p>
+      <h2>{published ? 'New proposal (preview only)' : 'Proposed plan'} for {plan.date}</h2>
+      <p className="muted">
+        {published
+          ? 'The map shows the published routes. This proposal is only a preview of what the planner would do now, and it changes as deliveries are recorded. '
+          : ''}
+        {plan.settings_note}. Lines on the map are straight lines between stops, not road paths.
+      </p>
       <div className="counts">
         {Object.keys(counts).map((band) => (
           <div key={band}><Badge band={band} /> {counts[band]}</div>
@@ -115,7 +120,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
       {error && <p className="error banner">{error}</p>}
       {plan && (
         <main>
-          <PlanMap plan={plan} coords={coords} />
+          <PlanMap plan={plan} coords={coords} published={routes} />
           <aside className="panel">
             <PublishedRoutes
               routes={routes} drivers={drivers} busy={busy}
@@ -126,7 +131,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
               customers={coords} openUrgent={openUrgent} busy={busy}
               onCreate={(id, note) => guard(async () => { await createUrgent(auth.token, id, note); await loadAll() })}
             />
-            <PlanPanel plan={plan} />
+            <PlanPanel plan={plan} published={routes.length > 0} />
           </aside>
         </main>
       )}

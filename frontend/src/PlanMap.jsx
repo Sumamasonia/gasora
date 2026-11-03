@@ -11,9 +11,13 @@ function FitToPoints({ points }) {
   return null
 }
 
-export default function PlanMap({ plan, coords }) {
+// Draws the published routes when there are any, and the proposed plan before publishing.
+export default function PlanMap({ plan, coords, published = [] }) {
   const depot = [plan.depot.lat, plan.depot.lon]
-  const inRoute = new Set(plan.routes.flatMap((r) => r.stops.map((s) => s.customer_id)))
+  const routes = published.length > 0 ? published : plan.routes
+  const stopInfo = {}                                   // customer id -> { seq, status }
+  routes.forEach((r) => r.stops.forEach((s, i) => { stopInfo[s.customer_id] = { seq: i + 1, status: s.status || 'pending' } }))
+  const inRoute = new Set(Object.keys(stopInfo).map(Number))
   const allPoints = [depot, ...Object.values(coords).map((c) => [c.lat, c.lon])]
 
   return (
@@ -24,7 +28,7 @@ export default function PlanMap({ plan, coords }) {
       />
       <FitToPoints points={allPoints} />
 
-      {plan.routes.map((route, i) => {
+      {routes.map((route, i) => {
         const line = [depot, ...route.stops.map((s) => [coords[s.customer_id].lat, coords[s.customer_id].lon]), depot]
         return (
           <Polyline
@@ -39,7 +43,10 @@ export default function PlanMap({ plan, coords }) {
         const c = coords[row.customer_id]
         if (!c) return null
         const visited = inRoute.has(row.customer_id)
-        const color = row.urgent ? BAND_COLOR.Urgent : BAND_COLOR[row.band]
+        const info = stopInfo[row.customer_id]
+        let color = row.urgent ? BAND_COLOR.Urgent : BAND_COLOR[row.band]
+        if (info && info.status === 'delivered') color = '#2e7d32'
+        if (info && info.status === 'skipped') color = '#757575'
         return (
           <CircleMarker
             key={row.customer_id}
@@ -57,7 +64,8 @@ export default function PlanMap({ plan, coords }) {
                 ? 'No delivery history'
                 : `${row.days_since_delivery} days since last delivery`}
               <br />
-              {visited ? 'In today\u2019s plan' : 'Not in today\u2019s plan'}
+              {!visited && 'Not on a route today'}
+              {visited && `Stop ${stopInfo[row.customer_id].seq}: ${stopInfo[row.customer_id].status}`}
             </Popup>
           </CircleMarker>
         )

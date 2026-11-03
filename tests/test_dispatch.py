@@ -107,3 +107,15 @@ def test_driver_cannot_publish_or_assign(client):
     assert client.post("/plan/publish", json={}, headers=ali).status_code == 403
     assert client.patch("/routes/1/assign", json={"username": "ali"}, headers=ali).status_code == 403
     assert client.post("/urgent", json={"customer_id": 1}, headers=ali).status_code == 403
+
+
+def test_urgent_customer_is_an_early_stop(client):
+    h = headers(client)
+    for i in range(6):                                          # six due customers near the depot
+        cid = add_customer(client, h, f"Near {i}", 31.41 + i * 0.004, 73.07 + i * 0.004)
+        history(client, h, cid, [100, 80, 60, 40, 20])
+    far = add_customer(client, h, "Far urgent", 31.48, 73.16)   # far from the depot, no history
+    client.post("/urgent", json={"customer_id": far}, headers=h)
+    routes = client.post("/plan/publish", json={"seconds": 0.5}, headers=h).json()
+    stop = [s for r in routes for s in r["stops"] if s["customer_id"] == far][0]
+    assert stop["seq"] == 1

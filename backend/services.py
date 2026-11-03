@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from backend import eventlog
 from backend.models import Customer, Delivery, Route, RouteStop, UrgentRequest, User
-from backend.settings import DEPOT_LAT, DEPOT_LON
+from backend.settings import DEPOT_LAT, DEPOT_LON, LATE_COST_CRITICAL, LATE_COST_URGENT
 from evaluation.policies import CANDIDATE_RISK
 from planner.routing import plan
 from predictor.risk import band, run_out_risk
@@ -103,7 +103,8 @@ def build_plan(session, today, seconds=2.0):
     routes_out, visited = [], set()
     if candidates:
         result = plan(candidates, [r["risk"] for r in candidates],
-                      urgent_ids={r["id"] for r in candidates if r["urgent"]}, seconds=seconds)
+                      urgent_ids={r["id"] for r in candidates if r["urgent"]}, seconds=seconds,
+                      urgent_late_cost=LATE_COST_URGENT, critical_late_cost=LATE_COST_CRITICAL)
         if result is not None:
             routes, visited_local = result
             visited = {candidates[k - 1]["id"] for k in visited_local}

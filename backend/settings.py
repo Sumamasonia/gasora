@@ -10,3 +10,8 @@ TOKEN_MINUTES = 8 * 60
 # Depot position (placeholder: central Faisalabad; the agency's real address comes later)
 DEPOT_LAT = 31.4181
 DEPOT_LON = 73.0776
+
+# Pull urgent and Critical customers towards the start of their route (extra cost per minute of
+# arrival time). PLACEHOLDERS: a higher number means earlier arrival but longer routes.
+LATE_COST_URGENT = 5
+LATE_COST_CRITICAL = 1

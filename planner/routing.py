@@ -5,7 +5,7 @@ import math
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
 from config import (N_VEHICLES, CAPACITY, SHIFT_MIN, SERVICE_MIN, SPEED_KMH,
-                    EMERGENCY_COST, URGENT_PENALTY, SOLVER_SECONDS)
+                    EMERGENCY_COST, URGENT_PENALTY, SOLVER_SECONDS, CRITICAL_AT)
 
 
 def travel_minutes(a, b):
@@ -13,10 +13,13 @@ def travel_minutes(a, b):
     return int(round(km / SPEED_KMH * 60))
 
 
-def plan(customers, risks, urgent_ids=(), tm=None, seconds=None):
+def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
+         urgent_late_cost=0, critical_late_cost=0):
     """Returns (routes, visited) or None. routes = list of (stop list, minutes).
     tm = ready road-time matrix in minutes (index 0 = depot). If None, straight-line is used.
-    seconds = solver time limit (default from config)."""
+    seconds = solver time limit (default from config).
+    urgent_late_cost / critical_late_cost = extra cost per minute of arrival time at urgent or Critical
+    customers. It pulls them towards the start of their route. 0 (default) = no pull."""
     depot = {"id": 0, "x": 0.0, "y": 0.0, "demand": 0}
     nodes = [depot] + customers
     n = len(nodes)
@@ -38,7 +41,12 @@ def plan(customers, risks, urgent_ids=(), tm=None, seconds=None):
     d_idx = routing.RegisterUnaryTransitCallback(demand_cb)
     routing.AddDimensionWithVehicleCapacity(d_idx, 0, [CAPACITY] * N_VEHICLES, True, "Load")
 
+    time_dim = routing.GetDimensionOrDie("Time")
     for k, c in enumerate(customers, start=1):
+        if c["id"] in urgent_ids and urgent_late_cost > 0:
+            time_dim.SetCumulVarSoftUpperBound(manager.NodeToIndex(k), 0, int(urgent_late_cost))
+        elif risks[k - 1] >= CRITICAL_AT and critical_late_cost > 0:
+            time_dim.SetCumulVarSoftUpperBound(manager.NodeToIndex(k), 0, int(critical_late_cost))
         if c["id"] in urgent_ids:
             penalty = URGENT_PENALTY
         else:
