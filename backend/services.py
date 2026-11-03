@@ -67,7 +67,7 @@ def _pooled(rows):
             float(np.mean([np.std(r["intervals"], ddof=1) for r in ok])))
 
 
-def build_plan(session, today, seconds=2.0):
+def build_plan(session, today, seconds=2.0, router=None):
     customers = session.scalars(select(Customer).order_by(Customer.id)).all()
     deliveries = session.scalars(
         select(Delivery).where(Delivery.delivered_on <= today).order_by(Delivery.delivered_on)).all()
@@ -84,7 +84,7 @@ def build_plan(session, today, seconds=2.0):
             continue
         x, y = _xy_km(c.lat, c.lon)
         rows.append({
-            "id": c.id, "name": c.name, "demand": c.demand, "x": x, "y": y,
+            "id": c.id, "name": c.name, "demand": c.demand, "x": x, "y": y, "lat": c.lat, "lon": c.lon,
             "intervals": [(b - a).days for a, b in zip(ds, ds[1:])],
             "days_since": (today - ds[-1]).days if ds else None,
             "n_deliveries": len(ds),
@@ -100,17 +100,29 @@ def build_plan(session, today, seconds=2.0):
             r["band"] = band(r["risk"])
 
     candidates = [r for r in rows if r["urgent"] or r["risk"] >= CANDIDATE_RISK]
-    routes_out, visited = [], set()
+    routes_out, visited, warnings = [], set(), []
+    road = router is not None and router.mode == "road"
     if candidates:
+        tm = km_matrix = None
+        if road:
+            m = router.matrix([(DEPOT_LAT, DEPOT_LON)] + [(r["lat"], r["lon"]) for r in candidates])
+            tm, km_matrix = m["minutes"], m["km"]
+            if m["far"]:
+                warnings.append("%d place(s) are more than 1 km from the downloaded road map, "
+                                "so their road times are approximate." % len(m["far"]))
         result = plan(candidates, [r["risk"] for r in candidates],
-                      urgent_ids={r["id"] for r in candidates if r["urgent"]}, seconds=seconds,
+                      urgent_ids={r["id"] for r in candidates if r["urgent"]}, seconds=seconds, tm=tm,
                       urgent_late_cost=LATE_COST_URGENT, critical_late_cost=LATE_COST_CRITICAL)
         if result is not None:
             routes, visited_local = result
             visited = {candidates[k - 1]["id"] for k in visited_local}
             for v, (route, minutes) in enumerate(routes, start=1):
+                km = None
+                if road and route:
+                    seq = [0] + list(route) + [0]
+                    km = round(sum(km_matrix[a][b] for a, b in zip(seq, seq[1:])), 1)
                 routes_out.append({
-                    "vehicle": v, "minutes": minutes,
+                    "vehicle": v, "minutes": minutes, "km": km,
                     "stops": [{"customer_id": candidates[k - 1]["id"], "name": candidates[k - 1]["name"],
                                "risk": round(candidates[k - 1]["risk"], 3), "band": candidates[k - 1]["band"],
                                "urgent": candidates[k - 1]["urgent"]} for k in route]})
@@ -120,7 +132,10 @@ def build_plan(session, today, seconds=2.0):
     return {
         "date": today.isoformat(),
         "depot": {"lat": DEPOT_LAT, "lon": DEPOT_LON},
-        "settings_note": "straight-line distances; candidates are customers with risk >= %.2f, plus urgent requests" % CANDIDATE_RISK,
+        "routing": "road" if road else "straight",
+        "warnings": warnings,
+        "settings_note": "%s travel times; candidates are customers with risk >= %.2f, plus urgent requests"
+                         % ("road" if road else "straight-line", CANDIDATE_RISK),
         "risk_table": [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3),
                         "band": r["band"], "urgent": r["urgent"], "days_since_delivery": r["days_since"],
                         "deliveries_seen": r["n_deliveries"]} for r in ranked],
@@ -131,7 +146,7 @@ def build_plan(session, today, seconds=2.0):
 
 
 # ---------- routes for drivers ----------
-def publish_plan(session, events, actor, day, seconds):
+def publish_plan(session, events, actor, day, seconds, router=None):
     """Plan the day and save the routes so drivers can see them. Caller commits."""
     existing = session.scalars(select(Route).where(Route.day == day)).all()
     if existing:
@@ -143,7 +158,7 @@ def publish_plan(session, events, actor, day, seconds):
         for r in existing:
             session.delete(r)
         session.flush()
-    p = build_plan(session, day, seconds)
+    p = build_plan(session, day, seconds, router)
     created, n_stops = [], 0
     for r in p["routes"]:
         if not r["stops"]:
@@ -211,3 +226,19 @@ def complete_stop(session, events, user, stop_id, action, cylinders=None, reason
         stop.status, stop.reason = "skipped", reason
         eventlog.append(events, user.username, "stop.skipped",
                         {"stop_id": stop.id, "customer_id": stop.customer_id, "reason": reason})
+
+
+def route_paths(session, router, sequences):
+    """Road paths (lists of [lat, lon]) for routes given as lists of customer ids, depot to depot."""
+    ids = {cid for seq in sequences for cid in seq}
+    pos = {c.id: (c.lat, c.lon) for c in session.scalars(select(Customer).where(Customer.id.in_(ids)))} if ids else {}
+    depot = (DEPOT_LAT, DEPOT_LON)
+    out = []
+    for seq in sequences:
+        stops = [depot] + [pos[c] for c in seq if c in pos] + [depot]
+        line = []
+        for a, b in zip(stops, stops[1:]):
+            leg = router.path(a, b)
+            line.extend(leg if not line else leg[1:])
+        out.append(line)
+    return out

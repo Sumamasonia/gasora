@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend import eventlog, security, services, settings
+from planner.road_router import RoadRouter, StraightRouter
 from backend.models import Base, Customer, Delivery, User
 
 log = logging.getLogger("gasora")
@@ -90,6 +91,10 @@ class AssignIn(BaseModel):
 
 class DeliverIn(BaseModel):
     cylinders: Optional[int] = Field(default=None, ge=1, le=10)
+
+
+class PathsIn(BaseModel):
+    routes: list[list[int]] = Field(max_length=10)
 
 
 class SkipIn(BaseModel):
@@ -197,9 +202,15 @@ def list_deliveries(customer_id: Optional[int] = None, limit: int = Query(100, g
 
 
 @router.get("/plan/today")
-def plan_today(day: Optional[date] = None, seconds: float = Query(2.0, ge=0.1, le=30),
+def plan_today(request: Request, day: Optional[date] = None, seconds: float = Query(2.0, ge=0.1, le=30),
                session: Session = Depends(get_session), me: User = Depends(require("owner"))):
-    return services.build_plan(session, day or date.today(), seconds)
+    return services.build_plan(session, day or date.today(), seconds, request.app.state.router)
+
+
+@router.post("/paths")
+def paths(body: PathsIn, request: Request, session: Session = Depends(get_session),
+          me: User = Depends(require("owner", "driver"))):
+    return {"paths": services.route_paths(session, request.app.state.router, body.routes)}
 
 
 @router.get("/audit/verify")
@@ -236,7 +247,8 @@ def publish(body: PublishIn, request: Request, session: Session = Depends(get_se
             me: User = Depends(require("owner"))):
     day = body.day or date.today()
     try:
-        services.publish_plan(session, request.app.state.events, me.username, day, body.seconds)
+        services.publish_plan(session, request.app.state.events, me.username, day, body.seconds,
+                                 request.app.state.router)
     except ValueError as e:
         raise HTTPException(409, str(e))
     session.commit()
@@ -291,7 +303,7 @@ def skip_stop(stop_id: int, body: SkipIn, request: Request, session: Session = D
 
 
 # ---------- app factory ----------
-def create_app(db_url=None, events_path=None, secret=None):
+def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_path=None, cache_path=None):
     db_url = db_url or settings.DB_URL
     events_path = events_path or settings.EVENTS_PATH
     secret = secret or settings.SECRET
@@ -315,5 +327,14 @@ def create_app(db_url=None, events_path=None, secret=None):
     app.state.SessionLocal = sessionmaker(engine, expire_on_commit=False)
     app.state.events = eventlog.connect(events_path)
     app.state.secret = secret
+    graph_path = graph_path or settings.ROAD_GRAPH
+    routing = routing or settings.ROUTING
+    if routing == "auto":
+        routing = "road" if os.path.exists(graph_path) else "straight"
+    if routing == "road":
+        app.state.router = RoadRouter(graph_path, cache_path or settings.ROAD_CACHE)
+    else:
+        app.state.router = StraightRouter()
+    log.info("Routing mode: %s", app.state.router.mode)
     app.include_router(router)
     return app

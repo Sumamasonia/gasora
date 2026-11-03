@@ -12,7 +12,7 @@ function FitToPoints({ points }) {
 }
 
 // Draws the published routes when there are any, and the proposed plan before publishing.
-export default function PlanMap({ plan, coords, published = [] }) {
+export default function PlanMap({ plan, coords, published = [], paths = [] }) {
   const depot = [plan.depot.lat, plan.depot.lon]
   const routes = published.length > 0 ? published : plan.routes
   const stopInfo = {}                                   // customer id -> { seq, status }
@@ -29,7 +29,8 @@ export default function PlanMap({ plan, coords, published = [] }) {
       <FitToPoints points={allPoints} />
 
       {routes.map((route, i) => {
-        const line = [depot, ...route.stops.map((s) => [coords[s.customer_id].lat, coords[s.customer_id].lon]), depot]
+        const straight = [depot, ...route.stops.map((s) => [coords[s.customer_id].lat, coords[s.customer_id].lon]), depot]
+        const line = paths[i] && paths[i].length > 1 ? paths[i] : straight
         return (
           <Polyline
             key={route.vehicle}

@@ -12,7 +12,7 @@ SECRET = "test-secret-long-enough-for-hs256-signing-0123"
 
 @pytest.fixture()
 def client():
-    app = create_app("sqlite://", ":memory:", SECRET)
+    app = create_app("sqlite://", ":memory:", SECRET, routing="straight")
     with app.state.SessionLocal() as s:
         s.add(User(username="boss", password_hash=security.hash_password("boss-password"), role="owner"))
         s.commit()

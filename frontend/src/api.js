@@ -40,6 +40,7 @@ export const createUrgent = (token, customer_id, note) =>
   request('/urgent', { token, method: 'POST', body: { customer_id, note: note || null } })
 export const publishPlan = (token, seconds) =>
   request('/plan/publish', { token, method: 'POST', body: { seconds } })
+export const getPaths = (token, routes) => request('/paths', { token, method: 'POST', body: { routes } })
 export const getRoutes = (token) => request('/routes', { token })
 export const assignRoute = (token, routeId, username) =>
   request(`/routes/${routeId}/assign`, { token, method: 'PATCH', body: { username } })

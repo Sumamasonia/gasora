@@ -9,7 +9,7 @@ Both methods have a setting that decides how many customers they visit:
 We run several settings of each. For every seed, a rule gives a curve (deliveries, run-outs).
 We read that curve at the number of deliveries P3 made, and compare run-outs and total km.
 
-Run:  python -m evaluation.matched --seeds 10 --days 30 --n 100
+Run:  python -m evaluation.matched --seeds 10 --days 30 --n 100 [--source road]
 """
 import argparse
 import csv
@@ -70,14 +70,14 @@ def compare(res, ref, leads, seeds):
               f"{'':14s}{np.mean(d_km):8.1f}  [{lo2:7.1f}, {hi2:7.1f}]")
 
 
-def main(n_seeds, days, n):
+def main(n_seeds, days, n, source="straight"):
     seeds = list(range(1, n_seeds + 1))
     res = {"P2": {l: [] for l in LEADS}, "P2s": {l: [] for l in STRONG_LEADS},
            "P3": {c: [] for c in CUTOFFS}}
     old = policies.CANDIDATE_RISK
     try:
         for s in seeds:
-            static = build_static(s, n)
+            static = build_static(s, n, source)
             for l in LEADS:
                 res["P2"][l].append(run_policy(static, make_rule(l), days))
             for l in STRONG_LEADS:
@@ -89,7 +89,7 @@ def main(n_seeds, days, n):
     finally:
         policies.CANDIDATE_RISK = old
 
-    print(f"\nMean over {n_seeds} seeds, {days} days, {n} customers (straight-line distances)")
+    print(f"\nMean over {n_seeds} seeds, {days} days, {n} customers ({source} distances)")
     print(f"{'setting':22s}{'deliveries':>12s}{'run-outs/100cm':>16s}{'early':>8s}{'total km':>10s}")
     for name, par, label in (("P2", LEADS, "lead {} d"), ("P2s", STRONG_LEADS, "lead {} d"),
                              ("P3", CUTOFFS, "cut-off {:.2f}")):
@@ -122,5 +122,6 @@ if __name__ == "__main__":
     ap.add_argument("--seeds", type=int, default=3)
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--n", type=int, default=100)
+    ap.add_argument("--source", choices=["straight", "road"], default="straight")
     a = ap.parse_args()
-    main(a.seeds, a.days, a.n)
+    main(a.seeds, a.days, a.n, a.source)

@@ -15,3 +15,9 @@ DEPOT_LON = 73.0776
 # arrival time). PLACEHOLDERS: a higher number means earlier arrival but longer routes.
 LATE_COST_URGENT = 5
 LATE_COST_CRITICAL = 1
+
+# Routing: "auto" uses road times when the saved road graph exists, otherwise straight-line.
+# Set GASORA_ROUTING to "road" or "straight" to force one.
+ROUTING = os.environ.get("GASORA_ROUTING", "auto")
+ROAD_GRAPH = os.path.join("data", "faisalabad.graphml")
+ROAD_CACHE = os.path.join("data", "road_cache.json")

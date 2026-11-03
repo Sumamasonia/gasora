@@ -10,7 +10,7 @@ from backend.models import User
 
 @pytest.fixture()
 def client():
-    app = create_app("sqlite://", ":memory:", "test-secret-long-enough-for-hs256-signing-0123")
+    app = create_app("sqlite://", ":memory:", "test-secret-long-enough-for-hs256-signing-0123", routing="straight")
     with app.state.SessionLocal() as s:
         s.add(User(username="boss", password_hash=security.hash_password("boss-password"), role="owner"))
         s.commit()

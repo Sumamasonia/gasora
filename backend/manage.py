@@ -3,6 +3,7 @@
   python -m backend.manage create-owner NAME      ask for a password, make an owner account
   python -m backend.manage create-driver NAME     ask for a password, make a driver account
   python -m backend.manage seed-demo              fill an empty database with fake customers
+  python -m backend.manage warm-roads             compute road times for all customers (once)
 """
 import sys
 from datetime import date, timedelta
@@ -47,8 +48,9 @@ def seed_demo(app, n=60, seed=1):
     today = date.today()
     with app.state.SessionLocal() as s:
         for c in make_customers(n, rng):
-            lat = DEPOT_LAT + c["y"] / 110.57
-            lon = DEPOT_LON + c["x"] / (111.32 * np.cos(np.radians(DEPOT_LAT)))
+            x, y = c["x"] * 0.5, c["y"] * 0.5              # keep customers inside the downloaded 6 km road map
+            lat = DEPOT_LAT + y / 110.57
+            lon = DEPOT_LON + x / (111.32 * np.cos(np.radians(DEPOT_LAT)))
             row = Customer(name=f"Customer {c['id']:03d}", lat=float(lat), lon=float(lon), demand=c["demand"])
             s.add(row)
             s.flush()
@@ -63,6 +65,22 @@ def seed_demo(app, n=60, seed=1):
     print("Demo logins: owner /", DEMO_OWNER[1], "  driver1 /", DEMO_DRIVER[1])
 
 
+def warm_roads(app):
+    import time
+    from backend.models import Customer
+    router = app.state.router
+    if router.mode != "road":
+        print("Road routing is not active (no road graph found). Run: python -m planner.download_map")
+        return
+    with app.state.SessionLocal() as s:
+        pts = [(DEPOT_LAT, DEPOT_LON)] + [(c.lat, c.lon) for c in s.scalars(select(Customer))]
+    t0 = time.time()
+    m = router.matrix(pts)
+    print(f"Road times ready for {len(pts) - 1} customers in {time.time() - t0:.0f} s.")
+    if m["far"]:
+        print(f"{len(m['far'])} place(s) are more than 1 km from the road map.")
+
+
 if __name__ == "__main__":
     app = create_app()
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -70,5 +88,7 @@ if __name__ == "__main__":
         create_user(app, sys.argv[2], getpass("Password (min 8 characters): "), cmd.split("-")[1])
     elif cmd == "seed-demo":
         seed_demo(app)
+    elif cmd == "warm-roads":
+        warm_roads(app)
     else:
         print(__doc__)

@@ -28,7 +28,17 @@ def _speed(highway):
     return SPEEDS_KMH.get(highway, DEFAULT_SPEED_KMH)
 
 
+_GRAPH_CACHE = {}
+
+
 def load_graph(path=GRAPH_FILE):
+    """Load the saved graph once per process (loading takes several seconds)."""
+    if path not in _GRAPH_CACHE:
+        _GRAPH_CACHE[path] = _load_graph(path)
+    return _GRAPH_CACHE[path]
+
+
+def _load_graph(path):
     G = ox.load_graphml(path)
     G = ox.truncate.largest_component(G, strongly=True)   # every node can reach every node
     for _, _, d in G.edges(data=True):

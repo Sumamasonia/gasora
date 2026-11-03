@@ -11,6 +11,10 @@ Assumption (placeholder): when a driver swaps a cylinder, the system records how
 cylinder really lasted (the driver estimates it from the remaining gas).
 """
 from dataclasses import dataclass
+import hashlib
+import os
+import pickle
+
 import numpy as np
 
 from config import N_CUSTOMERS
@@ -40,7 +44,31 @@ def _durations(seed, c):
     return np.maximum(5.0, d)
 
 
+def _road_cache_file(seed, n):
+    """Road matrices take a while, so they are saved. The name changes if the map or the speeds change."""
+    from planner import road_matrix as rm
+    if not os.path.isdir("data") or not os.path.exists(rm.GRAPH_FILE):
+        return None
+    st = os.stat(rm.GRAPH_FILE)
+    sig = hashlib.md5(f"{st.st_size}-{int(st.st_mtime)}-{sorted(rm.SPEEDS_KMH.items())}-{rm.DEFAULT_SPEED_KMH}".encode()).hexdigest()[:10]
+    return os.path.join("data", f"static_road_s{seed}_n{n}_{sig}.pkl")
+
+
 def build_static(seed, n=N_CUSTOMERS, source="straight"):
+    if source == "road":
+        cache = _road_cache_file(seed, n)
+        if cache and os.path.exists(cache):
+            with open(cache, "rb") as f:
+                return pickle.load(f)
+        static = _build_static(seed, n, source)
+        if cache:
+            with open(cache, "wb") as f:
+                pickle.dump(static, f)
+        return static
+    return _build_static(seed, n, source)
+
+
+def _build_static(seed, n, source):
     rng = np.random.default_rng(seed)
     if source == "road":
         from planner import road_matrix as rm

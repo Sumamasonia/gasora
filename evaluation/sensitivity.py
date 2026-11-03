@@ -31,7 +31,7 @@ SETTINGS = [
 ]
 
 
-def main(n_seeds, days, n):
+def main(n_seeds, days, n, source="straight"):
     seeds = list(range(1, n_seeds + 1))
     rows = {"P2 average-days + OR-Tools (reference)": []}
     cutoffs = sorted({cut for _, cut, _ in SETTINGS})
@@ -43,7 +43,7 @@ def main(n_seeds, days, n):
     old_risk, old_cost = policies.CANDIDATE_RISK, routing.EMERGENCY_COST
     try:
         for s in seeds:
-            static = build_static(s, n)
+            static = build_static(s, n, source)
             rows["P2 average-days + OR-Tools (reference)"].append(
                 run_policy(static, policies.p2_average_ortools, days))
             for label, cut, cost in SETTINGS:
@@ -57,7 +57,7 @@ def main(n_seeds, days, n):
     finally:
         policies.CANDIDATE_RISK, routing.EMERGENCY_COST = old_risk, old_cost
 
-    print(f"\nMean over {n_seeds} seeds, {days} days, {n} customers (straight-line distances)")
+    print(f"\nMean over {n_seeds} seeds, {days} days, {n} customers ({source} distances)")
     print(f"{'setting':44s}" + "".join(f"{k:>19s}" for k in KEYS))
     for name, rs in rows.items():
         print(f"{name:44s}" + "".join(f"{np.mean([r[k] for r in rs]):19.1f}" for k in KEYS))
@@ -77,5 +77,6 @@ if __name__ == "__main__":
     ap.add_argument("--seeds", type=int, default=3)
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--n", type=int, default=100)
+    ap.add_argument("--source", choices=["straight", "road"], default="straight")
     a = ap.parse_args()
-    main(a.seeds, a.days, a.n)
+    main(a.seeds, a.days, a.n, a.source)
