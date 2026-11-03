@@ -13,9 +13,11 @@ Limits (to state honestly in the report):
 import hashlib
 import json
 import sqlite3
+import threading
 from datetime import datetime, timezone
 
 GENESIS = "0" * 64
+_LOCK = threading.RLock()      # one thread at a time on the shared connection
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
@@ -35,7 +37,8 @@ BEGIN SELECT RAISE(ABORT, 'event log is append-only'); END;
 
 
 def connect(path=":memory:"):
-    conn = sqlite3.connect(path, isolation_level=None)   # we control transactions ourselves
+    conn = sqlite3.connect(path, isolation_level=None,    # we control transactions ourselves
+                           check_same_thread=False)      # the web server uses several threads
     conn.executescript(SCHEMA)
     return conn
 
@@ -53,6 +56,11 @@ def append(conn, actor, event_type, payload, ts=None):
     """Add one event and return (id, hash)."""
     ts = ts or datetime.now(timezone.utc).isoformat()
     payload_text = _canonical(payload)
+    with _LOCK:
+        return _append_locked(conn, actor, event_type, payload_text, ts)
+
+
+def _append_locked(conn, actor, event_type, payload_text, ts):
     conn.execute("BEGIN IMMEDIATE")                       # one writer at a time
     try:
         row = conn.execute("SELECT hash FROM events ORDER BY id DESC LIMIT 1").fetchone()
@@ -70,17 +78,20 @@ def append(conn, actor, event_type, payload, ts=None):
 
 def head(conn):
     """Latest hash. Store a copy outside the database from time to time (the anchor)."""
-    row = conn.execute("SELECT hash FROM events ORDER BY id DESC LIMIT 1").fetchone()
+    with _LOCK:
+        row = conn.execute("SELECT hash FROM events ORDER BY id DESC LIMIT 1").fetchone()
     return row[0] if row else GENESIS
 
 
 def verify(conn, anchor=None):
     """Check the whole chain. Returns (ok, message).
     If anchor is given, the newest hash must equal it (this catches removed newest events)."""
+    with _LOCK:
+        rows = conn.execute(
+            "SELECT id, ts, actor, event_type, payload, prev_hash, hash FROM events ORDER BY id").fetchall()
     prev = GENESIS
     last_id = 0
-    for id_, ts, actor, etype, payload, prev_hash, h in conn.execute(
-            "SELECT id, ts, actor, event_type, payload, prev_hash, hash FROM events ORDER BY id"):
+    for id_, ts, actor, etype, payload, prev_hash, h in rows:
         if id_ != last_id + 1:
             return False, f"event number {last_id + 1} is missing (found {id_})"
         if prev_hash != prev:
