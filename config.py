@@ -6,7 +6,7 @@ N_CUSTOMERS = 50
 # Vehicles and shift
 N_VEHICLES = 2
 CAPACITY = 40            # cylinders per vehicle
-SHIFT_MIN = 240          # minutes per vehicle
+SHIFT_MIN = 480          # minutes per vehicle (8 hours; assumption, to be confirmed)
 SERVICE_MIN = 10         # minutes at each customer
 SPEED_KMH = 30           # straight-line speed (OSMnx road times come later)
 

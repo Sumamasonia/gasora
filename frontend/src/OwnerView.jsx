@@ -39,7 +39,10 @@ function PlanPanel({ plan, published }) {
             {route.stops.map((s) => (
               <li key={s.customer_id}>
                 {s.name} {s.urgent && <UrgentTag />} <Badge band={s.band} />{' '}
-                <span className="muted">{Math.round(s.risk * 100)}%</span>
+                <span className="muted">
+                  {Math.round(s.risk * 100)}%
+                  {s.window_days && ` \u00b7 empty in ${s.window_days[0]} to ${s.window_days[1]} days`}
+                </span>
               </li>
             ))}
           </ol>

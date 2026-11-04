@@ -10,7 +10,7 @@ from backend.models import Customer, Delivery, Route, RouteStop, UrgentRequest, 
 from backend.settings import DEPOT_LAT, DEPOT_LON, LATE_COST_CRITICAL, LATE_COST_URGENT
 from evaluation.policies import CANDIDATE_RISK
 from planner.routing import plan
-from predictor.risk import band, run_out_risk
+from predictor.risk import band, refill_window, run_out_risk
 
 DEFAULT_POOLED = (20.0, 4.0)      # mean and spread of days between refills, used when no data (placeholder)
 
@@ -94,10 +94,11 @@ def build_plan(session, today, seconds=2.0, router=None):
     mu, sd = _pooled(rows)
     for r in rows:
         if r["days_since"] is None:                    # urgent customer with no history: risk unknown
-            r["risk"], r["band"] = 1.0, "Urgent"
+            r["risk"], r["band"], r["window"] = 1.0, "Urgent", None
         else:
             r["risk"] = run_out_risk(r, mu, sd)
             r["band"] = band(r["risk"])
+            r["window"] = [round(x, 1) for x in refill_window(r, mu, sd)]
 
     candidates = [r for r in rows if r["urgent"] or r["risk"] >= CANDIDATE_RISK]
     routes_out, visited, warnings = [], set(), []
@@ -125,7 +126,8 @@ def build_plan(session, today, seconds=2.0, router=None):
                     "vehicle": v, "minutes": minutes, "km": km,
                     "stops": [{"customer_id": candidates[k - 1]["id"], "name": candidates[k - 1]["name"],
                                "risk": round(candidates[k - 1]["risk"], 3), "band": candidates[k - 1]["band"],
-                               "urgent": candidates[k - 1]["urgent"]} for k in route]})
+                               "urgent": candidates[k - 1]["urgent"],
+                               "window_days": candidates[k - 1]["window"]} for k in route]})
     skipped = [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3), "band": r["band"],
                 "urgent": r["urgent"]} for r in candidates if r["id"] not in visited]
     ranked = sorted(rows, key=lambda r: (-r["urgent"], -r["risk"]))
@@ -138,6 +140,7 @@ def build_plan(session, today, seconds=2.0, router=None):
                          % ("road" if road else "straight-line", CANDIDATE_RISK),
         "risk_table": [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3),
                         "band": r["band"], "urgent": r["urgent"], "days_since_delivery": r["days_since"],
+                        "window_days": r["window"],
                         "deliveries_seen": r["n_deliveries"]} for r in ranked],
         "routes": routes_out,
         "candidates_not_visited": skipped,

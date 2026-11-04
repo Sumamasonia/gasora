@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { BAND_COLOR, VEHICLE_COLORS } from './colors'
@@ -18,7 +18,11 @@ export default function PlanMap({ plan, coords, published = [], paths = [] }) {
   const stopInfo = {}                                   // customer id -> { seq, status }
   routes.forEach((r) => r.stops.forEach((s, i) => { stopInfo[s.customer_id] = { seq: i + 1, status: s.status || 'pending' } }))
   const inRoute = new Set(Object.keys(stopInfo).map(Number))
-  const allPoints = [depot, ...Object.values(coords).map((c) => [c.lat, c.lon])]
+  // Computed once per data load, so the map does not jump back to the full view when you type or click.
+  const allPoints = useMemo(
+    () => [[plan.depot.lat, plan.depot.lon], ...Object.values(coords).map((c) => [c.lat, c.lon])],
+    [plan.depot.lat, plan.depot.lon, coords],
+  )
 
   return (
     <MapContainer center={depot} zoom={12} className="map">
@@ -61,6 +65,7 @@ export default function PlanMap({ plan, coords, published = [], paths = [] }) {
               {row.urgent && <>Urgent request<br /></>}
               Risk {Math.round(row.risk * 100)}% ({row.band})
               <br />
+              {row.window_days && <>Likely empty in {row.window_days[0]} to {row.window_days[1]} days<br /></>}
               {row.days_since_delivery === null
                 ? 'No delivery history'
                 : `${row.days_since_delivery} days since last delivery`}
