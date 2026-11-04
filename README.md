@@ -190,8 +190,8 @@ Implemented:
 
 Planned:
 
-- [ ] Road-time matrix in the API plan and in the evaluation runs
-- [ ] Refill window output from the predictor
+- [x] Road-time matrix in the API plan and in the evaluation runs
+- [x] Refill window output from the predictor
 - [ ] Cylinder register (state and owner) and empty-cylinder tracking
 - [ ] Stock and purchases, payments and invoices, reports, backup
 - [ ] Deployment
@@ -200,7 +200,7 @@ Planned:
 
 - Evidence comes from simulation, and the predictor matches the simulator's assumptions (normal-shaped
   cylinder durations). Results show that the method works when its model fits, not how it performs on real data.
-- Planning in the API uses straight-line distances until the road matrix is connected.
+- Road travel times use assumed speeds per road type (checked against a map service on three trips) and include no traffic. Vehicle shift length is assumed to be 8 hours.
 - Many parameters are placeholders: risk cut-off, skip penalty, late-arrival costs, road speeds, and the
   threshold for an early delivery.
 - The event log is tamper-evident, not tamper-proof. Someone with full access to the database file can rewrite
