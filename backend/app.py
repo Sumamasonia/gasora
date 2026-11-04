@@ -1,7 +1,7 @@
 """FastAPI app: login, customers, deliveries, today's plan, audit check."""
 import logging
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
@@ -52,11 +52,27 @@ class CustomerIn(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     demand: int = Field(default=1, ge=1, le=10)
+    customer_type: Literal["home", "shop", "restaurant"] = "home"
+    cylinder_type: str = Field(default="11.8 kg", min_length=1, max_length=30)
 
 
 class CustomerOut(CustomerIn):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    is_active: bool
+    created_at: datetime
+
+
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    lat: Optional[float] = Field(default=None, ge=-90, le=90)
+    lon: Optional[float] = Field(default=None, ge=-180, le=180)
+    demand: Optional[int] = Field(default=None, ge=1, le=10)
+    customer_type: Optional[Literal["home", "shop", "restaurant"]] = None
+    cylinder_type: Optional[str] = Field(default=None, min_length=1, max_length=30)
+    is_active: Optional[bool] = None
 
 
 class DeliveryIn(BaseModel):
@@ -146,6 +162,11 @@ def login(body: LoginIn, request: Request, session: Session = Depends(get_sessio
     return TokenOut(access_token=token, role=user.role)
 
 
+@router.get("/auth/me", response_model=UserOut)
+def auth_me(me: User = Depends(current_user)):
+    return me
+
+
 @router.post("/users", response_model=UserOut, status_code=201)
 def create_user(body: UserIn, request: Request, session: Session = Depends(get_session),
                 me: User = Depends(require("owner"))):
@@ -173,8 +194,51 @@ def create_customer(body: CustomerIn, request: Request, session: Session = Depen
 
 
 @router.get("/customers", response_model=list[CustomerOut])
-def list_customers(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver"))):
-    return session.scalars(select(Customer).order_by(Customer.id)).all()
+def list_customers(include_inactive: bool = Query(False),
+                   session: Session = Depends(get_session),
+                   me: User = Depends(require("owner", "driver"))):
+    q = select(Customer).order_by(Customer.id)
+    if not include_inactive:
+        q = q.where(Customer.is_active.is_(True))
+    return session.scalars(q).all()
+
+
+@router.get("/customers/{id}", response_model=CustomerOut)
+def get_customer(id: int, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner", "driver"))):
+    c = session.get(Customer, id)
+    if c is None:
+        raise HTTPException(404, "customer not found")
+    return c
+
+
+@router.put("/customers/{id}", response_model=CustomerOut)
+def update_customer(id: int, body: CustomerUpdate, request: Request,
+                    session: Session = Depends(get_session),
+                    me: User = Depends(require("owner"))):
+    c = session.get(Customer, id)
+    if c is None:
+        raise HTTPException(404, "customer not found")
+    updates = body.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(c, key, value)
+    eventlog.append(request.app.state.events, me.username, "customer.updated",
+                    {"customer_id": c.id, "changed_fields": list(updates.keys())})
+    session.commit()
+    return c
+
+
+@router.delete("/customers/{id}", response_model=CustomerOut)
+def delete_customer(id: int, request: Request, session: Session = Depends(get_session),
+                    me: User = Depends(require("owner"))):
+    c = session.get(Customer, id)
+    if c is None:
+        raise HTTPException(404, "customer not found")
+    c.is_active = False
+    eventlog.append(request.app.state.events, me.username, "customer.deactivated",
+                    {"customer_id": c.id})
+    session.commit()
+    return c
 
 
 @router.post("/deliveries", response_model=DeliveryOut, status_code=201)
