@@ -4,20 +4,24 @@ State transitions (single source of truth):
   Empty -> Filled        (refill at the plant; no customer)
   Filled -> Delivered    (needs customer_id; customer must exist and be active; sets cylinder.customer_id)
   Delivered -> Recovered (empty collected back from the customer; clears cylinder.customer_id)
-  Recovered -> Filled    (refilled; no customer)
+  Recovered -> Empty     (returned to plant/stock as empty; no customer)
 
 Any other transition is invalid. A cylinder with owner "Customer" follows the same flow.
 """
+from datetime import date, timedelta
+
 from sqlalchemy import func, select
 
 from backend import eventlog
 from backend.models import Customer, Cylinder, CylinderTransaction
 
+RETURN_DUE_DAYS = 15
+
 ALLOWED_TRANSITIONS: dict[str, list[str]] = {
     "Empty": ["Filled"],
     "Filled": ["Delivered"],
     "Delivered": ["Recovered"],
-    "Recovered": ["Filled"],
+    "Recovered": ["Empty"],
 }
 
 
@@ -60,7 +64,7 @@ def register_cylinder(session, events, actor, serial_no, cylinder_type="11.8 kg"
 
 
 def transition_cylinder(session, events, actor, cylinder_id, to_state,
-                        customer_id=None, delivery_id=None, note=None):
+                        customer_id=None, delivery_id=None, note=None, due_date=None):
     """Transition a cylinder to a new state according to the state machine. Caller commits."""
     cyl = session.get(Cylinder, cylinder_id)
     if cyl is None:
@@ -72,6 +76,7 @@ def transition_cylinder(session, events, actor, cylinder_id, to_state,
         raise ValueError(f"Invalid transition from {from_state} to {to_state}")
 
     txn_cust_id = None
+    txn_due_date = due_date
     if to_state == "Delivered":
         if customer_id is None:
             raise ValueError("customer_id is required for Delivered transition")
@@ -82,10 +87,12 @@ def transition_cylinder(session, events, actor, cylinder_id, to_state,
             raise ValueError("customer is inactive")
         cyl.customer_id = customer_id
         txn_cust_id = customer_id
+        if txn_due_date is None:
+            txn_due_date = date.today() + timedelta(days=RETURN_DUE_DAYS)
     elif to_state == "Recovered":
         txn_cust_id = customer_id or cyl.customer_id
         cyl.customer_id = None
-    elif to_state == "Filled":
+    elif to_state in ("Filled", "Empty"):
         cyl.customer_id = None
         txn_cust_id = None
 
@@ -100,6 +107,7 @@ def transition_cylinder(session, events, actor, cylinder_id, to_state,
         delivery_id=delivery_id,
         actor=actor,
         note=note,
+        due_date=txn_due_date,
     )
     session.add(txn)
     session.flush()

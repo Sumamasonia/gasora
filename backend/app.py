@@ -81,6 +81,7 @@ class CylinderTransitionIn(BaseModel):
     customer_id: Optional[int] = None
     delivery_id: Optional[int] = None
     note: Optional[str] = Field(default=None, max_length=200)
+    due_date: Optional[date] = None
 
 
 class CylinderTransactionOut(BaseModel):
@@ -94,6 +95,7 @@ class CylinderTransactionOut(BaseModel):
     delivery_id: Optional[int]
     actor: str
     note: Optional[str]
+    due_date: Optional[date] = None
     created_at: datetime
     event_id: Optional[int]
 
@@ -289,7 +291,8 @@ def transition_cylinder_endpoint(id: int, body: CylinderTransitionIn, request: R
     try:
         cyl = cylinders.transition_cylinder(
             session, request.app.state.events, me.username,
-            id, body.to_state, body.customer_id, body.delivery_id, body.note
+            id, body.to_state, body.customer_id, body.delivery_id, body.note,
+            due_date=body.due_date,
         )
     except LookupError as e:
         raise HTTPException(404, str(e))

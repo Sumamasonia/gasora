@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -109,17 +111,23 @@ def test_cylinder_lifecycle(client):
     assert r_recov.json()["state"] == "Recovered"
     assert r_recov.json()["customer_id"] is None
 
-    # Recovered -> Filled
+    # Recovered -> Empty (back in stock as Empty)
+    r_empty = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Empty"}, headers=h_owner)
+    assert r_empty.status_code == 200, r_empty.text
+    assert r_empty.json()["state"] == "Empty"
+    assert r_empty.json()["customer_id"] is None
+
+    # Empty -> Filled (ready for reuse)
     r_fill2 = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Filled"}, headers=h_owner)
     assert r_fill2.status_code == 200, r_fill2.text
     assert r_fill2.json()["state"] == "Filled"
     assert r_fill2.json()["customer_id"] is None
 
-    # Verify history (5 transactions, oldest first)
+    # Verify history (6 transactions: register + 5 transitions, oldest first)
     r_hist = client.get(f"/cylinders/{cyl_id}/history", headers=h_owner)
     assert r_hist.status_code == 200, r_hist.text
     txns = r_hist.json()
-    assert len(txns) == 5
+    assert len(txns) == 6
 
     assert txns[0]["txn_type"] == "register"
     assert txns[0]["from_state"] is None
@@ -137,6 +145,8 @@ def test_cylinder_lifecycle(client):
     assert txns[2]["to_state"] == "Delivered"
     assert txns[2]["customer_id"] == cid
     assert txns[2]["note"] == "Delivered in morning"
+    # default due_date should be today + 15
+    assert txns[2]["due_date"] == (date.today() + timedelta(days=15)).isoformat()
 
     assert txns[3]["txn_type"] == "transition"
     assert txns[3]["from_state"] == "Delivered"
@@ -146,7 +156,45 @@ def test_cylinder_lifecycle(client):
 
     assert txns[4]["txn_type"] == "transition"
     assert txns[4]["from_state"] == "Recovered"
-    assert txns[4]["to_state"] == "Filled"
+    assert txns[4]["to_state"] == "Empty"
+
+    assert txns[5]["txn_type"] == "transition"
+    assert txns[5]["from_state"] == "Empty"
+    assert txns[5]["to_state"] == "Filled"
+
+
+def test_delivered_due_date(client):
+    h_owner = headers(client)
+    cid = add_customer(client, h_owner, name="Due Date Cust")
+
+    # 1. Default due_date = today + 15 days
+    r1 = client.post("/cylinders", json={"serial_no": "CYL-DUE-DEF"}, headers=h_owner)
+    cyl1 = r1.json()["id"]
+    client.post(f"/cylinders/{cyl1}/transition", json={"to_state": "Filled"}, headers=h_owner)
+    client.post(f"/cylinders/{cyl1}/transition", json={
+        "to_state": "Delivered",
+        "customer_id": cid
+    }, headers=h_owner)
+
+    r_hist1 = client.get(f"/cylinders/{cyl1}/history", headers=h_owner).json()
+    deliv_txn1 = [t for t in r_hist1 if t["to_state"] == "Delivered"][0]
+    expected_default_due = (date.today() + timedelta(days=15)).isoformat()
+    assert deliv_txn1["due_date"] == expected_default_due
+
+    # 2. Sent due_date is stored
+    custom_due = (date.today() + timedelta(days=25)).isoformat()
+    r2 = client.post("/cylinders", json={"serial_no": "CYL-DUE-CUSTOM"}, headers=h_owner)
+    cyl2 = r2.json()["id"]
+    client.post(f"/cylinders/{cyl2}/transition", json={"to_state": "Filled"}, headers=h_owner)
+    client.post(f"/cylinders/{cyl2}/transition", json={
+        "to_state": "Delivered",
+        "customer_id": cid,
+        "due_date": custom_due
+    }, headers=h_owner)
+
+    r_hist2 = client.get(f"/cylinders/{cyl2}/history", headers=h_owner).json()
+    deliv_txn2 = [t for t in r_hist2 if t["to_state"] == "Delivered"][0]
+    assert deliv_txn2["due_date"] == custom_due
 
 
 def test_invalid_transitions(client):
@@ -190,6 +238,29 @@ def test_invalid_transitions(client):
     assert client.post(f"/cylinders/{cyl_id}/transition", json={
         "to_state": "Delivered", "customer_id": 99999
     }, headers=h_owner).status_code == 404
+
+    # Move to Delivered -> Recovered
+    assert client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Delivered", "customer_id": cid
+    }, headers=h_owner).status_code == 200
+    assert client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Recovered"
+    }, headers=h_owner).status_code == 200
+
+    # Recovered -> Filled now returns 409!
+    assert client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Filled"
+    }, headers=h_owner).status_code == 409
+
+    # Recovered -> Delivered returns 409
+    assert client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Delivered", "customer_id": cid
+    }, headers=h_owner).status_code == 409
+
+    # Recovered -> Empty (valid)
+    assert client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Empty"
+    }, headers=h_owner).status_code == 200
 
     # Unknown cylinder id (404)
     assert client.post("/cylinders/99999/transition", json={
@@ -326,4 +397,3 @@ def test_event_log_and_audit(client):
     types = [row[0] for row in events.execute("SELECT event_type FROM events ORDER BY id ASC").fetchall()]
     assert "cylinder.registered" in types
     assert "cylinder.transition" in types
-

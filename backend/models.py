@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import Date, DateTime, ForeignKey, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -93,5 +93,6 @@ class CylinderTransaction(Base):
     delivery_id: Mapped[int | None] = mapped_column(default=None)
     actor: Mapped[str] = mapped_column(String(50))
     note: Mapped[str | None] = mapped_column(String(200), default=None)
+    due_date: Mapped[date | None] = mapped_column(Date, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     event_id: Mapped[int | None] = mapped_column(default=None)
