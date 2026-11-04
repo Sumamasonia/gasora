@@ -90,11 +90,18 @@ def transition_cylinder(session, events, actor, cylinder_id, to_state,
         if txn_due_date is None:
             txn_due_date = date.today() + timedelta(days=RETURN_DUE_DAYS)
     elif to_state == "Recovered":
-        txn_cust_id = customer_id or cyl.customer_id
+        holder = cyl.customer_id
+        if customer_id is not None and customer_id != holder:
+            raise ValueError(f"cylinder is held by customer {holder}, not {customer_id}")
+        txn_cust_id = holder
         cyl.customer_id = None
+        txn_due_date = None
     elif to_state in ("Filled", "Empty"):
+        if customer_id is not None:
+            raise ValueError(f"customer_id is not allowed for {to_state} transition")
         cyl.customer_id = None
         txn_cust_id = None
+        txn_due_date = None
 
     cyl.state = to_state
 

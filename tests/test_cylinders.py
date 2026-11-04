@@ -257,10 +257,20 @@ def test_invalid_transitions(client):
         "to_state": "Delivered", "customer_id": cid
     }, headers=h_owner).status_code == 409
 
+    # Recovered -> Empty with customer_id returns 409
+    assert client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Empty", "customer_id": cid
+    }, headers=h_owner).status_code == 409
+
     # Recovered -> Empty (valid)
     assert client.post(f"/cylinders/{cyl_id}/transition", json={
         "to_state": "Empty"
     }, headers=h_owner).status_code == 200
+
+    # Empty -> Filled with customer_id returns 409
+    assert client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Filled", "customer_id": cid
+    }, headers=h_owner).status_code == 409
 
     # Unknown cylinder id (404)
     assert client.post("/cylinders/99999/transition", json={
@@ -397,3 +407,63 @@ def test_event_log_and_audit(client):
     types = [row[0] for row in events.execute("SELECT event_type FROM events ORDER BY id ASC").fetchall()]
     assert "cylinder.registered" in types
     assert "cylinder.transition" in types
+
+
+def test_recovery_holder_trust(client):
+    h_owner = headers(client)
+    cid_a = add_customer(client, h_owner, name="Customer A")
+    cid_b = add_customer(client, h_owner, name="Customer B")
+
+    # 1. Deliver to A then recover naming B gives 409
+    r_cyl = client.post("/cylinders", json={"serial_no": "CYL-TRUST-A"}, headers=h_owner)
+    cyl_id = r_cyl.json()["id"]
+    client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Filled"}, headers=h_owner)
+    client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Delivered", "customer_id": cid_a}, headers=h_owner)
+
+    # History before invalid recovery attempt
+    hist_before = client.get(f"/cylinders/{cyl_id}/history", headers=h_owner).json()
+    assert len(hist_before) == 3
+
+    # Attempt recovery with B -> 409
+    r_bad = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Recovered", "customer_id": cid_b}, headers=h_owner)
+    assert r_bad.status_code == 409
+    assert f"cylinder is held by customer {cid_a}, not {cid_b}" in r_bad.text
+
+    # Verify state stays Delivered, cylinder still held by A
+    cyl_check = client.get(f"/cylinders/{cyl_id}", headers=h_owner).json()
+    assert cyl_check["state"] == "Delivered"
+    assert cyl_check["customer_id"] == cid_a
+
+    # Verify history is unchanged
+    hist_after = client.get(f"/cylinders/{cyl_id}/history", headers=h_owner).json()
+    assert len(hist_after) == 3
+
+    # 2. Recover naming A gives 200
+    r_rec_a = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Recovered", "customer_id": cid_a}, headers=h_owner)
+    assert r_rec_a.status_code == 200
+    assert r_rec_a.json()["state"] == "Recovered"
+    assert r_rec_a.json()["customer_id"] is None
+    hist_a = client.get(f"/cylinders/{cyl_id}/history", headers=h_owner).json()
+    assert len(hist_a) == 4
+    assert hist_a[-1]["to_state"] == "Recovered"
+    assert hist_a[-1]["customer_id"] == cid_a
+
+    # 3. Recover with no customer_id gives 200 and history shows A
+    r_cyl2 = client.post("/cylinders", json={"serial_no": "CYL-TRUST-NO-ID"}, headers=h_owner)
+    cyl_id2 = r_cyl2.json()["id"]
+    client.post(f"/cylinders/{cyl_id2}/transition", json={"to_state": "Filled"}, headers=h_owner)
+    client.post(f"/cylinders/{cyl_id2}/transition", json={"to_state": "Delivered", "customer_id": cid_a}, headers=h_owner)
+
+    r_rec_none = client.post(f"/cylinders/{cyl_id2}/transition", json={"to_state": "Recovered"}, headers=h_owner)
+    assert r_rec_none.status_code == 200
+    assert r_rec_none.json()["state"] == "Recovered"
+    assert r_rec_none.json()["customer_id"] is None
+    hist_none = client.get(f"/cylinders/{cyl_id2}/history", headers=h_owner).json()
+    assert len(hist_none) == 4
+    assert hist_none[-1]["to_state"] == "Recovered"
+    assert hist_none[-1]["customer_id"] == cid_a
+
+    # 4. Audit chain still valid
+    r_audit = client.get("/audit/verify", headers=h_owner)
+    assert r_audit.status_code == 200
+    assert r_audit.json()["ok"] is True
