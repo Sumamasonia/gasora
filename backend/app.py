@@ -1,7 +1,7 @@
 """FastAPI app: login, customers, deliveries, today's plan, audit check."""
 import logging
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
@@ -11,9 +11,9 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend import eventlog, security, services, settings
+from backend import cylinders, eventlog, security, services, settings
 from planner.road_router import RoadRouter, StraightRouter
-from backend.models import Base, Customer, Delivery, User
+from backend.models import Base, Customer, Cylinder, CylinderTransaction, Delivery, User
 
 log = logging.getLogger("gasora")
 router = APIRouter()
@@ -57,6 +57,59 @@ class CustomerIn(BaseModel):
 class CustomerOut(CustomerIn):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
+
+class CylinderIn(BaseModel):
+    serial_no: str = Field(min_length=1, max_length=30)
+    cylinder_type: str = Field(default="11.8 kg", min_length=1, max_length=30)
+    owner: Literal["Company", "Customer"] = "Company"
+
+
+class CylinderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    serial_no: str
+    cylinder_type: str
+    state: str
+    owner: str
+    customer_id: Optional[int]
+    created_at: datetime
+
+
+class CylinderTransitionIn(BaseModel):
+    to_state: Literal["Empty", "Filled", "Delivered", "Recovered"]
+    customer_id: Optional[int] = None
+    delivery_id: Optional[int] = None
+    note: Optional[str] = Field(default=None, max_length=200)
+    due_date: Optional[date] = None
+
+
+class CylinderTransactionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    cylinder_id: int
+    txn_type: str
+    from_state: Optional[str]
+    to_state: str
+    customer_id: Optional[int]
+    delivery_id: Optional[int]
+    actor: str
+    note: Optional[str]
+    due_date: Optional[date] = None
+    created_at: datetime
+    event_id: Optional[int]
+
+
+class CustomerHeldSummary(BaseModel):
+    customer_id: int
+    name: str
+    cylinders: int
+
+
+class CylinderSummaryOut(BaseModel):
+    by_state: dict[str, int]
+    by_owner: dict[str, int]
+    held_by_customers: list[CustomerHeldSummary]
 
 
 class DeliveryIn(BaseModel):
@@ -175,6 +228,78 @@ def create_customer(body: CustomerIn, request: Request, session: Session = Depen
 @router.get("/customers", response_model=list[CustomerOut])
 def list_customers(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver"))):
     return session.scalars(select(Customer).order_by(Customer.id)).all()
+
+
+@router.post("/cylinders", response_model=CylinderOut, status_code=201)
+def create_cylinder(body: CylinderIn, request: Request, session: Session = Depends(get_session),
+                    me: User = Depends(require("owner"))):
+    try:
+        cyl = cylinders.register_cylinder(
+            session, request.app.state.events, me.username,
+            body.serial_no, body.cylinder_type, body.owner
+        )
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    session.commit()
+    return cyl
+
+
+@router.get("/cylinders", response_model=list[CylinderOut])
+def list_cylinders(state: Optional[Literal["Empty", "Filled", "Delivered", "Recovered"]] = None,
+                   owner: Optional[Literal["Company", "Customer"]] = None,
+                   customer_id: Optional[int] = None,
+                   session: Session = Depends(get_session),
+                   me: User = Depends(require("owner", "driver"))):
+    q = select(Cylinder).order_by(Cylinder.id)
+    if state is not None:
+        q = q.where(Cylinder.state == state)
+    if owner is not None:
+        q = q.where(Cylinder.owner == owner)
+    if customer_id is not None:
+        q = q.where(Cylinder.customer_id == customer_id)
+    return session.scalars(q).all()
+
+
+@router.get("/cylinders/summary", response_model=CylinderSummaryOut)
+def get_cylinder_summary(session: Session = Depends(get_session),
+                         me: User = Depends(require("owner"))):
+    return cylinders.cylinder_summary(session)
+
+
+@router.get("/cylinders/{id}", response_model=CylinderOut)
+def get_cylinder(id: int, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner", "driver"))):
+    cyl = session.get(Cylinder, id)
+    if cyl is None:
+        raise HTTPException(404, "cylinder not found")
+    return cyl
+
+
+@router.get("/cylinders/{id}/history", response_model=list[CylinderTransactionOut])
+def get_cylinder_history(id: int, session: Session = Depends(get_session),
+                         me: User = Depends(require("owner", "driver"))):
+    try:
+        return cylinders.cylinder_history(session, id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/cylinders/{id}/transition", response_model=CylinderOut)
+def transition_cylinder_endpoint(id: int, body: CylinderTransitionIn, request: Request,
+                                 session: Session = Depends(get_session),
+                                 me: User = Depends(require("owner", "driver"))):
+    try:
+        cyl = cylinders.transition_cylinder(
+            session, request.app.state.events, me.username,
+            id, body.to_state, body.customer_id, body.delivery_id, body.note,
+            due_date=body.due_date,
+        )
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    session.commit()
+    return cyl
 
 
 @router.post("/deliveries", response_model=DeliveryOut, status_code=201)

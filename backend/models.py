@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Date, DateTime, ForeignKey, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -69,3 +69,30 @@ class RouteStop(Base):
     status: Mapped[str] = mapped_column(String(10), default="pending")   # pending, delivered, skipped
     reason: Mapped[str | None] = mapped_column(String(200), default=None)
     delivery_id: Mapped[int | None] = mapped_column(default=None)
+
+
+class Cylinder(Base):
+    __tablename__ = "cylinders"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    serial_no: Mapped[str] = mapped_column(String(30), unique=True)
+    cylinder_type: Mapped[str] = mapped_column(String(30), default="11.8 kg")
+    state: Mapped[str] = mapped_column(String(12), default="Empty")
+    owner: Mapped[str] = mapped_column(String(10), default="Company")
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id"), default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class CylinderTransaction(Base):
+    __tablename__ = "cylinder_transactions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cylinder_id: Mapped[int] = mapped_column(ForeignKey("cylinders.id"))
+    txn_type: Mapped[str] = mapped_column(String(20))
+    from_state: Mapped[str | None] = mapped_column(String(12), default=None)
+    to_state: Mapped[str] = mapped_column(String(12))
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id"), default=None)
+    delivery_id: Mapped[int | None] = mapped_column(default=None)
+    actor: Mapped[str] = mapped_column(String(50))
+    note: Mapped[str | None] = mapped_column(String(200), default=None)
+    due_date: Mapped[date | None] = mapped_column(Date, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    event_id: Mapped[int | None] = mapped_column(default=None)
