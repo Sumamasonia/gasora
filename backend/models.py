@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -25,6 +25,10 @@ class Customer(Base):
     lat: Mapped[float]
     lon: Mapped[float]
     demand: Mapped[int] = mapped_column(default=1)           # cylinders per usual refill
+    customer_type: Mapped[str] = mapped_column(String(20), default="home")
+    cylinder_type: Mapped[str] = mapped_column(String(30), default="11.8 kg")
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Delivery(Base):

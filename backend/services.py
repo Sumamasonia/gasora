@@ -68,7 +68,7 @@ def _pooled(rows):
 
 
 def build_plan(session, today, seconds=2.0, router=None):
-    customers = session.scalars(select(Customer).order_by(Customer.id)).all()
+    customers = session.scalars(select(Customer).where(Customer.is_active.is_(True)).order_by(Customer.id)).all()
     deliveries = session.scalars(
         select(Delivery).where(Delivery.delivered_on <= today).order_by(Delivery.delivered_on)).all()
     urgent = {u["customer_id"] for u in open_urgent(session)}
