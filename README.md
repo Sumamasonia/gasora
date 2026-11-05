@@ -72,7 +72,7 @@ Developed with Python 3.14 and Node.js 24. The backend test suite also passes on
 ### Installation (Windows PowerShell)
 
 ```powershell
-git clone https://github.com/<Sumamasonia>/gasora.git
+git clone https://github.com/Sumamasonia/gasora.git
 cd gasora
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
