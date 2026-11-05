@@ -227,3 +227,4 @@ node_modules/
 # Local Project Data & Artifacts
 data/*
 !data/.gitkeep
+cache/
