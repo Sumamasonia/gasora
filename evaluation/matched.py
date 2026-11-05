@@ -9,7 +9,10 @@ Both methods have a setting that decides how many customers they visit:
 We run several settings of each. For every seed, a rule gives a curve (deliveries, run-outs).
 We read that curve at the number of deliveries P3 made, and compare run-outs and total km.
 
-Run:  python -m evaluation.matched --seeds 10 --days 30 --n 100 [--source road]
+Run:  python -m evaluation.matched --seeds 20 --days 60 --warmup 30 --n 200 --source road [--lean]
+
+Results are saved after every seed. Use the same command again to continue after an interruption.
+--lean runs fewer settings (it drops the stronger rule P2s, which gave the same results as P2).
 """
 import argparse
 import csv
@@ -18,6 +21,7 @@ import os
 import numpy as np
 
 from evaluation import policies
+from evaluation.checkpoint import Checkpoint
 from evaluation.harness import run_policy, bootstrap_ci
 from evaluation.world import build_static
 
@@ -70,26 +74,39 @@ def compare(res, ref, leads, seeds):
               f"{'':14s}{np.mean(d_km):8.1f}  [{lo2:7.1f}, {hi2:7.1f}]")
 
 
-def main(n_seeds, days, n, source="straight"):
-    seeds = list(range(1, n_seeds + 1))
-    res = {"P2": {l: [] for l in LEADS}, "P2s": {l: [] for l in STRONG_LEADS},
-           "P3": {c: [] for c in CUTOFFS}}
+def main(n_seeds, days, n, source="straight", warmup=0, lean=False):
+    global LEADS, STRONG_LEADS, CUTOFFS
+    if lean:
+        LEADS, STRONG_LEADS, CUTOFFS = [2, 4, 6, 8, 9, 10], [], [0.05, 0.10, 0.15, 0.20, 0.30]
+    ck = Checkpoint(f"matched_{source}", days=days, warmup=warmup, n=n, lean=lean)
+    if ck.done():
+        print(f"continuing: seeds {sorted(ck.done())} are already done")
     old = policies.CANDIDATE_RISK
     try:
-        for s in seeds:
+        for s in range(1, n_seeds + 1):
+            if s in ck.done():
+                continue
             static = build_static(s, n, source)
+            rec = {"seed": s, "P2": {}, "P2s": {}, "P3": {}}
             for l in LEADS:
-                res["P2"][l].append(run_policy(static, make_rule(l), days))
+                rec["P2"][str(l)] = run_policy(static, make_rule(l), days, warmup)
             for l in STRONG_LEADS:
-                res["P2s"][l].append(run_policy(static, make_rule(l, strong=True), days))
+                rec["P2s"][str(l)] = run_policy(static, make_rule(l, strong=True), days, warmup)
             for c in CUTOFFS:
                 policies.CANDIDATE_RISK = c
-                res["P3"][c].append(run_policy(static, policies.p3_gasora, days))
+                rec["P3"][str(c)] = run_policy(static, policies.p3_gasora, days, warmup)
+            ck.add(rec)
             print(f"seed {s} done", flush=True)
     finally:
         policies.CANDIDATE_RISK = old
 
-    print(f"\nMean over {n_seeds} seeds, {days} days, {n} customers ({source} distances)")
+    recs = ck.ordered()
+    seeds = [r["seed"] for r in recs]
+    res = {"P2": {l: [r["P2"][str(l)] for r in recs] for l in LEADS},
+           "P2s": {l: [r["P2s"][str(l)] for r in recs] for l in STRONG_LEADS},
+           "P3": {c: [r["P3"][str(c)] for r in recs] for c in CUTOFFS}}
+
+    print(f"\nMean over {len(recs)} seeds, {days} counted days after {warmup} warm-up days, {n} customers ({source} distances)")
     print(f"{'setting':22s}{'deliveries':>12s}{'run-outs/100cm':>16s}{'early':>8s}{'total km':>10s}")
     for name, par, label in (("P2", LEADS, "lead {} d"), ("P2s", STRONG_LEADS, "lead {} d"),
                              ("P3", CUTOFFS, "cut-off {:.2f}")):
@@ -102,11 +119,12 @@ def main(n_seeds, days, n, source="straight"):
                   f"{np.mean([r['total_km'] for r in rs]):10.1f}")
 
     compare(res, "P2", LEADS, seeds)
-    compare(res, "P2s", STRONG_LEADS, seeds)
+    if STRONG_LEADS:
+        compare(res, "P2s", STRONG_LEADS, seeds)
     print("\nA negative run-out difference means Gasora has fewer run-outs than the rule for the same deliveries.")
 
     if os.path.isdir("data"):
-        with open(os.path.join("data", "matched.csv"), "w", newline="") as f:
+        with open(os.path.join("data", f"matched_{source}.csv"), "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(["policy", "setting", "seed", "deliveries", "runouts_per_100cm", "early", "total_km"])
             for name in res:
@@ -114,14 +132,16 @@ def main(n_seeds, days, n, source="straight"):
                     for s, r in zip(seeds, rs):
                         w.writerow([name, p, s, r["deliveries"], round(r["runouts_per_100cm"], 2),
                                     r["early"], round(r["total_km"], 1)])
-        print("Saved data/matched.csv")
+        print(f"Saved data/matched_{source}.csv")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=3)
     ap.add_argument("--days", type=int, default=30)
+    ap.add_argument("--warmup", type=int, default=0)
     ap.add_argument("--n", type=int, default=100)
     ap.add_argument("--source", choices=["straight", "road"], default="straight")
+    ap.add_argument("--lean", action="store_true")
     a = ap.parse_args()
-    main(a.seeds, a.days, a.n, a.source)
+    main(a.seeds, a.days, a.n, a.source, a.warmup, a.lean)

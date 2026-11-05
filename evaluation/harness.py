@@ -24,12 +24,17 @@ def route_km(route, km):
     return dist + km[here][0]
 
 
-def run_policy(static, policy, days):
+def run_policy(static, policy, days, warmup=0):
+    """Simulate warmup + days days. Only the last `days` days are counted: the warm-up lets the
+    simulation forget its arbitrary starting state (customers start in the middle of a cylinder)."""
     state = new_state(static)
     by_id = {c["id"]: c for c in state}
     runouts = deliveries = early = days_out = 0
     total_km = 0.0
-    for d in range(days):
+    for d in range(warmup + days):
+        if d == warmup:                                   # start counting here
+            runouts = deliveries = early = days_out = 0
+            total_km = 0.0
         for c in state:
             c["days_since"] = d - c["last_delivery"]
         routes = policy(static, state, d)
@@ -73,14 +78,14 @@ def bootstrap_ci(diffs, n_boot=2000, seed=0):
     return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
 
 
-def main(n_seeds=5, days=30, n=100, source="straight"):
+def main(n_seeds=5, days=30, n=100, source="straight", warmup=0):
     seeds = list(range(1, n_seeds + 1))
     print(f"{n_seeds} seeds, {days} days, {n} customers, distances: {source}")
     results = {name: [] for name in POLICIES}
     for s in seeds:
         static = build_static(s, n, source)
         for name, policy in POLICIES.items():
-            results[name].append(run_policy(static, policy, days))
+            results[name].append(run_policy(static, policy, days, warmup))
         print(f"seed {s} done", flush=True)
 
     keys = ["runouts_per_100cm", "km_per_delivery", "early", "days_out", "deliveries", "total_km"]
@@ -113,5 +118,6 @@ if __name__ == "__main__":
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--n", type=int, default=100)
     ap.add_argument("--source", choices=["straight", "road"], default="straight")
+    ap.add_argument("--warmup", type=int, default=0)
     a = ap.parse_args()
-    main(a.seeds, a.days, a.n, a.source)
+    main(a.seeds, a.days, a.n, a.source, a.warmup)
