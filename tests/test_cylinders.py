@@ -467,3 +467,33 @@ def test_recovery_holder_trust(client):
     r_audit = client.get("/audit/verify", headers=h_owner)
     assert r_audit.status_code == 200
     assert r_audit.json()["ok"] is True
+
+
+def test_serial_numbers_are_normalized(client):
+    h = headers(client)
+    r = client.post("/cylinders", json={"serial_no": "  cyl-001 "}, headers=h)
+    assert r.status_code == 201 and r.json()["serial_no"] == "CYL-001"
+    assert client.post("/cylinders", json={"serial_no": "CYL-001"}, headers=h).status_code == 409
+    assert client.post("/cylinders", json={"serial_no": "cyl-001"}, headers=h).status_code == 409
+    assert client.post("/cylinders", json={"serial_no": "   "}, headers=h).status_code == 409
+
+
+def test_unknown_delivery_id_is_rejected(client):
+    h = headers(client)
+    cust = add_customer(client, h)
+    cyl = client.post("/cylinders", json={"serial_no": "CYL-D"}, headers=h).json()["id"]
+    client.post(f"/cylinders/{cyl}/transition", json={"to_state": "Filled"}, headers=h)
+    bad = client.post(
+        f"/cylinders/{cyl}/transition",
+        json={"to_state": "Delivered", "customer_id": cust, "delivery_id": 99999},
+        headers=h,
+    )
+    assert bad.status_code == 404
+    assert client.get(f"/cylinders/{cyl}", headers=h).json()["state"] == "Filled"  # nothing changed
+    delivery = client.post("/deliveries", json={"customer_id": cust}, headers=h).json()["id"]
+    ok = client.post(
+        f"/cylinders/{cyl}/transition",
+        json={"to_state": "Delivered", "customer_id": cust, "delivery_id": delivery},
+        headers=h,
+    )
+    assert ok.status_code == 200

@@ -2,7 +2,7 @@
 
 State transitions (single source of truth):
   Empty -> Filled        (refill at the plant; no customer)
-  Filled -> Delivered    (needs customer_id; customer must exist and be active; sets cylinder.customer_id)
+  Filled -> Delivered    (needs customer_id; the customer must exist; sets cylinder.customer_id)
   Delivered -> Recovered (empty collected back from the customer; clears cylinder.customer_id)
   Recovered -> Empty     (returned to plant/stock as empty; no customer)
 
@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 
 from backend import eventlog
-from backend.models import Customer, Cylinder, CylinderTransaction
+from backend.models import Customer, Cylinder, CylinderTransaction, Delivery
 
 RETURN_DUE_DAYS = 15
 
@@ -27,6 +27,9 @@ ALLOWED_TRANSITIONS: dict[str, list[str]] = {
 
 def register_cylinder(session, events, actor, serial_no, cylinder_type="11.8 kg", owner="Company"):
     """Register a new cylinder in state Empty. Writes a transaction and event log entry. Caller commits."""
+    serial_no = (serial_no or "").strip().upper()        # "cyl-001" and " CYL-001 " are the same cylinder
+    if not serial_no:
+        raise ValueError("serial_no is empty")
     existing = session.scalar(select(Cylinder).where(Cylinder.serial_no == serial_no))
     if existing is not None:
         raise ValueError(f"Cylinder with serial_no '{serial_no}' already exists")
@@ -75,6 +78,9 @@ def transition_cylinder(session, events, actor, cylinder_id, to_state,
     if to_state not in allowed:
         raise ValueError(f"Invalid transition from {from_state} to {to_state}")
 
+    if delivery_id is not None and session.get(Delivery, delivery_id) is None:
+        raise LookupError("delivery not found")
+
     txn_cust_id = None
     txn_due_date = due_date
     if to_state == "Delivered":
@@ -83,8 +89,6 @@ def transition_cylinder(session, events, actor, cylinder_id, to_state,
         cust = session.get(Customer, customer_id)
         if cust is None:
             raise LookupError("customer not found")
-        if getattr(cust, "is_active", True) is False:
-            raise ValueError("customer is inactive")
         cyl.customer_id = customer_id
         txn_cust_id = customer_id
         if txn_due_date is None:

@@ -9,6 +9,7 @@ import os
 import time
 
 import osmnx as ox
+ox.settings.cache_folder = os.path.join("data", "osm_cache")
 
 CENTER = (31.4181, 73.0776)   # near central Faisalabad (check on a map)
 RADIUS_M = 6000               # start small; a bigger area makes the server busier
