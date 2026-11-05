@@ -18,8 +18,11 @@ DEFAULT_POOLED = (20.0, 4.0)      # mean and spread of days between refills, use
 # ---------- deliveries and urgent requests ----------
 def record_delivery(session, events, actor, customer_id, delivered_on, cylinders):
     """Save a delivery, close open urgent requests of that customer, write events. Caller commits."""
-    if session.get(Customer, customer_id) is None:
+    cust = session.get(Customer, customer_id)
+    if cust is None:
         raise LookupError("customer not found")
+    if not cust.is_active:
+        raise ValueError("customer is inactive")
     d = Delivery(customer_id=customer_id, delivered_on=delivered_on, cylinders=cylinders, driver=actor)
     session.add(d)
     session.flush()                                            # gives d.id
@@ -35,8 +38,11 @@ def record_delivery(session, events, actor, customer_id, delivered_on, cylinders
 
 
 def create_urgent(session, events, actor, customer_id, note):
-    if session.get(Customer, customer_id) is None:
+    cust = session.get(Customer, customer_id)
+    if cust is None:
         raise LookupError("customer not found")
+    if not cust.is_active:
+        raise ValueError("customer is inactive")
     u = UrgentRequest(customer_id=customer_id, note=note, created_by=actor, created_on=date.today())
     session.add(u)
     session.flush()
@@ -47,7 +53,7 @@ def create_urgent(session, events, actor, customer_id, note):
 def open_urgent(session):
     rows = session.execute(
         select(UrgentRequest, Customer).join(Customer, Customer.id == UrgentRequest.customer_id)
-        .where(UrgentRequest.status == "open").order_by(UrgentRequest.id)).all()
+        .where(UrgentRequest.status == "open", Customer.is_active.is_(True)).order_by(UrgentRequest.id)).all()
     return [{"urgent_id": u.id, "customer_id": c.id, "name": c.name, "note": u.note,
              "created_on": u.created_on.isoformat(), "created_by": u.created_by} for u, c in rows]
 

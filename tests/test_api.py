@@ -111,7 +111,7 @@ def test_customer_creation_defaults(client):
     assert r.status_code == 201
     data = r.json()
     assert data["name"] == "Alice"
-    assert data["customer_type"] == "home"
+    assert data["customer_type"] == "domestic"
     assert data["cylinder_type"] == "11.8 kg"
     assert data["is_active"] is True
     assert "created_at" in data
@@ -154,15 +154,17 @@ def test_put_customer(client):
     # Driver gets 403
     assert client.put(f"/customers/{cid}", json={"phone": "03001234567"}, headers=h_driver).status_code == 403
 
-    # Invalid customer_type gives 422
+    # Invalid customer_type gives 422 (including legacy home, shop, restaurant)
     assert client.put(f"/customers/{cid}", json={"customer_type": "factory"}, headers=h_owner).status_code == 422
+    assert client.put(f"/customers/{cid}", json={"customer_type": "home"}, headers=h_owner).status_code == 422
+    assert client.put(f"/customers/{cid}", json={"customer_type": "restaurant"}, headers=h_owner).status_code == 422
 
     # Owner changes phone and customer_type
-    r = client.put(f"/customers/{cid}", json={"phone": "03009999999", "customer_type": "restaurant"}, headers=h_owner)
+    r = client.put(f"/customers/{cid}", json={"phone": "03009999999", "customer_type": "commercial"}, headers=h_owner)
     assert r.status_code == 200
     updated = r.json()
     assert updated["phone"] == "03009999999"
-    assert updated["customer_type"] == "restaurant"
+    assert updated["customer_type"] == "commercial"
     # other fields stay unchanged
     assert updated["name"] == "Carl Cust"
     assert updated["lat"] == 31.45
@@ -174,7 +176,7 @@ def test_put_customer(client):
     # Check via GET
     r_get = client.get(f"/customers/{cid}", headers=h_owner).json()
     assert r_get["phone"] == "03009999999"
-    assert r_get["customer_type"] == "restaurant"
+    assert r_get["customer_type"] == "commercial"
     assert r_get["demand"] == 2
 
 
@@ -198,15 +200,15 @@ def test_delete_customer_soft_delete(client):
     assert r_get.status_code == 200
     assert r_get.json()["is_active"] is False
 
-    # Default list hides it
+    # Default list returns all customers (including inactive)
     r_list = client.get("/customers", headers=h_owner).json()
-    assert cid not in [c["id"] for c in r_list]
-
-    # include_inactive=true shows it
-    r_list_all = client.get("/customers?include_inactive=true", headers=h_owner).json()
-    assert cid in [c["id"] for c in r_list_all]
-    inactive_cust = next(c for c in r_list_all if c["id"] == cid)
+    assert cid in [c["id"] for c in r_list]
+    inactive_cust = next(c for c in r_list if c["id"] == cid)
     assert inactive_cust["is_active"] is False
+
+    # active_only=true hides it
+    r_list_active = client.get("/customers?active_only=true", headers=h_owner).json()
+    assert cid not in [c["id"] for c in r_list_active]
 
     # Deleting twice does not fail
     r2 = client.delete(f"/customers/{cid}", headers=h_owner)

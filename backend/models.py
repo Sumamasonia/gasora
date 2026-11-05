@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -25,7 +25,7 @@ class Customer(Base):
     lat: Mapped[float]
     lon: Mapped[float]
     demand: Mapped[int] = mapped_column(default=1)           # cylinders per usual refill
-    customer_type: Mapped[str] = mapped_column(String(20), default="home")
+    customer_type: Mapped[str] = mapped_column(String(20), default="domestic")
     cylinder_type: Mapped[str] = mapped_column(String(30), default="11.8 kg")
     is_active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -73,3 +73,21 @@ class RouteStop(Base):
     status: Mapped[str] = mapped_column(String(10), default="pending")   # pending, delivered, skipped
     reason: Mapped[str | None] = mapped_column(String(200), default=None)
     delivery_id: Mapped[int | None] = mapped_column(default=None)
+
+def upgrade_schema(engine):
+    """Idempotently add any missing columns to existing tables."""
+    insp = inspect(engine)
+    if not insp.has_table("customers"):
+        return
+    existing_cols = {col["name"] for col in insp.get_columns("customers")}
+    with engine.begin() as conn:
+        if "customer_type" not in existing_cols:
+            conn.execute(text("ALTER TABLE customers ADD COLUMN customer_type VARCHAR(20) DEFAULT 'domestic'"))
+        if "cylinder_type" not in existing_cols:
+            conn.execute(text("ALTER TABLE customers ADD COLUMN cylinder_type VARCHAR(30) DEFAULT '11.8 kg'"))
+        if "is_active" not in existing_cols:
+            conn.execute(text("ALTER TABLE customers ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"))
+        if "created_at" not in existing_cols:
+            conn.execute(text("ALTER TABLE customers ADD COLUMN created_at DATETIME"))
+            now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+            conn.execute(text("UPDATE customers SET created_at = :now WHERE created_at IS NULL"), {"now": now_str})

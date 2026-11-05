@@ -6,14 +6,14 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend import eventlog, security, services, settings
 from planner.road_router import RoadRouter, StraightRouter
-from backend.models import Base, Customer, Delivery, User
+from backend.models import Base, Customer, Delivery, User, upgrade_schema
 
 log = logging.getLogger("gasora")
 router = APIRouter()
@@ -52,7 +52,7 @@ class CustomerIn(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     demand: int = Field(default=1, ge=1, le=10)
-    customer_type: Literal["home", "shop", "restaurant"] = "home"
+    customer_type: Literal["domestic", "commercial"] = "domestic"
     cylinder_type: str = Field(default="11.8 kg", min_length=1, max_length=30)
 
 
@@ -70,9 +70,16 @@ class CustomerUpdate(BaseModel):
     lat: Optional[float] = Field(default=None, ge=-90, le=90)
     lon: Optional[float] = Field(default=None, ge=-180, le=180)
     demand: Optional[int] = Field(default=None, ge=1, le=10)
-    customer_type: Optional[Literal["home", "shop", "restaurant"]] = None
+    customer_type: Optional[Literal["domestic", "commercial"]] = None
     cylinder_type: Optional[str] = Field(default=None, min_length=1, max_length=30)
     is_active: Optional[bool] = None
+
+    @field_validator("name", "demand", "lat", "lon", "is_active", "customer_type", "cylinder_type", mode="before")
+    @classmethod
+    def reject_null(cls, v):
+        if v is None:
+            raise ValueError("must not be null")
+        return v
 
 
 class DeliveryIn(BaseModel):
@@ -194,11 +201,11 @@ def create_customer(body: CustomerIn, request: Request, session: Session = Depen
 
 
 @router.get("/customers", response_model=list[CustomerOut])
-def list_customers(include_inactive: bool = Query(False),
+def list_customers(active_only: bool = Query(False),
                    session: Session = Depends(get_session),
                    me: User = Depends(require("owner", "driver"))):
     q = select(Customer).order_by(Customer.id)
-    if not include_inactive:
+    if active_only:
         q = q.where(Customer.is_active.is_(True))
     return session.scalars(q).all()
 
@@ -220,11 +227,15 @@ def update_customer(id: int, body: CustomerUpdate, request: Request,
     if c is None:
         raise HTTPException(404, "customer not found")
     updates = body.model_dump(exclude_unset=True)
+    changed = []
     for key, value in updates.items():
-        setattr(c, key, value)
-    eventlog.append(request.app.state.events, me.username, "customer.updated",
-                    {"customer_id": c.id, "changed_fields": list(updates.keys())})
-    session.commit()
+        if getattr(c, key) != value:
+            setattr(c, key, value)
+            changed.append(key)
+    if changed:
+        eventlog.append(request.app.state.events, me.username, "customer.updated",
+                        {"customer_id": c.id, "changed_fields": changed})
+        session.commit()
     return c
 
 
@@ -234,10 +245,11 @@ def delete_customer(id: int, request: Request, session: Session = Depends(get_se
     c = session.get(Customer, id)
     if c is None:
         raise HTTPException(404, "customer not found")
-    c.is_active = False
-    eventlog.append(request.app.state.events, me.username, "customer.deactivated",
-                    {"customer_id": c.id})
-    session.commit()
+    if c.is_active:
+        c.is_active = False
+        eventlog.append(request.app.state.events, me.username, "customer.deactivated",
+                        {"customer_id": c.id})
+        session.commit()
     return c
 
 
@@ -252,6 +264,8 @@ def create_delivery(body: DeliveryIn, request: Request, session: Session = Depen
                                      body.customer_id, day, body.cylinders)
     except LookupError:
         raise HTTPException(404, "customer not found")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
     session.commit()
     return d
 
@@ -297,6 +311,8 @@ def create_urgent(body: UrgentIn, request: Request, session: Session = Depends(g
         u = services.create_urgent(session, request.app.state.events, me.username, body.customer_id, body.note)
     except LookupError:
         raise HTTPException(404, "customer not found")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
     session.commit()
     return {"urgent_id": u.id}
 
@@ -386,6 +402,7 @@ def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_p
 
     engine = create_engine(db_url, **kwargs)
     Base.metadata.create_all(engine)
+    upgrade_schema(engine)
 
     app = FastAPI(title="Gasora API")
     app.state.SessionLocal = sessionmaker(engine, expire_on_commit=False)
