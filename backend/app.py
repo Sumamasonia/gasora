@@ -6,7 +6,7 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -82,6 +82,15 @@ class CylinderTransitionIn(BaseModel):
     delivery_id: Optional[int] = None
     note: Optional[str] = Field(default=None, max_length=200)
     due_date: Optional[date] = None
+
+    @model_validator(mode="after")
+    def validate_due_date(self):
+        if self.due_date is not None:
+            if self.to_state != "Delivered":
+                raise ValueError("due_date is only allowed when to_state is Delivered")
+            if self.due_date < date.today():
+                raise ValueError("due_date cannot be in the past")
+        return self
 
 
 class CylinderTransactionOut(BaseModel):
@@ -292,10 +301,12 @@ def transition_cylinder_endpoint(id: int, body: CylinderTransitionIn, request: R
         cyl = cylinders.transition_cylinder(
             session, request.app.state.events, me.username,
             id, body.to_state, body.customer_id, body.delivery_id, body.note,
-            due_date=body.due_date,
+            due_date=body.due_date, role=me.role,
         )
     except LookupError as e:
         raise HTTPException(404, str(e))
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
     except ValueError as e:
         raise HTTPException(409, str(e))
     session.commit()

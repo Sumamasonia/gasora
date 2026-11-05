@@ -167,7 +167,55 @@ def test_delivered_due_date(client):
     h_owner = headers(client)
     cid = add_customer(client, h_owner, name="Due Date Cust")
 
-    # 1. Default due_date = today + 15 days
+    # 1. due_date sent on Empty -> Filled gives 422 and cylinder is unchanged
+    r_init = client.post("/cylinders", json={"serial_no": "CYL-DUE-VALIDATION"}, headers=h_owner)
+    cyl_val = r_init.json()["id"]
+
+    r_bad_fill = client.post(f"/cylinders/{cyl_val}/transition", json={
+        "to_state": "Filled",
+        "due_date": (date.today() + timedelta(days=5)).isoformat()
+    }, headers=h_owner)
+    assert r_bad_fill.status_code == 422
+    cyl_chk = client.get(f"/cylinders/{cyl_val}", headers=h_owner).json()
+    assert cyl_chk["state"] == "Empty"
+    assert len(client.get(f"/cylinders/{cyl_val}/history", headers=h_owner).json()) == 1
+
+    # Fill properly
+    assert client.post(f"/cylinders/{cyl_val}/transition", json={"to_state": "Filled"}, headers=h_owner).status_code == 200
+
+    # 2. due_date in the past (yesterday) gives 422, cylinder is unchanged, no rows/events written
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    r_past = client.post(f"/cylinders/{cyl_val}/transition", json={
+        "to_state": "Delivered",
+        "customer_id": cid,
+        "due_date": yesterday
+    }, headers=h_owner)
+    assert r_past.status_code == 422
+    cyl_chk2 = client.get(f"/cylinders/{cyl_val}", headers=h_owner).json()
+    assert cyl_chk2["state"] == "Filled"
+    # History still only register and Filled
+    assert len(client.get(f"/cylinders/{cyl_val}/history", headers=h_owner).json()) == 2
+
+    # 3. due_date today works (200, stored in transaction)
+    today_iso = date.today().isoformat()
+    r_today = client.post(f"/cylinders/{cyl_val}/transition", json={
+        "to_state": "Delivered",
+        "customer_id": cid,
+        "due_date": today_iso
+    }, headers=h_owner)
+    assert r_today.status_code == 200
+    r_hist_today = client.get(f"/cylinders/{cyl_val}/history", headers=h_owner).json()
+    assert r_hist_today[-1]["to_state"] == "Delivered"
+    assert r_hist_today[-1]["due_date"] == today_iso
+
+    # 4. due_date sent on Delivered -> Recovered gives 422
+    r_bad_rec = client.post(f"/cylinders/{cyl_val}/transition", json={
+        "to_state": "Recovered",
+        "due_date": (date.today() + timedelta(days=5)).isoformat()
+    }, headers=h_owner)
+    assert r_bad_rec.status_code == 422
+
+    # 5. Default due_date = today + 15 days on Delivered
     r1 = client.post("/cylinders", json={"serial_no": "CYL-DUE-DEF"}, headers=h_owner)
     cyl1 = r1.json()["id"]
     client.post(f"/cylinders/{cyl1}/transition", json={"to_state": "Filled"}, headers=h_owner)
@@ -181,7 +229,7 @@ def test_delivered_due_date(client):
     expected_default_due = (date.today() + timedelta(days=15)).isoformat()
     assert deliv_txn1["due_date"] == expected_default_due
 
-    # 2. Sent due_date is stored
+    # 6. Future due_date is stored
     custom_due = (date.today() + timedelta(days=25)).isoformat()
     r2 = client.post("/cylinders", json={"serial_no": "CYL-DUE-CUSTOM"}, headers=h_owner)
     cyl2 = r2.json()["id"]
@@ -298,23 +346,62 @@ def test_driver_permissions(client):
     assert r_get.status_code == 200
     assert r_get.json()["serial_no"] == "CYL-DRIVER"
 
-    # Driver CAN perform transition Empty -> Filled
+    # Driver CANNOT perform stock move Empty -> Filled (403), cylinder unchanged
     r_t1 = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Filled"}, headers=h_driver)
-    assert r_t1.status_code == 200
+    assert r_t1.status_code == 403
+    r_check = client.get(f"/cylinders/{cyl_id}", headers=h_owner).json()
+    assert r_check["state"] == "Empty"
+    assert len(client.get(f"/cylinders/{cyl_id}/history", headers=h_owner).json()) == 1
 
-    # Driver CAN perform transition Filled -> Delivered
+    # Driver attempting invalid transition Empty -> Delivered gets 409 (not 403)
+    r_inv = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Delivered", "customer_id": cid}, headers=h_driver)
+    assert r_inv.status_code == 409
+
+    # Owner CAN perform stock move Empty -> Filled
+    r_fill = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Filled"}, headers=h_owner)
+    assert r_fill.status_code == 200
+    assert r_fill.json()["state"] == "Filled"
+
+    # Driver CAN perform road move Filled -> Delivered
     r_t2 = client.post(f"/cylinders/{cyl_id}/transition", json={
         "to_state": "Delivered", "customer_id": cid
     }, headers=h_driver)
     assert r_t2.status_code == 200
+    assert r_t2.json()["state"] == "Delivered"
     assert r_t2.json()["customer_id"] == cid
 
-    # Driver CAN view history and actor is recorded as 'tariq'
+    # Driver CAN perform road move Delivered -> Recovered
+    r_t3 = client.post(f"/cylinders/{cyl_id}/transition", json={
+        "to_state": "Recovered"
+    }, headers=h_driver)
+    assert r_t3.status_code == 200
+    assert r_t3.json()["state"] == "Recovered"
+    assert r_t3.json()["customer_id"] is None
+
+    # Driver CANNOT perform stock move Recovered -> Empty (403), cylinder unchanged
+    r_t4 = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Empty"}, headers=h_driver)
+    assert r_t4.status_code == 403
+    r_check2 = client.get(f"/cylinders/{cyl_id}", headers=h_owner).json()
+    assert r_check2["state"] == "Recovered"
+
+    # Driver attempting invalid transition Recovered -> Filled gets 409
+    r_inv2 = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Filled"}, headers=h_driver)
+    assert r_inv2.status_code == 409
+
+    # Owner CAN perform stock move Recovered -> Empty
+    r_empty = client.post(f"/cylinders/{cyl_id}/transition", json={"to_state": "Empty"}, headers=h_owner)
+    assert r_empty.status_code == 200
+    assert r_empty.json()["state"] == "Empty"
+
+    # Driver CAN view history and road moves record 'tariq'
     r_hist = client.get(f"/cylinders/{cyl_id}/history", headers=h_driver)
     assert r_hist.status_code == 200
     txns = r_hist.json()
-    assert txns[-1]["actor"] == "tariq"
-    assert txns[-1]["to_state"] == "Delivered"
+    assert len(txns) == 5
+    assert txns[2]["actor"] == "tariq"
+    assert txns[2]["to_state"] == "Delivered"
+    assert txns[3]["actor"] == "tariq"
+    assert txns[3]["to_state"] == "Recovered"
 
     # Driver CANNOT view summary (owner only)
     assert client.get("/cylinders/summary", headers=h_driver).status_code == 403

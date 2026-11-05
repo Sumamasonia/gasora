@@ -1,12 +1,14 @@
 """Cylinder register: state machine, lifecycle transitions, and auditing.
 
-State transitions (single source of truth):
-  Empty -> Filled        (refill at the plant; no customer)
-  Filled -> Delivered    (needs customer_id; customer must exist and be active; sets cylinder.customer_id)
-  Delivered -> Recovered (empty collected back from the customer; clears cylinder.customer_id)
-  Recovered -> Empty     (returned to plant/stock as empty; no customer)
+State transitions and allowed roles (single source of truth):
+  Empty -> Filled        (refill at the plant: owner only)
+  Filled -> Delivered    (road delivery to customer: owner, driver)
+  Delivered -> Recovered (empty collected from customer: owner, driver)
+  Recovered -> Empty     (returned to plant stock: owner only)
 
-Any other transition is invalid. A cylinder with owner "Customer" follows the same flow.
+Any other transition is invalid (409).
+A valid transition attempted by an unauthorized role is forbidden (403).
+A cylinder with owner "Customer" follows the same flow.
 """
 from datetime import date, timedelta
 
@@ -16,6 +18,14 @@ from backend import eventlog
 from backend.models import Customer, Cylinder, CylinderTransaction
 
 RETURN_DUE_DAYS = 15
+
+# Single source of truth: allowed transitions and roles permitted to make them
+TRANSITION_ROLES: dict[tuple[str, str], list[str]] = {
+    ("Empty", "Filled"): ["owner"],
+    ("Filled", "Delivered"): ["owner", "driver"],
+    ("Delivered", "Recovered"): ["owner", "driver"],
+    ("Recovered", "Empty"): ["owner"],
+}
 
 ALLOWED_TRANSITIONS: dict[str, list[str]] = {
     "Empty": ["Filled"],
@@ -64,16 +74,25 @@ def register_cylinder(session, events, actor, serial_no, cylinder_type="11.8 kg"
 
 
 def transition_cylinder(session, events, actor, cylinder_id, to_state,
-                        customer_id=None, delivery_id=None, note=None, due_date=None):
+                        customer_id=None, delivery_id=None, note=None, due_date=None, role=None):
     """Transition a cylinder to a new state according to the state machine. Caller commits."""
     cyl = session.get(Cylinder, cylinder_id)
     if cyl is None:
         raise LookupError(f"Cylinder {cylinder_id} not found")
 
     from_state = cyl.state
-    allowed = ALLOWED_TRANSITIONS.get(from_state, [])
-    if to_state not in allowed:
+    allowed_roles = TRANSITION_ROLES.get((from_state, to_state))
+    if allowed_roles is None:
         raise ValueError(f"Invalid transition from {from_state} to {to_state}")
+
+    if role is not None and role not in allowed_roles:
+        raise PermissionError(f"Role '{role}' is not allowed to transition from {from_state} to {to_state}")
+
+    if due_date is not None:
+        if to_state != "Delivered":
+            raise ValueError("due_date is only allowed when to_state is Delivered")
+        if due_date < date.today():
+            raise ValueError("due_date cannot be in the past")
 
     txn_cust_id = None
     txn_due_date = due_date
