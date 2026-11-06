@@ -19,6 +19,18 @@ import {
   handleGetRecoveryAgeing,
   handleTransitionCylinder,
 } from './cylinders.js'
+import {
+  handleAssignRoute,
+  handleCreateUrgent,
+  handleDeliverStop,
+  handleGetMyRoutes,
+  handleGetPlan,
+  handleGetRoutes,
+  handleGetUrgent,
+  handlePostPaths,
+  handlePublishPlan,
+  handleSkipStop,
+} from './dispatch.js'
 import { handleCreateUser, handleGetUsers } from './users.js'
 
 // Simulate realistic network latency (150 - 400 ms)
@@ -133,6 +145,52 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     if (method === 'GET') {
       return handleGetCylinder(token, cylinderId)
     }
+  }
+
+  // Planning & Dispatch endpoints
+  if (method === 'GET' && normalizedPath === '/plan/today') {
+    return handleGetPlan(token, queryParams)
+  }
+  if (method === 'POST' && normalizedPath === '/plan/publish') {
+    return handlePublishPlan(token, body)
+  }
+  if (method === 'GET' && normalizedPath === '/routes') {
+    return handleGetRoutes(token, queryParams)
+  }
+  const routeAssignMatch = normalizedPath.match(/^\/routes\/(\d+)\/assign$/)
+  if (routeAssignMatch) {
+    const routeId = parseInt(routeAssignMatch[1], 10)
+    if (method === 'PATCH') {
+      return handleAssignRoute(token, routeId, body)
+    }
+  }
+  if (method === 'GET' && normalizedPath === '/my-routes') {
+    return handleGetMyRoutes(token)
+  }
+  const deliverStopMatch = normalizedPath.match(/^\/route-stops\/(\d+)\/deliver$/)
+  if (deliverStopMatch) {
+    const stopId = parseInt(deliverStopMatch[1], 10)
+    if (method === 'POST') {
+      return handleDeliverStop(token, stopId, body)
+    }
+  }
+  const skipStopMatch = normalizedPath.match(/^\/route-stops\/(\d+)\/skip$/)
+  if (skipStopMatch) {
+    const stopId = parseInt(skipStopMatch[1], 10)
+    if (method === 'POST') {
+      return handleSkipStop(token, stopId, body)
+    }
+  }
+  if (normalizedPath === '/urgent') {
+    if (method === 'GET') {
+      return handleGetUrgent(token)
+    }
+    if (method === 'POST') {
+      return handleCreateUrgent(token, body)
+    }
+  }
+  if (method === 'POST' && normalizedPath === '/paths') {
+    return handlePostPaths(token, body)
   }
 
   // User endpoints

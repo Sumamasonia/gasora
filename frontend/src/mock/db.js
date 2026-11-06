@@ -11,7 +11,28 @@ export const createInitialDb = () => ({
   cylinders: [...SEED_CYLINDERS],
   cylinder_history: [...SEED_CYLINDER_HISTORY],
   deliveries: [],
-  urgent_requests: [],
+  urgent_requests: [
+    {
+      urgent_id: 1,
+      id: 1,
+      customer_id: 5,
+      name: 'Al-Hafeez Sweets',
+      note: 'Gas pressure low, urgent refill required for sweets production',
+      status: 'open',
+      created_on: new Date().toISOString().split('T')[0],
+      created_by: 'owner',
+    },
+    {
+      urgent_id: 2,
+      id: 2,
+      customer_id: 8,
+      name: 'Fatima Textile Canteen',
+      note: 'Empty cylinder replacement for factory kitchen shift',
+      status: 'open',
+      created_on: new Date().toISOString().split('T')[0],
+      created_by: 'owner',
+    },
+  ],
   routes: [],
   route_stops: [],
   bills: [],
@@ -59,6 +80,30 @@ export function loadDb() {
       }
       if (!db.cylinder_history || db.cylinder_history.length === 0) {
         db.cylinder_history = [...SEED_CYLINDER_HISTORY]
+      }
+      if (!db.urgent_requests || db.urgent_requests.length === 0) {
+        db.urgent_requests = [
+          {
+            urgent_id: 1,
+            id: 1,
+            customer_id: 5,
+            name: 'Al-Hafeez Sweets',
+            note: 'Gas pressure low, urgent refill required for sweets production',
+            status: 'open',
+            created_on: new Date().toISOString().split('T')[0],
+            created_by: 'owner',
+          },
+          {
+            urgent_id: 2,
+            id: 2,
+            customer_id: 8,
+            name: 'Fatima Textile Canteen',
+            note: 'Empty cylinder replacement for factory kitchen shift',
+            status: 'open',
+            created_on: new Date().toISOString().split('T')[0],
+            created_by: 'owner',
+          },
+        ]
       }
       return db
     }
