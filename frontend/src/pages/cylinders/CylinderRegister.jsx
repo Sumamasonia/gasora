@@ -6,11 +6,13 @@ import Spinner from '../../components/Spinner.jsx'
 import AddCylinderModal from './AddCylinderModal.jsx'
 import CylinderDetailDrawer from './CylinderDetailDrawer.jsx'
 import CylinderSummaryStrip from './CylinderSummaryStrip.jsx'
+import HeldByCustomersTable from './HeldByCustomersTable.jsx'
 import './cylinders.css'
 
 export default function CylinderRegister({ auth, onNavigate, onSelectCylinder }) {
   const isOwner = auth?.role === 'owner'
 
+  const [activeTab, setActiveTab] = useState('register') // 'register' | 'held'
   const [summary, setSummary] = useState(null)
   const [cylinders, setCylinders] = useState([])
   const [customers, setCustomers] = useState([])
@@ -254,10 +256,38 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
         </div>
       </div>
 
+      {/* Sub Navigation Tabs */}
+      <div className="cylinders-nav-tabs">
+        <button
+          type="button"
+          className={`cylinders-nav-tab ${activeTab === 'register' ? 'active' : ''}`}
+          onClick={() => setActiveTab('register')}
+        >
+          📦 Cylinder Register
+        </button>
+        <button
+          type="button"
+          className={`cylinders-nav-tab ${activeTab === 'held' ? 'active' : ''}`}
+          onClick={() => setActiveTab('held')}
+        >
+          👥 Held by Customers {summary?.held_by_customers?.length ? `(${summary.held_by_customers.length})` : ''}
+        </button>
+      </div>
+
       {loading ? (
         <div style={{ padding: '60px 0', textAlign: 'center' }}>
           <Spinner size="lg" message="Loading cylinder inventory & lifecycle summary..." />
         </div>
+      ) : activeTab === 'held' ? (
+        <HeldByCustomersTable
+          summary={summary}
+          customers={customers}
+          onNavigate={onNavigate}
+          onFilterCustomerInRegister={(cid) => {
+            setSelectedHolder(String(cid))
+            setActiveTab('register')
+          }}
+        />
       ) : (
         <>
           {/* Summary Cards & 4-Step Lifecycle Strip */}
