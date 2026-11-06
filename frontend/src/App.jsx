@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { login } from './api'
 import DriverView from './DriverView'
 import OwnerView from './OwnerView'
+import UiKit from './pages/UiKit'
 import './styles.css'
 
 function LoginForm({ onLogin, error, busy }) {
@@ -33,6 +34,18 @@ export default function App() {
   const [auth, setAuth] = useState(null)       // { token, role, username }; kept in memory only
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [route, setRoute] = useState(window.location.hash)
+
+  useEffect(() => {
+    const handleHashChange = () => setRoute(window.location.hash)
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  // Hidden UI Kit showcase route
+  if (route === '#/ui-kit') {
+    return <UiKit />
+  }
 
   const handleLogin = async (username, password) => {
     setBusy(true)
