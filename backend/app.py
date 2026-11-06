@@ -152,6 +152,7 @@ class AdjustEmptiesIn(BaseModel):
     customer_id: int
     delta: int = Field(ge=-20, le=20)
     note: Optional[str] = Field(default=None, max_length=200)
+    since: Optional[date] = None                 # when the customer started holding them (sets their age)
 
 
 class PathsIn(BaseModel):
@@ -433,7 +434,7 @@ def empties(session: Session = Depends(get_session), me: User = Depends(require(
 def empties_adjust(body: AdjustEmptiesIn, request: Request, session: Session = Depends(get_session),
                    me: User = Depends(require("owner"))):
     try:
-        services.adjust_empties(session, request.app.state.events, me.username, body.customer_id, body.delta, body.note)
+        services.adjust_empties(session, request.app.state.events, me.username, body.customer_id, body.delta, body.note, body.since)
     except LookupError as e:
         raise HTTPException(404, str(e))
     except ValueError as e:

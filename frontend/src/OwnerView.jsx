@@ -5,7 +5,7 @@ import {
 import { BAND_COLOR, VEHICLE_COLORS } from './colors'
 import PlanMap from './PlanMap'
 import { EmptiesPanel, PublishedRoutes, UrgentForm } from './OwnerPanels'
-import { Badge, UrgentTag } from './ui'
+import { Badge, SwapTag, UrgentTag } from './ui'
 
 function PlanPanel({ plan, published }) {
   const counts = { Normal: 0, High: 0, Critical: 0 }
@@ -38,7 +38,7 @@ function PlanPanel({ plan, published }) {
           <ol>
             {route.stops.map((s) => (
               <li key={s.customer_id}>
-                {s.name} {s.urgent && <UrgentTag />} <Badge band={s.band} />{' '}
+                {s.name} {s.urgent && <UrgentTag />} {s.swap && <SwapTag />} <Badge band={s.band} />{' '}
                 <span className="muted">
                   {Math.round(s.risk * 100)}%
                   {s.window_days && ` \u00b7 empty in ${s.window_days[0]} to ${s.window_days[1]} days`}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, deliverStop, getMyRoutes, skipStop } from './api'
-import { Badge, UrgentTag } from './ui'
+import { Badge, SwapTag, UrgentTag } from './ui'
 
 export default function DriverView({ auth, onSignOut, onExpired }) {
   const [routes, setRoutes] = useState(null)
@@ -44,11 +44,12 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
                 <span className="seq">{s.seq}</span>
                 <strong>{s.name}</strong>
                 {s.urgent && <UrgentTag />}
+                {s.swap && <SwapTag />}
                 <Badge band={s.band} />
               </div>
               <div className="muted">{s.address || 'No address saved'} &middot; {s.cylinders} cylinder(s)</div>
               {s.empties_held > 0 && (
-                <div className="muted">This customer still holds {s.empties_held} empty cylinder(s) from earlier. Collect them if you can.</div>
+                <div className="muted">This customer holds {s.empties_held} empty cylinder(s), outstanding for {s.empties_days} days. Collect them on this visit.</div>
               )}
               <div className="links">
                 {s.phone && <a href={`tel:${s.phone}`}>Call {s.phone}</a>}

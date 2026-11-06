@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { VEHICLE_COLORS } from './colors'
-import { Badge, UrgentTag } from './ui'
+import { Badge, SwapTag, UrgentTag } from './ui'
 
 export function UrgentForm({ customers, openUrgent, onCreate, busy }) {
   const [customerId, setCustomerId] = useState('')
@@ -36,7 +36,10 @@ export function EmptiesPanel({ empties }) {
       <h3>Empties with customers</h3>
       <p className="muted">
         {empties.total_held} empty cylinder(s) at {empties.customers_holding} customer(s);{' '}
-        {empties.customers_overdue} overdue (more than {empties.overdue_after_days} days).
+        {empties.customers_overdue} overdue ({empties.overdue_after_days}+ days, planned as swaps).
+      </p>
+      <p className="muted">
+        {empties.buckets.filter((b) => b.customers > 0).map((b) => `${b.label} days: ${b.customers}`).join('  \u00b7  ')}
       </p>
       <ul>
         {empties.customers.slice(0, 8).map((c) => (
@@ -71,7 +74,7 @@ export function PublishedRoutes({ routes, drivers, onAssign, onPublish, busy }) 
           <ol>
             {r.stops.map((s) => (
               <li key={s.stop_id} className={s.status !== 'pending' ? 'done' : ''}>
-                {s.name} {s.urgent && <UrgentTag />} <Badge band={s.band} />{' '}
+                {s.name} {s.urgent && <UrgentTag />} {s.swap && <SwapTag />} <Badge band={s.band} />{' '}
                 <span className="muted">
                   {s.status === 'delivered' ? 'delivered' : s.status === 'skipped' ? `skipped: ${s.reason}` : ''}
                 </span>

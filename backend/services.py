@@ -7,7 +7,8 @@ from sqlalchemy import select
 
 from backend import eventlog
 from backend.models import Customer, Delivery, EmptiesLedger, Route, RouteStop, UrgentRequest, User
-from backend.settings import DEPOT_LAT, DEPOT_LON, EMPTY_OVERDUE_DAYS, LATE_COST_CRITICAL, LATE_COST_URGENT
+from backend.settings import (DEPOT_LAT, DEPOT_LON, EMPTY_AGEING_TIERS, EMPTY_OVERDUE_DAYS,
+                              LATE_COST_CRITICAL, LATE_COST_URGENT)
 from evaluation.policies import CANDIDATE_RISK
 from planner.routing import plan
 from predictor.risk import band, refill_window, run_out_risk
@@ -61,7 +62,16 @@ def open_urgent(session):
 
 
 # ---------- empties held by customers ----------
-NO_EMPTIES = {"held": 0, "days_holding": None, "overdue": False}
+NO_EMPTIES = {"held": 0, "days_holding": None, "overdue": False, "bucket": None, "swap_weight": None}
+
+
+def _tier(days):
+    """(skip-penalty weight, label) of the ageing tier for this many days, or (None, None) if under the first tier."""
+    found = (None, None)
+    for min_days, weight, label in EMPTY_AGEING_TIERS:
+        if days >= min_days:
+            found = (weight, label)
+    return found
 
 
 def empties_state(session, today):
@@ -82,7 +92,9 @@ def empties_state(session, today):
     for cid, b in balance.items():
         if b > 0:
             days = (today - since[cid]).days
-            out[cid] = {"held": b, "days_holding": days, "overdue": days > EMPTY_OVERDUE_DAYS}
+            weight, label = _tier(days)
+            out[cid] = {"held": b, "days_holding": days, "overdue": weight is not None,
+                        "bucket": label, "swap_weight": weight}
     return out
 
 
@@ -91,20 +103,29 @@ def empties_summary(session, today):
     names = {c.id: c.name for c in session.scalars(select(Customer))}
     rows = [{"customer_id": cid, "name": names.get(cid, "?"), **v} for cid, v in state.items()]
     rows.sort(key=lambda r: (not r["overdue"], -r["days_holding"], r["customer_id"]))
-    return {"total_held": sum(r["held"] for r in rows), "customers_holding": len(rows),
+    buckets = [{"label": "under %d" % EMPTY_OVERDUE_DAYS, "customers": 0, "empties": 0}] + [
+        {"label": label, "customers": 0, "empties": 0} for _, _, label in EMPTY_AGEING_TIERS]
+    for r in rows:
+        b = next(x for x in buckets if x["label"] == (r["bucket"] or buckets[0]["label"]))
+        b["customers"] += 1
+        b["empties"] += r["held"]
+    return {"total_held": sum(r["held"] for r in rows), "customers_holding": len(rows), "buckets": buckets,
             "customers_overdue": sum(r["overdue"] for r in rows), "overdue_after_days": EMPTY_OVERDUE_DAYS,
             "customers": rows}
 
 
-def adjust_empties(session, events, actor, customer_id, delta, note):
+def adjust_empties(session, events, actor, customer_id, delta, note, since=None):
     """Correct the count, for example to enter what a customer held before the system was used.
-    delta > 0: the customer holds that many more empties; delta < 0: that many fewer. Caller commits."""
+    delta > 0: the customer holds that many more empties; delta < 0: that many fewer.
+    since = the date the customer started holding them (default today); it sets their age. Caller commits."""
     if session.get(Customer, customer_id) is None:
         raise LookupError("customer not found")
     if delta == 0:
         raise ValueError("delta must not be zero")
+    if since is not None and since > date.today():
+        raise ValueError("since must not be in the future")
     row = EmptiesLedger(customer_id=customer_id, delivered=max(delta, 0), collected=max(-delta, 0),
-                        kind="adjustment", note=note, actor=actor, created_on=date.today())
+                        kind="adjustment", note=note, actor=actor, created_on=since or date.today())
     session.add(row)
     session.flush()
     row.event_id, _ = eventlog.append(events, actor, "empties.adjusted",
@@ -140,7 +161,8 @@ def build_plan(session, today, seconds=2.0, router=None):
     rows, no_history = [], []
     for c in customers:
         ds = sorted(dates.get(c.id, []))
-        if not ds and c.id not in urgent:
+        swap = emp.get(c.id, NO_EMPTIES)["overdue"]               # holds empties 15+ days: a swap candidate
+        if not ds and c.id not in urgent and not swap:
             no_history.append({"customer_id": c.id, "name": c.name})
             continue
         x, y = _xy_km(c.lat, c.lon)
@@ -150,18 +172,23 @@ def build_plan(session, today, seconds=2.0, router=None):
             "days_since": (today - ds[-1]).days if ds else None,
             "n_deliveries": len(ds),
             "urgent": c.id in urgent,
+            "swap": swap,
         })
 
     mu, sd = _pooled(rows)
     for r in rows:
-        if r["days_since"] is None:                    # urgent customer with no history: risk unknown
-            r["risk"], r["band"], r["window"] = 1.0, "Urgent", None
+        if r["days_since"] is None:                    # no delivery history: risk unknown
+            if r["urgent"]:
+                r["risk"], r["band"], r["window"] = 1.0, "Urgent", None
+            else:                                      # only empties to collect
+                r["risk"], r["band"], r["window"] = 0.0, "Swap", None
         else:
             r["risk"] = run_out_risk(r, mu, sd)
             r["band"] = band(r["risk"])
             r["window"] = [round(x, 1) for x in refill_window(r, mu, sd)]
+        r["weight"] = max(r["risk"], emp.get(r["id"], NO_EMPTIES)["swap_weight"] or 0.0)   # what the planner sees
 
-    candidates = [r for r in rows if r["urgent"] or r["risk"] >= CANDIDATE_RISK]
+    candidates = [r for r in rows if r["urgent"] or r["swap"] or r["risk"] >= CANDIDATE_RISK]
     routes_out, visited, warnings = [], set(), []
     road = router is not None and router.mode == "road"
     if candidates:
@@ -172,9 +199,10 @@ def build_plan(session, today, seconds=2.0, router=None):
             if m["far"]:
                 warnings.append("%d place(s) are more than 1 km from the downloaded road map, "
                                 "so their road times are approximate." % len(m["far"]))
-        result = plan(candidates, [r["risk"] for r in candidates],
+        result = plan(candidates, [r["weight"] for r in candidates],
                       urgent_ids={r["id"] for r in candidates if r["urgent"]}, seconds=seconds, tm=tm,
-                      urgent_late_cost=LATE_COST_URGENT, critical_late_cost=LATE_COST_CRITICAL)
+                      urgent_late_cost=LATE_COST_URGENT, critical_late_cost=LATE_COST_CRITICAL,
+                      late_risks=[r["risk"] for r in candidates])
         if result is not None:
             routes, visited_local = result
             visited = {candidates[k - 1]["id"] for k in visited_local}
@@ -189,22 +217,27 @@ def build_plan(session, today, seconds=2.0, router=None):
                                "risk": round(candidates[k - 1]["risk"], 3), "band": candidates[k - 1]["band"],
                                "urgent": candidates[k - 1]["urgent"],
                                "window_days": candidates[k - 1]["window"],
-                               "empties_held": emp.get(candidates[k - 1]["id"], NO_EMPTIES)["held"]} for k in route]})
+                               "empties_held": emp.get(candidates[k - 1]["id"], NO_EMPTIES)["held"],
+                               "empties_days": emp.get(candidates[k - 1]["id"], NO_EMPTIES)["days_holding"],
+                               "empties_bucket": emp.get(candidates[k - 1]["id"], NO_EMPTIES)["bucket"],
+                               "swap": candidates[k - 1]["swap"]} for k in route]})
     skipped = [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3), "band": r["band"],
-                "urgent": r["urgent"]} for r in candidates if r["id"] not in visited]
+                "urgent": r["urgent"], "swap": r["swap"]} for r in candidates if r["id"] not in visited]
     ranked = sorted(rows, key=lambda r: (-r["urgent"], -r["risk"]))
     return {
         "date": today.isoformat(),
         "depot": {"lat": DEPOT_LAT, "lon": DEPOT_LON},
         "routing": "road" if road else "straight",
         "warnings": warnings,
-        "settings_note": "%s travel times; candidates are customers with risk >= %.2f, plus urgent requests"
-                         % ("road" if road else "straight-line", CANDIDATE_RISK),
+        "settings_note": "%s travel times; candidates are customers with risk >= %.2f, plus urgent requests and swap candidates (empties held %d+ days)"
+                         % ("road" if road else "straight-line", CANDIDATE_RISK, EMPTY_OVERDUE_DAYS),
         "risk_table": [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3),
                         "band": r["band"], "urgent": r["urgent"], "days_since_delivery": r["days_since"],
                         "window_days": r["window"],
                         "empties_held": emp.get(r["id"], NO_EMPTIES)["held"],
                         "empties_overdue": emp.get(r["id"], NO_EMPTIES)["overdue"],
+                        "empties_bucket": emp.get(r["id"], NO_EMPTIES)["bucket"],
+                        "swap_candidate": r["swap"],
                         "deliveries_seen": r["n_deliveries"]} for r in ranked],
         "routes": routes_out,
         "candidates_not_visited": skipped,
@@ -255,6 +288,9 @@ def routes_view(session, day, driver_id=None):
         stops = [{"stop_id": s.id, "seq": s.seq, "customer_id": c.id, "name": c.name, "address": c.address,
                   "phone": c.phone, "lat": c.lat, "lon": c.lon, "cylinders": c.demand, "risk": s.risk,
                   "empties_held": emp.get(c.id, NO_EMPTIES)["held"],
+                  "empties_days": emp.get(c.id, NO_EMPTIES)["days_holding"],
+                  "empties_bucket": emp.get(c.id, NO_EMPTIES)["bucket"],
+                  "swap": emp.get(c.id, NO_EMPTIES)["overdue"],
                   "band": s.band, "urgent": s.urgent, "status": s.status, "reason": s.reason}
                  for s, c in rows]
         out.append({"route_id": r.id, "day": r.day.isoformat(), "vehicle": r.vehicle, "minutes": r.minutes,

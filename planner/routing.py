@@ -14,12 +14,13 @@ def travel_minutes(a, b):
 
 
 def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
-         urgent_late_cost=0, critical_late_cost=0):
+         urgent_late_cost=0, critical_late_cost=0, late_risks=None):
     """Returns (routes, visited) or None. routes = list of (stop list, minutes).
     tm = ready road-time matrix in minutes (index 0 = depot). If None, straight-line is used.
     seconds = solver time limit (default from config).
     urgent_late_cost / critical_late_cost = extra cost per minute of arrival time at urgent or Critical
-    customers. It pulls them towards the start of their route. 0 (default) = no pull."""
+    customers. It pulls them towards the start of their route. 0 (default) = no pull.
+    late_risks = the run-out risks used to decide who is Critical for that pull (default: risks)."""
     depot = {"id": 0, "x": 0.0, "y": 0.0, "demand": 0}
     nodes = [depot] + customers
     n = len(nodes)
@@ -45,7 +46,7 @@ def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
     for k, c in enumerate(customers, start=1):
         if c["id"] in urgent_ids and urgent_late_cost > 0:
             time_dim.SetCumulVarSoftUpperBound(manager.NodeToIndex(k), 0, int(urgent_late_cost))
-        elif risks[k - 1] >= CRITICAL_AT and critical_late_cost > 0:
+        elif (late_risks if late_risks is not None else risks)[k - 1] >= CRITICAL_AT and critical_late_cost > 0:
             time_dim.SetCumulVarSoftUpperBound(manager.NodeToIndex(k), 0, int(critical_late_cost))
         if c["id"] in urgent_ids:
             penalty = URGENT_PENALTY

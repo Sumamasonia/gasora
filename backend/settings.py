@@ -22,6 +22,8 @@ ROUTING = os.environ.get("GASORA_ROUTING", "auto")
 ROAD_GRAPH = os.path.join("data", "faisalabad.graphml")
 ROAD_CACHE = os.path.join("data", "road_cache.json")
 
-# Days after which empties still held by a customer count as overdue. PLACEHOLDER (same as the
-# 15-day return rule in the cylinder register).
-EMPTY_OVERDUE_DAYS = 15
+# Ageing of empties still held by a customer: (days held, skip-penalty weight, label).
+# A customer at the first tier or older is a swap candidate in the plan. The weights are PLACEHOLDERS
+# in the same units as the run-out risk (a weight of 0.5 counts like a 50% run-out risk).
+EMPTY_AGEING_TIERS = [(15, 0.3, "15-29"), (30, 0.5, "30-59"), (60, 0.7, "60-89"), (90, 0.9, "90+")]
+EMPTY_OVERDUE_DAYS = EMPTY_AGEING_TIERS[0][0]

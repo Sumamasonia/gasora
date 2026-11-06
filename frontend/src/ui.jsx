@@ -7,3 +7,7 @@ export function Badge({ band }) {
 export function UrgentTag() {
   return <span className="badge" style={{ background: BAND_COLOR.Urgent }}>Urgent request</span>
 }
+
+export function SwapTag() {
+  return <span className="badge" style={{ background: BAND_COLOR.Swap }}>Swap</span>
+}
