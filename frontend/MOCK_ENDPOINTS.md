@@ -42,6 +42,19 @@ This document lists all frontend mock endpoints that are not yet implemented or 
 
 ---
 
+## Dispatch & Driver Stop Actions (Modules 9, 11, 18)
+
+> **Note on Backend Alignment**:
+> The core dispatch endpoints (`GET /plan/today`, `POST /plan/publish`, `GET /routes`, `PATCH /routes/{route_id}/assign`, `GET /my-routes`, `POST /route-stops/{stop_id}/skip`, `GET /urgent`, `POST /urgent`, and `POST /paths`) are **REAL backend endpoints** matching the FastAPI contracts in `backend/app.py` and `backend/services.py`.
+>
+> The entry below documents the **extended mock-only contract** for stop completion with physical cylinder tracking:
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Extended Validation Rules |
+|---|---|---|---|---|---|
+| `POST` | `/route-stops/{stop_id}/deliver` | `owner`, `driver`, `manager` | `{ cylinders?: int, delivered_cylinder_ids?: int[], empty_cylinder_ids?: int[] }` | `{ ok: true, cylinders_moved: int }` | **Stop Delivery with Cylinder Asset Tracking**:<br>• Accepts optional `delivered_cylinder_ids` and `empty_cylinder_ids`. If neither is provided, performs default stop delivery with `{ cylinders }`.<br>• **Atomic Validation**: Validates that every ID in `delivered_cylinder_ids` exists and is in `Filled` state (`409 Conflict` if invalid). Validates that every ID in `empty_cylinder_ids` exists, is in `Delivered` state, and is currently held by this stop's `customer_id` (`409 Conflict` if invalid). **Rejects entire operation** without moving any cylinders if a single ID is invalid.<br>• **Atomic Transition**: On success, transitions delivered cylinders (`Filled ➔ Delivered`, setting `customer_id`) and collected empties (`Delivered ➔ Recovered`, clearing `customer_id`), records transaction history and audit events, records delivery in deliveries ledger, and returns `cylinders_moved` count. |
+
+---
+
 ## Other Mock-Only Endpoints Table
 
 | Method | Path | Allowed Roles | Request Body | Response Shape | Description |
