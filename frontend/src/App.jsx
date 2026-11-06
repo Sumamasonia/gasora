@@ -154,7 +154,7 @@ export default function App() {
           onNavigate={navigate}
         />
       ) : route === 'cylinders' || route.startsWith('cylinders') ? (
-        <CylinderRegister auth={auth} onNavigate={navigate} />
+        <CylinderRegister auth={auth} onNavigate={navigate} route={route} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}

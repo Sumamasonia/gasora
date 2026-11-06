@@ -6,13 +6,32 @@ import Spinner from '../../components/Spinner.jsx'
 import AddCylinderModal from './AddCylinderModal.jsx'
 import CylinderDetailDrawer from './CylinderDetailDrawer.jsx'
 import CylinderSummaryStrip from './CylinderSummaryStrip.jsx'
+import EmptyRecovery from './EmptyRecovery.jsx'
 import HeldByCustomersTable from './HeldByCustomersTable.jsx'
 import './cylinders.css'
 
-export default function CylinderRegister({ auth, onNavigate, onSelectCylinder }) {
+export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, route }) {
   const isOwner = auth?.role === 'owner'
 
-  const [activeTab, setActiveTab] = useState('register') // 'register' | 'held'
+  const initialTab =
+    route === 'cylinders/recovery' ? 'recovery' : route === 'cylinders/held' ? 'held' : 'register'
+  const [activeTab, setActiveTab] = useState(initialTab)
+
+  useEffect(() => {
+    if (route === 'cylinders/recovery') setActiveTab('recovery')
+    else if (route === 'cylinders/held') setActiveTab('held')
+    else if (route === 'cylinders') setActiveTab('register')
+  }, [route])
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    if (onNavigate) {
+      if (tab === 'recovery') onNavigate('cylinders/recovery')
+      else if (tab === 'held') onNavigate('cylinders/held')
+      else onNavigate('cylinders')
+    }
+  }
+
   const [summary, setSummary] = useState(null)
   const [cylinders, setCylinders] = useState([])
   const [customers, setCustomers] = useState([])
@@ -261,16 +280,23 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
         <button
           type="button"
           className={`cylinders-nav-tab ${activeTab === 'register' ? 'active' : ''}`}
-          onClick={() => setActiveTab('register')}
+          onClick={() => handleTabChange('register')}
         >
           📦 Cylinder Register
         </button>
         <button
           type="button"
           className={`cylinders-nav-tab ${activeTab === 'held' ? 'active' : ''}`}
-          onClick={() => setActiveTab('held')}
+          onClick={() => handleTabChange('held')}
         >
           👥 Held by Customers {summary?.held_by_customers?.length ? `(${summary.held_by_customers.length})` : ''}
+        </button>
+        <button
+          type="button"
+          className={`cylinders-nav-tab ${activeTab === 'recovery' ? 'active' : ''}`}
+          onClick={() => handleTabChange('recovery')}
+        >
+          ⏳ Empty Recovery & Ageing
         </button>
       </div>
 
@@ -278,6 +304,8 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
         <div style={{ padding: '60px 0', textAlign: 'center' }}>
           <Spinner size="lg" message="Loading cylinder inventory & lifecycle summary..." />
         </div>
+      ) : activeTab === 'recovery' ? (
+        <EmptyRecovery auth={auth} onNavigate={onNavigate} />
       ) : activeTab === 'held' ? (
         <HeldByCustomersTable
           summary={summary}
@@ -285,7 +313,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
           onNavigate={onNavigate}
           onFilterCustomerInRegister={(cid) => {
             setSelectedHolder(String(cid))
-            setActiveTab('register')
+            handleTabChange('register')
           }}
         />
       ) : (
