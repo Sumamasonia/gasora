@@ -1,3 +1,6 @@
+import { USE_MOCK } from './config'
+import { mockRequest } from './mock/router'
+
 const BASE = '/api'
 
 export class ApiError extends Error {
@@ -8,6 +11,9 @@ export class ApiError extends Error {
 }
 
 async function request(path, { token, method = 'GET', body } = {}) {
+  if (USE_MOCK) {
+    return mockRequest(path, { token, method, body })
+  }
   const headers = {}
   if (body) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
