@@ -4,6 +4,7 @@ import DataTable from '../../components/DataTable.jsx'
 import NotReady from '../../components/NotReady.jsx'
 import Spinner from '../../components/Spinner.jsx'
 import AddCylinderModal from './AddCylinderModal.jsx'
+import CylinderDetailDrawer from './CylinderDetailDrawer.jsx'
 import CylinderSummaryStrip from './CylinderSummaryStrip.jsx'
 import './cylinders.css'
 
@@ -25,6 +26,8 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
 
   // Add Cylinder Modal
   const [addModalOpen, setAddModalOpen] = useState(false)
+  // Selected cylinder for detail drawer
+  const [selectedCylinderId, setSelectedCylinderId] = useState(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -124,6 +127,11 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
     loadData()
   }
 
+  const handleSelectCylinder = (row) => {
+    setSelectedCylinderId(row.id)
+    if (onSelectCylinder) onSelectCylinder(row)
+  }
+
   // NotReady check if real endpoint is missing
   if (error && (error.status === 404 || error.status === 0)) {
     return <NotReady endpoint="GET /cylinders" />
@@ -140,7 +148,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
           style={{ cursor: 'pointer', fontSize: 13 }}
           onClick={(e) => {
             e.stopPropagation()
-            if (onSelectCylinder) onSelectCylinder(row)
+            handleSelectCylinder(row)
           }}
           title="View cylinder timeline"
         >
@@ -217,7 +225,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
           <button
             type="button"
             className="secondary table-action-btn"
-            onClick={() => onSelectCylinder && onSelectCylinder(row)}
+            onClick={() => handleSelectCylinder(row)}
             title="Open cylinder detail drawer"
           >
             History & Moves ➔
@@ -351,7 +359,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
             columns={columns}
             data={filteredCylinders}
             searchable={false}
-            onRowClick={(row) => onSelectCylinder && onSelectCylinder(row)}
+            onRowClick={handleSelectCylinder}
             emptyTitle="No cylinders match your filter criteria"
             emptyDescription="Try clearing your search query or adjusting your filters."
           />
@@ -364,6 +372,17 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder })
         onClose={() => setAddModalOpen(false)}
         token={auth.token}
         onSuccess={handleCylinderCreated}
+      />
+
+      {/* Cylinder Detail Drawer */}
+      <CylinderDetailDrawer
+        isOpen={Boolean(selectedCylinderId)}
+        onClose={() => setSelectedCylinderId(null)}
+        cylinderId={selectedCylinderId}
+        auth={auth}
+        customers={customers}
+        onNavigate={onNavigate}
+        onCylinderUpdated={loadData}
       />
     </div>
   )
