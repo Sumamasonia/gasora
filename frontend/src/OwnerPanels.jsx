@@ -15,29 +15,145 @@ export function calculateEta(stopSeq, totalStops, totalMinutes, shiftStartHour =
   return formatted
 }
 
-export function UrgentForm({ customers, openUrgent, onCreate, busy }) {
+export function UrgentForm({
+  customers,
+  openUrgent = [],
+  onCreate,
+  busy,
+  selectedCustomerId = null,
+  onSelectCustomer = null,
+}) {
+  const [search, setSearch] = useState('')
   const [customerId, setCustomerId] = useState('')
   const [note, setNote] = useState('')
-  const ids = Object.keys(customers).sort((a, b) => customers[a].name.localeCompare(customers[b].name))
+
+  const ids = Object.keys(customers).sort((a, b) =>
+    (customers[a]?.name || '').localeCompare(customers[b]?.name || '')
+  )
+
+  // Filter customer options by search text
+  const filteredIds = ids.filter((id) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    const name = (customers[id]?.name || '').toLowerCase()
+    return name.includes(q) || String(id).includes(q)
+  })
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!customerId) return
+    onCreate(Number(customerId), note)
+    setNote('')
+    setCustomerId('')
+    setSearch('')
+  }
+
   return (
-    <section>
-      <h3>Urgent request</h3>
-      <div className="row">
-        <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-          <option value="">Choose customer...</option>
-          {ids.map((id) => <option key={id} value={id}>{customers[id].name}</option>)}
-        </select>
-        <input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button disabled={busy || !customerId}
-          onClick={() => { onCreate(Number(customerId), note); setNote(''); setCustomerId('') }}>Add</button>
+    <section className="urgent-requests-section">
+      <div className="urgent-header-row">
+        <h3 className="urgent-section-title">
+          <span className="urgent-icon" aria-hidden="true">🚨</span> Urgent Requests
+          {openUrgent.length > 0 && (
+            <span className="urgent-counter-pill">{openUrgent.length} open</span>
+          )}
+        </h3>
       </div>
-      {openUrgent.length > 0 && (
-        <ul>
-          {openUrgent.map((u) => (
-            <li key={u.urgent_id}>{u.name} <span className="muted">{u.note || ''}</span></li>
-          ))}
-        </ul>
-      )}
+
+      <p className="muted" style={{ fontSize: 12, margin: '2px 0 8px' }}>
+        Create immediate priority delivery requests. Dispatched at the top of routes in red.
+      </p>
+
+      {/* Create Urgent Request Form with Customer Search */}
+      <form onSubmit={handleSubmit} className="urgent-create-form">
+        <div className="urgent-inputs-grid">
+          <div className="urgent-field-wrapper">
+            <input
+              type="text"
+              className="urgent-search-input"
+              placeholder="🔍 Search customer to flag urgent..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              disabled={busy}
+            />
+          </div>
+
+          <div className="urgent-field-wrapper">
+            <select
+              className="urgent-customer-select"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              disabled={busy}
+              required
+            >
+              <option value="">-- Choose Customer ({filteredIds.length} available) --</option>
+              {filteredIds.map((id) => (
+                <option key={id} value={id}>
+                  {customers[id]?.name || `Customer #${id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="urgent-field-wrapper">
+            <input
+              type="text"
+              className="urgent-note-input"
+              placeholder="Urgent reason / note (e.g. completely empty, emergency refill)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              disabled={busy}
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="urgent-submit-btn"
+          disabled={busy || !customerId}
+        >
+          {busy ? 'Adding...' : '⚡ Flag as Urgent Delivery'}
+        </button>
+      </form>
+
+      {/* List of Open Urgent Requests from GET /urgent (Urgent in Red) */}
+      <div className="urgent-list-container">
+        {openUrgent.length === 0 ? (
+          <div className="empty-urgent-box">
+            <span className="muted">No open urgent requests right now.</span>
+          </div>
+        ) : (
+          <div className="urgent-cards-stack">
+            {openUrgent.map((u) => {
+              const isSelected = selectedCustomerId !== null && Number(u.customer_id) === Number(selectedCustomerId)
+              return (
+                <div
+                  key={u.urgent_id}
+                  className={`urgent-card-item ${isSelected ? 'selected' : ''}`}
+                  onClick={() => onSelectCustomer && onSelectCustomer(isSelected ? null : u.customer_id)}
+                  title="Click to locate on map"
+                >
+                  <div className="urgent-card-top">
+                    <span className="urgent-badge-pill">🚨 URGENT</span>
+                    <strong className="urgent-customer-heading">{u.name}</strong>
+                    <span className="urgent-created-date muted">{u.created_on}</span>
+                  </div>
+
+                  {u.note && (
+                    <div className="urgent-note-box">
+                      &ldquo;{u.note}&rdquo;
+                    </div>
+                  )}
+
+                  <div className="urgent-card-footer muted">
+                    <span>Requested by {u.created_by || 'owner'}</span>
+                    <span className="locate-hint">📍 Click to locate</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </section>
   )
 }
