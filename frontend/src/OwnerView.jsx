@@ -7,7 +7,7 @@ import PlanMap from './PlanMap'
 import { PublishedRoutes, UrgentForm } from './OwnerPanels'
 import { Badge, UrgentTag } from './ui'
 
-function PlanPanel({ plan, published }) {
+function PlanPanel({ plan, published, selectedCustomerId, onSelectCustomer }) {
   const counts = { Normal: 0, High: 0, Critical: 0 }
   plan.risk_table.forEach((r) => { if (counts[r.band] !== undefined) counts[r.band] += 1 })
   const urgentCount = plan.risk_table.filter((r) => r.urgent).length
@@ -36,15 +36,23 @@ function PlanPanel({ plan, published }) {
             Vehicle {route.vehicle}: {route.stops.length} stops, about {route.minutes} min{route.km ? `, ${route.km} km` : ''}
           </h3>
           <ol>
-            {route.stops.map((s) => (
-              <li key={s.customer_id}>
-                {s.name} {s.urgent && <UrgentTag />} <Badge band={s.band} />{' '}
-                <span className="muted">
-                  {Math.round(s.risk * 100)}%
-                  {s.window_days && ` \u00b7 empty in ${s.window_days[0]} to ${s.window_days[1]} days`}
-                </span>
-              </li>
-            ))}
+            {route.stops.map((s) => {
+              const isSelected = selectedCustomerId !== null && Number(s.customer_id) === Number(selectedCustomerId)
+              return (
+                <li
+                  key={s.customer_id}
+                  className={isSelected ? 'selected' : ''}
+                  onClick={() => onSelectCustomer && onSelectCustomer(isSelected ? null : s.customer_id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {s.name} {s.urgent && <UrgentTag />} <Badge band={s.band} />{' '}
+                  <span className="muted">
+                    {Math.round(s.risk * 100)}%
+                    {s.window_days && ` \u00b7 empty in ${s.window_days[0]} to ${s.window_days[1]} days`}
+                  </span>
+                </li>
+              )
+            })}
           </ol>
         </section>
       ))}
@@ -52,9 +60,19 @@ function PlanPanel({ plan, published }) {
         <section>
           <h3>Not visited today ({plan.candidates_not_visited.length})</h3>
           <ul>
-            {plan.candidates_not_visited.map((s) => (
-              <li key={s.customer_id}>{s.name} <Badge band={s.band} /> <span className="muted">{Math.round(s.risk * 100)}%</span></li>
-            ))}
+            {plan.candidates_not_visited.map((s) => {
+              const isSelected = selectedCustomerId !== null && Number(s.customer_id) === Number(selectedCustomerId)
+              return (
+                <li
+                  key={s.customer_id}
+                  className={isSelected ? 'selected' : ''}
+                  onClick={() => onSelectCustomer && onSelectCustomer(isSelected ? null : s.customer_id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {s.name} <Badge band={s.band} /> <span className="muted">{Math.round(s.risk * 100)}%</span>
+                </li>
+              )
+            })}
           </ul>
         </section>
       )}
@@ -78,6 +96,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
   const [seconds, setSeconds] = useState(2)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null)
 
   const guard = useCallback(async (fn) => {
     setBusy(true)
@@ -109,38 +128,78 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
   useEffect(() => { guard(loadAll) }, [guard, loadAll])
 
   return (
-    <div className="app">
-      <header>
-        <strong>Gasora Dispatch</strong>
-        <span className="muted">{auth.username} ({auth.role})</span>
-        <span className="spacer" />
-        <label>
-          Solver time
-          <select value={seconds} onChange={(e) => setSeconds(Number(e.target.value))}>
-            <option value={1}>1 s</option>
-            <option value={2}>2 s</option>
-            <option value={5}>5 s</option>
-          </select>
-        </label>
-        <button disabled={busy} onClick={() => guard(loadAll)}>{busy ? 'Working...' : 'Refresh plan'}</button>
-        <button className="secondary" onClick={onSignOut}>Sign out</button>
-      </header>
+    <div className="planner-container">
+      <div className="planner-toolbar">
+        <div className="planner-toolbar-left">
+          <label className="toolbar-label">
+            <span>Solver time:</span>
+            <select
+              value={seconds}
+              onChange={(e) => setSeconds(Number(e.target.value))}
+              disabled={busy}
+            >
+              <option value={1}>1 s</option>
+              <option value={2}>2 s</option>
+              <option value={5}>5 s</option>
+            </select>
+          </label>
+          <button disabled={busy} onClick={() => guard(loadAll)}>
+            {busy ? 'Working...' : 'Refresh plan'}
+          </button>
+        </div>
+        <div className="planner-toolbar-right">
+          {routes.length > 0 ? (
+            <span className="planner-status-pill published">
+              ● Routes Published ({routes.length} vehicles, {routes.reduce((acc, r) => acc + r.total, 0)} stops)
+            </span>
+          ) : (
+            <span className="planner-status-pill preview">
+              ○ Proposed Plan (Preview Only)
+            </span>
+          )}
+        </div>
+      </div>
+
       {error && <p className="error banner">{error}</p>}
+
       {plan && (
-        <main>
-          <PlanMap plan={plan} coords={coords} published={routes} paths={paths} />
-          <aside className="panel">
+        <main className="planner-layout">
+          {/* Left Column: Route and Stop list on the left */}
+          <aside className="panel planner-sidebar">
             <PublishedRoutes
-              routes={routes} drivers={drivers} busy={busy}
+              routes={routes}
+              drivers={drivers}
+              busy={busy}
+              selectedCustomerId={selectedCustomerId}
+              onSelectCustomer={setSelectedCustomerId}
               onAssign={(id, name) => guard(async () => { await assignRoute(auth.token, id, name); await loadAll() })}
               onPublish={() => guard(async () => { await publishPlan(auth.token, seconds); await loadAll() })}
             />
             <UrgentForm
-              customers={coords} openUrgent={openUrgent} busy={busy}
+              customers={coords}
+              openUrgent={openUrgent}
+              busy={busy}
               onCreate={(id, note) => guard(async () => { await createUrgent(auth.token, id, note); await loadAll() })}
             />
-            <PlanPanel plan={plan} published={routes.length > 0} />
+            <PlanPanel
+              plan={plan}
+              published={routes.length > 0}
+              selectedCustomerId={selectedCustomerId}
+              onSelectCustomer={setSelectedCustomerId}
+            />
           </aside>
+
+          {/* Right Column: Large map on the right */}
+          <div className="planner-map-wrapper">
+            <PlanMap
+              plan={plan}
+              coords={coords}
+              published={routes}
+              paths={paths}
+              selectedCustomerId={selectedCustomerId}
+              onSelectCustomer={setSelectedCustomerId}
+            />
+          </div>
         </main>
       )}
     </div>

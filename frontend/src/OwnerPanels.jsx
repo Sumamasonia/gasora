@@ -29,7 +29,15 @@ export function UrgentForm({ customers, openUrgent, onCreate, busy }) {
   )
 }
 
-export function PublishedRoutes({ routes, drivers, onAssign, onPublish, busy }) {
+export function PublishedRoutes({
+  routes,
+  drivers,
+  onAssign,
+  onPublish,
+  busy,
+  selectedCustomerId = null,
+  onSelectCustomer = null,
+}) {
   return (
     <section>
       <h3>Published routes</h3>
@@ -49,14 +57,22 @@ export function PublishedRoutes({ routes, drivers, onAssign, onPublish, busy }) 
             </select>
           </div>
           <ol>
-            {r.stops.map((s) => (
-              <li key={s.stop_id} className={s.status !== 'pending' ? 'done' : ''}>
-                {s.name} {s.urgent && <UrgentTag />} <Badge band={s.band} />{' '}
-                <span className="muted">
-                  {s.status === 'delivered' ? 'delivered' : s.status === 'skipped' ? `skipped: ${s.reason}` : ''}
-                </span>
-              </li>
-            ))}
+            {r.stops.map((s) => {
+              const isSelected = selectedCustomerId !== null && Number(s.customer_id) === Number(selectedCustomerId)
+              return (
+                <li
+                  key={s.stop_id}
+                  className={`${s.status !== 'pending' ? 'done' : ''} ${isSelected ? 'selected' : ''}`}
+                  onClick={() => onSelectCustomer && onSelectCustomer(isSelected ? null : s.customer_id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {s.name} {s.urgent && <UrgentTag />} <Badge band={s.band} />{' '}
+                  <span className="muted">
+                    {s.status === 'delivered' ? 'delivered' : s.status === 'skipped' ? `skipped: ${s.reason}` : ''}
+                  </span>
+                </li>
+              )
+            })}
           </ol>
         </div>
       ))}

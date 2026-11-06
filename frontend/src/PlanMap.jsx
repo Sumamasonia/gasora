@@ -12,7 +12,14 @@ function FitToPoints({ points }) {
 }
 
 // Draws the published routes when there are any, and the proposed plan before publishing.
-export default function PlanMap({ plan, coords, published = [], paths = [] }) {
+export default function PlanMap({
+  plan,
+  coords,
+  published = [],
+  paths = [],
+  selectedCustomerId = null,
+  onSelectCustomer = null,
+}) {
   const depot = [plan.depot.lat, plan.depot.lon]
   const routes = published.length > 0 ? published : plan.routes
   const stopInfo = {}                                   // customer id -> { seq, status }
@@ -52,15 +59,30 @@ export default function PlanMap({ plan, coords, published = [], paths = [] }) {
         let color = row.urgent ? BAND_COLOR.Urgent : BAND_COLOR[row.band]
         if (info && info.status === 'delivered') color = '#2e7d32'
         if (info && info.status === 'skipped') color = '#757575'
+        const isSelected = selectedCustomerId !== null && Number(row.customer_id) === Number(selectedCustomerId)
+
         return (
           <CircleMarker
             key={row.customer_id}
             center={[c.lat, c.lon]}
-            radius={visited ? 8 : 5}
-            pathOptions={{ color, fillColor: color, fillOpacity: visited ? 0.9 : 0.45, weight: visited ? 2 : 1 }}
+            radius={isSelected ? 13 : (visited ? 8 : 5)}
+            pathOptions={{
+              color: isSelected ? '#1d4ed8' : color,
+              fillColor: isSelected ? '#3b82f6' : color,
+              fillOpacity: isSelected ? 1 : (visited ? 0.9 : 0.45),
+              weight: isSelected ? 4 : (visited ? 2 : 1),
+            }}
+            eventHandlers={{
+              click: () => {
+                if (onSelectCustomer) {
+                  onSelectCustomer(isSelected ? null : row.customer_id)
+                }
+              },
+            }}
           >
             <Popup>
               <strong>{row.name}</strong>
+              {isSelected && <span style={{ color: '#2563eb', fontWeight: 600 }}> &bull; Selected</span>}
               <br />
               {row.urgent && <>Urgent request<br /></>}
               Risk {Math.round(row.risk * 100)}% ({row.band})
