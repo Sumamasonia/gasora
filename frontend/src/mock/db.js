@@ -39,6 +39,19 @@ export function loadDb() {
       }
       if (!db.customers || db.customers.length === 0) {
         db.customers = [...SEED_CUSTOMERS]
+      } else {
+        db.customers = db.customers.map((c) => {
+          const seedMatch = SEED_CUSTOMERS.find((s) => s.id === c.id)
+          return {
+            ...seedMatch,
+            ...c,
+            code: c.code || seedMatch?.code || `C${String(c.id).padStart(4, '0')}`,
+            area: c.area || seedMatch?.area || 'Faisalabad',
+            deposit: c.deposit !== undefined ? c.deposit : (seedMatch?.deposit ?? 6000),
+            notes: c.notes !== undefined ? c.notes : (seedMatch?.notes ?? ''),
+            is_active: c.is_active !== undefined ? c.is_active : (seedMatch?.is_active ?? true),
+          }
+        })
       }
       return db
     }
