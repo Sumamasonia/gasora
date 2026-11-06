@@ -1,4 +1,5 @@
 import { ApiError } from '../api'
+import { handleLogin, handleMe } from './auth'
 
 // Simulate realistic network latency (150 - 400 ms)
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -12,6 +13,14 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
 
   if (method === 'GET' && normalizedPath === '/health') {
     return { status: 'ok' }
+  }
+
+  if (method === 'POST' && normalizedPath === '/auth/login') {
+    return handleLogin(body)
+  }
+
+  if (method === 'GET' && normalizedPath === '/auth/me') {
+    return handleMe(token)
   }
 
   throw new ApiError(404, `Mock endpoint not found: ${method} ${path}`)

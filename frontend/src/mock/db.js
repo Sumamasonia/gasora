@@ -1,8 +1,10 @@
+import { SEED_USERS } from './auth'
+
 const STORAGE_KEY = 'gasora-mock-db'
 
 // Default empty collections schema for mock database
 export const createInitialDb = () => ({
-  users: [],
+  users: [...SEED_USERS],
   customers: [],
   cylinders: [],
   cylinder_history: [],
@@ -31,6 +33,10 @@ export function loadDb() {
       const parsed = JSON.parse(raw)
       const base = createInitialDb()
       db = { ...base, ...parsed }
+      // Ensure seed users exist if users array was empty
+      if (!db.users || db.users.length === 0) {
+        db.users = [...SEED_USERS]
+      }
       return db
     }
   } catch (err) {
