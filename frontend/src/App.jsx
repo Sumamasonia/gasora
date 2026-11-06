@@ -8,6 +8,7 @@ import { useHashRoute } from './lib/useHashRoute'
 import OwnerView from './OwnerView'
 import CustomerList from './pages/customers/CustomerList'
 import CustomerProfile from './pages/customers/CustomerProfile'
+import CylinderRegister from './pages/cylinders/CylinderRegister'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -152,6 +153,8 @@ export default function App() {
           customerId={route.split('/')[1]}
           onNavigate={navigate}
         />
+      ) : route === 'cylinders' || route.startsWith('cylinders') ? (
+        <CylinderRegister auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}

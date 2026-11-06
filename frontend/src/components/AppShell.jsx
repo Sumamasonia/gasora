@@ -32,7 +32,7 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
   // Find label for current route
   let currentTitle = 'Dashboard'
   for (const group of navGroups) {
-    const item = group.items.find((i) => i.id === activeRoute || (i.id === 'customers' && activeRoute.startsWith('customers')))
+    const item = group.items.find((i) => i.id === activeRoute || (i.id === 'customers' && activeRoute.startsWith('customers')) || (i.id === 'cylinders' && activeRoute.startsWith('cylinders')))
     if (item) {
       currentTitle = item.label
       break
@@ -63,7 +63,7 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
               <div className="nav-group-title">{group.title}</div>
               <div className="nav-group-items">
                 {group.items.map((item) => {
-                  const isActive = activeRoute === item.id || (item.id === 'customers' && activeRoute.startsWith('customers'))
+                  const isActive = activeRoute === item.id || (item.id === 'customers' && activeRoute.startsWith('customers')) || (item.id === 'cylinders' && activeRoute.startsWith('cylinders'))
                   return (
                     <button
                       key={item.id}
