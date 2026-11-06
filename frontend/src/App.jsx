@@ -7,6 +7,7 @@ import DriverView from './DriverView'
 import { useHashRoute } from './lib/useHashRoute'
 import OwnerView from './OwnerView'
 import CustomerList from './pages/customers/CustomerList'
+import CustomerProfile from './pages/customers/CustomerProfile'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -145,6 +146,12 @@ export default function App() {
         <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} />
       ) : route === 'customers' ? (
         <CustomerList auth={auth} onNavigate={navigate} />
+      ) : route.startsWith('customers/') ? (
+        <CustomerProfile
+          auth={auth}
+          customerId={route.split('/')[1]}
+          onNavigate={navigate}
+        />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}
