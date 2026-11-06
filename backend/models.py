@@ -71,6 +71,21 @@ class RouteStop(Base):
     delivery_id: Mapped[int | None] = mapped_column(default=None)
 
 
+class EmptiesLedger(Base):
+    """Count of cylinders given to a customer and empties collected back. held = delivered - collected."""
+    __tablename__ = "empties_ledger"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"))
+    delivery_id: Mapped[int | None] = mapped_column(default=None)
+    delivered: Mapped[int] = mapped_column(default=0)
+    collected: Mapped[int] = mapped_column(default=0)
+    kind: Mapped[str] = mapped_column(String(12), default="delivery")          # delivery or adjustment
+    note: Mapped[str | None] = mapped_column(String(200), default=None)
+    actor: Mapped[str] = mapped_column(String(50))
+    created_on: Mapped[date]
+    event_id: Mapped[int | None] = mapped_column(default=None)
+
+
 class Cylinder(Base):
     __tablename__ = "cylinders"
     id: Mapped[int] = mapped_column(primary_key=True)

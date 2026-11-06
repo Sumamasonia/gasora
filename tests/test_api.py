@@ -71,7 +71,7 @@ def test_audit_chain_and_tamper(client):
     cid = add_customer(client, h)
     client.post("/deliveries", json={"customer_id": cid}, headers=h)
     r = client.get("/audit/verify", headers=h).json()
-    assert r["ok"] and r["events"] == 2                    # customer.created + delivery.recorded
+    assert r["ok"] and r["events"] == 3                    # customer.created + delivery.recorded + empties.recorded
     ev = client.app.state.events
     ev.execute("DROP TRIGGER events_no_update")             # attacker with database access
     ev.execute("UPDATE events SET actor='someone-else' WHERE id=2")

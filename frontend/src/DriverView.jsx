@@ -4,6 +4,7 @@ import { Badge, UrgentTag } from './ui'
 
 export default function DriverView({ auth, onSignOut, onExpired }) {
   const [routes, setRoutes] = useState(null)
+  const [empties, setEmpties] = useState({})                // stop id -> empties collected (as typed)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -46,6 +47,9 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
                 <Badge band={s.band} />
               </div>
               <div className="muted">{s.address || 'No address saved'} &middot; {s.cylinders} cylinder(s)</div>
+              {s.empties_held > 0 && (
+                <div className="muted">This customer still holds {s.empties_held} empty cylinder(s) from earlier. Collect them if you can.</div>
+              )}
               <div className="links">
                 {s.phone && <a href={`tel:${s.phone}`}>Call {s.phone}</a>}
                 <a href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}`} target="_blank" rel="noreferrer">
@@ -53,8 +57,18 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
                 </a>
               </div>
               {s.status === 'pending' ? (
+                <>
+                <label className="muted">
+                  Empties collected{' '}
+                  <input type="number" min="0" max="20" style={{ width: 64 }}
+                    value={empties[s.stop_id] ?? s.cylinders}
+                    onChange={(e) => setEmpties({ ...empties, [s.stop_id]: e.target.value })} />
+                </label>
                 <div className="actions">
-                  <button disabled={busy} onClick={() => run(async () => { await deliverStop(auth.token, s.stop_id); await load() })}>
+                  <button disabled={busy} onClick={() => run(async () => {
+                    await deliverStop(auth.token, s.stop_id, Number(empties[s.stop_id] ?? s.cylinders))
+                    await load()
+                  })}>
                     Delivered
                   </button>
                   <button className="secondary" disabled={busy} onClick={() => {
@@ -64,6 +78,7 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
                     Skip
                   </button>
                 </div>
+                </>
               ) : (
                 <div className="muted">{s.status === 'delivered' ? 'Delivered' : `Skipped: ${s.reason}`}</div>
               )}

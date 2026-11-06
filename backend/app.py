@@ -115,6 +115,7 @@ class CylinderSummaryOut(BaseModel):
 class DeliveryIn(BaseModel):
     customer_id: int
     cylinders: int = Field(default=1, ge=1, le=10)
+    empties_collected: Optional[int] = Field(default=None, ge=0, le=20)   # default: as many as delivered
     delivered_on: Optional[date] = None          # default: today
 
 
@@ -144,6 +145,13 @@ class AssignIn(BaseModel):
 
 class DeliverIn(BaseModel):
     cylinders: Optional[int] = Field(default=None, ge=1, le=10)
+    empties_collected: Optional[int] = Field(default=None, ge=0, le=20)
+
+
+class AdjustEmptiesIn(BaseModel):
+    customer_id: int
+    delta: int = Field(ge=-20, le=20)
+    note: Optional[str] = Field(default=None, max_length=200)
 
 
 class PathsIn(BaseModel):
@@ -310,7 +318,7 @@ def create_delivery(body: DeliveryIn, request: Request, session: Session = Depen
         raise HTTPException(400, "delivery date is in the future")
     try:
         d = services.record_delivery(session, request.app.state.events, me.username,
-                                     body.customer_id, day, body.cylinders)
+                                     body.customer_id, day, body.cylinders, body.empties_collected)
     except LookupError:
         raise HTTPException(404, "customer not found")
     session.commit()
@@ -402,9 +410,10 @@ def my_routes(session: Session = Depends(get_session), me: User = Depends(requir
     return services.routes_view(session, date.today(), driver_id=me.id)
 
 
-def _stop_action(stop_id, action, request, session, me, cylinders=None, reason=None):
+def _stop_action(stop_id, action, request, session, me, cylinders=None, reason=None, empties_collected=None):
     try:
-        services.complete_stop(session, request.app.state.events, me, stop_id, action, cylinders, reason)
+        services.complete_stop(session, request.app.state.events, me, stop_id, action, cylinders, reason,
+                               empties_collected)
     except LookupError as e:
         raise HTTPException(404, str(e))
     except PermissionError as e:
@@ -415,10 +424,29 @@ def _stop_action(stop_id, action, request, session, me, cylinders=None, reason=N
     return {"ok": True}
 
 
+@router.get("/empties")
+def empties(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    return services.empties_summary(session, date.today())
+
+
+@router.post("/empties/adjust", status_code=201)
+def empties_adjust(body: AdjustEmptiesIn, request: Request, session: Session = Depends(get_session),
+                   me: User = Depends(require("owner"))):
+    try:
+        services.adjust_empties(session, request.app.state.events, me.username, body.customer_id, body.delta, body.note)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    session.commit()
+    return services.empties_summary(session, date.today())
+
+
 @router.post("/route-stops/{stop_id}/deliver")
 def deliver_stop(stop_id: int, body: DeliverIn, request: Request, session: Session = Depends(get_session),
                  me: User = Depends(require("owner", "driver"))):
-    return _stop_action(stop_id, "deliver", request, session, me, cylinders=body.cylinders)
+    return _stop_action(stop_id, "deliver", request, session, me, cylinders=body.cylinders,
+                        empties_collected=body.empties_collected)
 
 
 @router.post("/route-stops/{stop_id}/skip")

@@ -6,8 +6,8 @@ import numpy as np
 from sqlalchemy import select
 
 from backend import eventlog
-from backend.models import Customer, Delivery, Route, RouteStop, UrgentRequest, User
-from backend.settings import DEPOT_LAT, DEPOT_LON, LATE_COST_CRITICAL, LATE_COST_URGENT
+from backend.models import Customer, Delivery, EmptiesLedger, Route, RouteStop, UrgentRequest, User
+from backend.settings import DEPOT_LAT, DEPOT_LON, EMPTY_OVERDUE_DAYS, LATE_COST_CRITICAL, LATE_COST_URGENT
 from evaluation.policies import CANDIDATE_RISK
 from planner.routing import plan
 from predictor.risk import band, refill_window, run_out_risk
@@ -16,8 +16,9 @@ DEFAULT_POOLED = (20.0, 4.0)      # mean and spread of days between refills, use
 
 
 # ---------- deliveries and urgent requests ----------
-def record_delivery(session, events, actor, customer_id, delivered_on, cylinders):
-    """Save a delivery, close open urgent requests of that customer, write events. Caller commits."""
+def record_delivery(session, events, actor, customer_id, delivered_on, cylinders, empties_collected=None):
+    """Save a delivery, note the empties collected (default: one for each cylinder delivered, a plain swap),
+    close open urgent requests of that customer, write events. Caller commits."""
     if session.get(Customer, customer_id) is None:
         raise LookupError("customer not found")
     d = Delivery(customer_id=customer_id, delivered_on=delivered_on, cylinders=cylinders, driver=actor)
@@ -27,6 +28,13 @@ def record_delivery(session, events, actor, customer_id, delivered_on, cylinders
         "delivery_id": d.id, "customer_id": customer_id,
         "delivered_on": delivered_on.isoformat(), "cylinders": cylinders})
     d.event_id = event_id
+    collected = cylinders if empties_collected is None else empties_collected
+    ledger = EmptiesLedger(customer_id=customer_id, delivery_id=d.id, delivered=cylinders, collected=collected,
+                           kind="delivery", actor=actor, created_on=delivered_on)
+    session.add(ledger)
+    session.flush()
+    ledger.event_id, _ = eventlog.append(events, actor, "empties.recorded", {
+        "customer_id": customer_id, "delivery_id": d.id, "delivered": cylinders, "collected": collected})
     for u in session.scalars(select(UrgentRequest).where(
             UrgentRequest.customer_id == customer_id, UrgentRequest.status == "open")):
         u.status = "done"
@@ -52,6 +60,58 @@ def open_urgent(session):
              "created_on": u.created_on.isoformat(), "created_by": u.created_by} for u, c in rows]
 
 
+# ---------- empties held by customers ----------
+NO_EMPTIES = {"held": 0, "days_holding": None, "overdue": False}
+
+
+def empties_state(session, today):
+    """customer id -> empties still held (delivered minus collected), days held, overdue.
+    Only customers holding at least one empty are listed."""
+    rows = session.scalars(select(EmptiesLedger).order_by(EmptiesLedger.created_on, EmptiesLedger.id)).all()
+    balance, since = {}, {}
+    for r in rows:
+        if r.created_on > today:
+            continue
+        b = balance.get(r.customer_id, 0) + r.delivered - r.collected
+        balance[r.customer_id] = b
+        if b <= 0:
+            since[r.customer_id] = None
+        elif since.get(r.customer_id) is None:
+            since[r.customer_id] = r.created_on                      # the holding period starts here
+    out = {}
+    for cid, b in balance.items():
+        if b > 0:
+            days = (today - since[cid]).days
+            out[cid] = {"held": b, "days_holding": days, "overdue": days > EMPTY_OVERDUE_DAYS}
+    return out
+
+
+def empties_summary(session, today):
+    state = empties_state(session, today)
+    names = {c.id: c.name for c in session.scalars(select(Customer))}
+    rows = [{"customer_id": cid, "name": names.get(cid, "?"), **v} for cid, v in state.items()]
+    rows.sort(key=lambda r: (not r["overdue"], -r["days_holding"], r["customer_id"]))
+    return {"total_held": sum(r["held"] for r in rows), "customers_holding": len(rows),
+            "customers_overdue": sum(r["overdue"] for r in rows), "overdue_after_days": EMPTY_OVERDUE_DAYS,
+            "customers": rows}
+
+
+def adjust_empties(session, events, actor, customer_id, delta, note):
+    """Correct the count, for example to enter what a customer held before the system was used.
+    delta > 0: the customer holds that many more empties; delta < 0: that many fewer. Caller commits."""
+    if session.get(Customer, customer_id) is None:
+        raise LookupError("customer not found")
+    if delta == 0:
+        raise ValueError("delta must not be zero")
+    row = EmptiesLedger(customer_id=customer_id, delivered=max(delta, 0), collected=max(-delta, 0),
+                        kind="adjustment", note=note, actor=actor, created_on=date.today())
+    session.add(row)
+    session.flush()
+    row.event_id, _ = eventlog.append(events, actor, "empties.adjusted",
+                                      {"customer_id": customer_id, "delta": delta, "note": note})
+    return row
+
+
 # ---------- the plan ----------
 def _xy_km(lat, lon):
     x = (lon - DEPOT_LON) * 111.32 * math.cos(math.radians(DEPOT_LAT))
@@ -72,6 +132,7 @@ def build_plan(session, today, seconds=2.0, router=None):
     deliveries = session.scalars(
         select(Delivery).where(Delivery.delivered_on <= today).order_by(Delivery.delivered_on)).all()
     urgent = {u["customer_id"] for u in open_urgent(session)}
+    emp = empties_state(session, today)
     dates = {}
     for d in deliveries:
         dates.setdefault(d.customer_id, set()).add(d.delivered_on)
@@ -127,7 +188,8 @@ def build_plan(session, today, seconds=2.0, router=None):
                     "stops": [{"customer_id": candidates[k - 1]["id"], "name": candidates[k - 1]["name"],
                                "risk": round(candidates[k - 1]["risk"], 3), "band": candidates[k - 1]["band"],
                                "urgent": candidates[k - 1]["urgent"],
-                               "window_days": candidates[k - 1]["window"]} for k in route]})
+                               "window_days": candidates[k - 1]["window"],
+                               "empties_held": emp.get(candidates[k - 1]["id"], NO_EMPTIES)["held"]} for k in route]})
     skipped = [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3), "band": r["band"],
                 "urgent": r["urgent"]} for r in candidates if r["id"] not in visited]
     ranked = sorted(rows, key=lambda r: (-r["urgent"], -r["risk"]))
@@ -141,6 +203,8 @@ def build_plan(session, today, seconds=2.0, router=None):
         "risk_table": [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3),
                         "band": r["band"], "urgent": r["urgent"], "days_since_delivery": r["days_since"],
                         "window_days": r["window"],
+                        "empties_held": emp.get(r["id"], NO_EMPTIES)["held"],
+                        "empties_overdue": emp.get(r["id"], NO_EMPTIES)["overdue"],
                         "deliveries_seen": r["n_deliveries"]} for r in ranked],
         "routes": routes_out,
         "candidates_not_visited": skipped,
@@ -178,6 +242,7 @@ def publish_plan(session, events, actor, day, seconds, router=None):
 
 
 def routes_view(session, day, driver_id=None):
+    emp = empties_state(session, day)
     q = select(Route).where(Route.day == day).order_by(Route.vehicle)
     if driver_id is not None:
         q = q.where(Route.driver_id == driver_id)
@@ -189,6 +254,7 @@ def routes_view(session, day, driver_id=None):
         driver = session.get(User, r.driver_id) if r.driver_id else None
         stops = [{"stop_id": s.id, "seq": s.seq, "customer_id": c.id, "name": c.name, "address": c.address,
                   "phone": c.phone, "lat": c.lat, "lon": c.lon, "cylinders": c.demand, "risk": s.risk,
+                  "empties_held": emp.get(c.id, NO_EMPTIES)["held"],
                   "band": s.band, "urgent": s.urgent, "status": s.status, "reason": s.reason}
                  for s, c in rows]
         out.append({"route_id": r.id, "day": r.day.isoformat(), "vehicle": r.vehicle, "minutes": r.minutes,
@@ -209,7 +275,7 @@ def assign_route(session, events, actor, route_id, username):
     eventlog.append(events, actor, "route.assigned", {"route_id": route.id, "driver": driver.username})
 
 
-def complete_stop(session, events, user, stop_id, action, cylinders=None, reason=None):
+def complete_stop(session, events, user, stop_id, action, cylinders=None, reason=None, empties_collected=None):
     """A driver (or the owner) marks a stop as delivered or skipped. Caller commits."""
     stop = session.get(RouteStop, stop_id)
     if stop is None:
@@ -223,7 +289,8 @@ def complete_stop(session, events, user, stop_id, action, cylinders=None, reason
         raise ValueError("this route is not for today")
     if action == "deliver":
         cust = session.get(Customer, stop.customer_id)
-        d = record_delivery(session, events, user.username, cust.id, date.today(), cylinders or cust.demand)
+        d = record_delivery(session, events, user.username, cust.id, date.today(), cylinders or cust.demand,
+                            empties_collected)
         stop.status, stop.delivery_id = "delivered", d.id
     else:
         stop.status, stop.reason = "skipped", reason

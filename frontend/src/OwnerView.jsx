@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ApiError, assignRoute, createUrgent, getCustomers, getPaths, getPlan, getRoutes, getUrgent, getUsers, publishPlan,
+  ApiError, assignRoute, createUrgent, getCustomers, getEmpties, getPaths, getPlan, getRoutes, getUrgent, getUsers, publishPlan,
 } from './api'
 import { BAND_COLOR, VEHICLE_COLORS } from './colors'
 import PlanMap from './PlanMap'
-import { PublishedRoutes, UrgentForm } from './OwnerPanels'
+import { EmptiesPanel, PublishedRoutes, UrgentForm } from './OwnerPanels'
 import { Badge, UrgentTag } from './ui'
 
 function PlanPanel({ plan, published }) {
@@ -75,6 +75,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
   const [paths, setPaths] = useState([])
   const [drivers, setDrivers] = useState([])
   const [openUrgent, setOpenUrgent] = useState([])
+  const [emptiesInfo, setEmptiesInfo] = useState(null)
   const [seconds, setSeconds] = useState(2)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -95,14 +96,14 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
 
   const loadAll = useCallback(async () => {
     const t = auth.token
-    const [customers, p, r, users, u] = await Promise.all([
-      getCustomers(t), getPlan(t, seconds), getRoutes(t), getUsers(t), getUrgent(t),
+    const [customers, p, r, users, u, em] = await Promise.all([
+      getCustomers(t), getPlan(t, seconds), getRoutes(t), getUsers(t), getUrgent(t), getEmpties(t),
     ])
     const map = {}
     customers.forEach((c) => { map[c.id] = { lat: c.lat, lon: c.lon, name: c.name } })
     const shown = r.length ? r : p.routes
     const pa = await getPaths(t, shown.map((rt) => rt.stops.map((s) => s.customer_id)))
-    setCoords(map); setPlan(p); setRoutes(r); setOpenUrgent(u); setPaths(pa.paths)
+    setCoords(map); setPlan(p); setRoutes(r); setOpenUrgent(u); setEmptiesInfo(em); setPaths(pa.paths)
     setDrivers(users.filter((x) => x.role === 'driver'))
   }, [auth.token, seconds])
 
@@ -139,6 +140,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
               customers={coords} openUrgent={openUrgent} busy={busy}
               onCreate={(id, note) => guard(async () => { await createUrgent(auth.token, id, note); await loadAll() })}
             />
+            <EmptiesPanel empties={emptiesInfo} />
             <PlanPanel plan={plan} published={routes.length > 0} />
           </aside>
         </main>

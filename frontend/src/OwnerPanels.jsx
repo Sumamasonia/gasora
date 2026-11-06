@@ -29,6 +29,26 @@ export function UrgentForm({ customers, openUrgent, onCreate, busy }) {
   )
 }
 
+export function EmptiesPanel({ empties }) {
+  if (!empties) return null
+  return (
+    <section>
+      <h3>Empties with customers</h3>
+      <p className="muted">
+        {empties.total_held} empty cylinder(s) at {empties.customers_holding} customer(s);{' '}
+        {empties.customers_overdue} overdue (more than {empties.overdue_after_days} days).
+      </p>
+      <ul>
+        {empties.customers.slice(0, 8).map((c) => (
+          <li key={c.customer_id} className={c.overdue ? '' : 'done'}>
+            {c.name}: {c.held} for {c.days_holding} days{c.overdue ? ' (overdue)' : ''}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export function PublishedRoutes({ routes, drivers, onAssign, onPublish, busy }) {
   return (
     <section>

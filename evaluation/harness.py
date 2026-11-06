@@ -13,6 +13,7 @@ import numpy as np
 from evaluation.world import build_static, new_state
 from evaluation.policies import POLICIES
 
+PATTERNS = ("steady", "irregular")     # hidden usage patterns of the simulated customers
 EARLY_DAYS = 5     # delivered with more than this many days of gas left = early (placeholder)
 
 
@@ -29,12 +30,16 @@ def run_policy(static, policy, days, warmup=0):
     simulation forget its arbitrary starting state (customers start in the middle of a cylinder)."""
     state = new_state(static)
     by_id = {c["id"]: c for c in state}
+    pattern = {c["id"]: c["pattern"] for c in static.customers}
+    fresh = lambda: {p: {"runouts": 0, "deliveries": 0, "early": 0, "days_out": 0} for p in PATTERNS}
+    by_p = fresh()                                        # the same counts, split by customer type
     runouts = deliveries = early = days_out = 0
     total_km = 0.0
     for d in range(warmup + days):
         if d == warmup:                                   # start counting here
             runouts = deliveries = early = days_out = 0
             total_km = 0.0
+            by_p = fresh()
         for c in state:
             c["days_since"] = d - c["last_delivery"]
         routes = policy(static, state, d)
@@ -46,6 +51,7 @@ def run_policy(static, policy, days, warmup=0):
                 c = by_id[cid]
                 if not c["out"] and c["runout_day"] - d > EARLY_DAYS:
                     early += 1
+                    by_p[pattern[cid]]["early"] += 1
                 dur = static.durations[cid - 1]
                 c["intervals"].append(float(dur[c["cyl"] % len(dur)]))   # driver records it
                 c["cyl"] += 1
@@ -53,14 +59,17 @@ def run_policy(static, policy, days, warmup=0):
                 c["last_delivery"] = d
                 c["runout_day"] = d + dur[c["cyl"] % len(dur)]
                 deliveries += 1
+                by_p[pattern[cid]]["deliveries"] += 1
         for c in state:                                   # end of day
             if not c["out"] and c["runout_day"] < d + 1:
                 c["out"] = True
                 runouts += 1
+                by_p[pattern[c["id"]]]["runouts"] += 1
             if c["out"]:
                 days_out += 1
+                by_p[pattern[c["id"]]]["days_out"] += 1
     customer_months = static.n * days / 30
-    return {
+    result = {
         "runouts_per_100cm": 100 * runouts / customer_months,
         "km_per_delivery": total_km / deliveries if deliveries else float("nan"),
         "early": early,
@@ -68,6 +77,14 @@ def run_policy(static, policy, days, warmup=0):
         "deliveries": deliveries,
         "total_km": total_km,
     }
+    for p in PATTERNS:                                    # km cannot be split: a route serves both types
+        n_p = sum(1 for v in pattern.values() if v == p)
+        result[f"n_{p}"] = n_p
+        result[f"runouts_per_100cm_{p}"] = 100 * by_p[p]["runouts"] / (n_p * days / 30) if n_p else float("nan")
+        result[f"deliveries_{p}"] = by_p[p]["deliveries"]
+        result[f"early_{p}"] = by_p[p]["early"]
+        result[f"days_out_{p}"] = by_p[p]["days_out"]
+    return result
 
 
 def bootstrap_ci(diffs, n_boot=2000, seed=0):

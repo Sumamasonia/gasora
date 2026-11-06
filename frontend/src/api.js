@@ -45,7 +45,8 @@ export const getRoutes = (token) => request('/routes', { token })
 export const assignRoute = (token, routeId, username) =>
   request(`/routes/${routeId}/assign`, { token, method: 'PATCH', body: { username } })
 export const getMyRoutes = (token) => request('/my-routes', { token })
-export const deliverStop = (token, stopId) =>
-  request(`/route-stops/${stopId}/deliver`, { token, method: 'POST', body: {} })
+export const deliverStop = (token, stopId, emptiesCollected) =>
+  request(`/route-stops/${stopId}/deliver`, { token, method: 'POST', body: { empties_collected: emptiesCollected } })
+export const getEmpties = (token) => request('/empties', { token })
 export const skipStop = (token, stopId, reason) =>
   request(`/route-stops/${stopId}/skip`, { token, method: 'POST', body: { reason } })

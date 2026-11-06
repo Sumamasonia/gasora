@@ -21,3 +21,7 @@ LATE_COST_CRITICAL = 1
 ROUTING = os.environ.get("GASORA_ROUTING", "auto")
 ROAD_GRAPH = os.path.join("data", "faisalabad.graphml")
 ROAD_CACHE = os.path.join("data", "road_cache.json")
+
+# Days after which empties still held by a customer count as overdue. PLACEHOLDER (same as the
+# 15-day return rule in the cylinder register).
+EMPTY_OVERDUE_DAYS = 15
