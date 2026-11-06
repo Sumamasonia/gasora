@@ -4,6 +4,7 @@ import DataTable from '../../components/DataTable'
 import KpiTile from '../../components/KpiTile'
 import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
+import CustomerDeactivateModal from './CustomerDeactivateModal'
 import CustomerModal from './CustomerModal'
 import './customers.css'
 
@@ -15,6 +16,8 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
+  const [togglingCustomer, setTogglingCustomer] = useState(null)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -47,6 +50,11 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
   const handleOpenEdit = (cust) => {
     setSelectedCustomer(cust)
     setModalOpen(true)
+  }
+
+  const handleOpenToggleActive = (cust) => {
+    setTogglingCustomer(cust)
+    setDeactivateModalOpen(true)
   }
 
   const handleCustomerSaved = () => {
@@ -208,17 +216,15 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
           >
             Edit
           </button>
-          {onOpenToggleActive && (
-            <button
-              type="button"
-              className={row.is_active !== false ? 'ghost table-action-btn' : 'secondary table-action-btn'}
-              onClick={() => onOpenToggleActive(row)}
-              title={row.is_active !== false ? 'Deactivate customer' : 'Reactivate customer'}
-              style={{ color: row.is_active !== false ? 'var(--color-danger)' : 'var(--color-success)' }}
-            >
-              {row.is_active !== false ? 'Deactivate' : 'Reactivate'}
-            </button>
-          )}
+          <button
+            type="button"
+            className={row.is_active !== false ? 'ghost table-action-btn' : 'secondary table-action-btn'}
+            onClick={() => handleOpenToggleActive(row)}
+            title={row.is_active !== false ? 'Deactivate customer' : 'Reactivate customer'}
+            style={{ color: row.is_active !== false ? 'var(--color-danger)' : 'var(--color-success)' }}
+          >
+            {row.is_active !== false ? 'Deactivate' : 'Reactivate'}
+          </button>
         </div>
       ),
     },
@@ -368,6 +374,14 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         customer={selectedCustomer}
+        token={auth.token}
+        onSuccess={handleCustomerSaved}
+      />
+
+      <CustomerDeactivateModal
+        isOpen={deactivateModalOpen}
+        onClose={() => setDeactivateModalOpen(false)}
+        customer={togglingCustomer}
         token={auth.token}
         onSuccess={handleCustomerSaved}
       />
