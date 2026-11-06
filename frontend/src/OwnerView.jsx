@@ -5,6 +5,7 @@ import {
 import { BAND_COLOR, VEHICLE_COLORS } from './colors'
 import PlanMap from './PlanMap'
 import { PublishedRoutes, UrgentForm } from './OwnerPanels'
+import RiskList from './RiskList'
 import { Badge, UrgentTag } from './ui'
 
 function PlanPanel({ plan, published, selectedCustomerId, onSelectCustomer }) {
@@ -180,6 +181,11 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
               openUrgent={openUrgent}
               busy={busy}
               onCreate={(id, note) => guard(async () => { await createUrgent(auth.token, id, note); await loadAll() })}
+            />
+            <RiskList
+              riskTable={plan.risk_table}
+              selectedCustomerId={selectedCustomerId}
+              onSelectCustomer={setSelectedCustomerId}
             />
             <PlanPanel
               plan={plan}
