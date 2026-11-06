@@ -4,12 +4,17 @@ import DataTable from '../../components/DataTable'
 import KpiTile from '../../components/KpiTile'
 import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
+import CustomerModal from './CustomerModal'
 import './customers.css'
 
-export default function CustomerList({ auth, onNavigate, onOpenCreate, onOpenEdit, onOpenToggleActive }) {
+export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState(null)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -33,6 +38,20 @@ export default function CustomerList({ auth, onNavigate, onOpenCreate, onOpenEdi
   useEffect(() => {
     fetchCustomers()
   }, [fetchCustomers])
+
+  const handleOpenCreate = () => {
+    setSelectedCustomer(null)
+    setModalOpen(true)
+  }
+
+  const handleOpenEdit = (cust) => {
+    setSelectedCustomer(cust)
+    setModalOpen(true)
+  }
+
+  const handleCustomerSaved = () => {
+    fetchCustomers()
+  }
 
   // Extract unique areas from loaded customers for the dropdown
   const uniqueAreas = useMemo(() => {
@@ -181,16 +200,14 @@ export default function CustomerList({ auth, onNavigate, onOpenCreate, onOpenEdi
           >
             Profile
           </button>
-          {onOpenEdit && (
-            <button
-              type="button"
-              className="ghost table-action-btn"
-              onClick={() => onOpenEdit(row)}
-              title="Edit customer"
-            >
-              Edit
-            </button>
-          )}
+          <button
+            type="button"
+            className="ghost table-action-btn"
+            onClick={() => handleOpenEdit(row)}
+            title="Edit customer"
+          >
+            Edit
+          </button>
           {onOpenToggleActive && (
             <button
               type="button"
@@ -216,11 +233,9 @@ export default function CustomerList({ auth, onNavigate, onOpenCreate, onOpenEdi
           <p className="muted">Manage customer directory, LPG cylinder allocations, and delivery profiles</p>
         </div>
         <div className="customers-header-actions">
-          {onOpenCreate && (
-            <button type="button" onClick={onOpenCreate}>
-              + Add Customer
-            </button>
-          )}
+          <button type="button" onClick={handleOpenCreate}>
+            + Add Customer
+          </button>
         </div>
       </div>
 
@@ -348,6 +363,14 @@ export default function CustomerList({ auth, onNavigate, onOpenCreate, onOpenEdi
           emptyDescription="Try clearing your search query or filters to view all customer accounts."
         />
       )}
+
+      <CustomerModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        customer={selectedCustomer}
+        token={auth.token}
+        onSuccess={handleCustomerSaved}
+      />
     </div>
   )
 }
