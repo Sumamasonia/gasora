@@ -1,5 +1,5 @@
-import { ApiError } from '../api'
-import { getDb } from './db'
+import { ApiError } from '../api.js'
+import { getDb } from './db.js'
 
 export const DEMO_CREDENTIALS = [
   { username: 'owner', password: 'owner-demo-123', role: 'owner', label: 'Owner / Admin' },

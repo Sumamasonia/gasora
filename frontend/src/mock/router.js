@@ -1,5 +1,5 @@
 import { ApiError } from '../api.js'
-import { handleLogin, handleMe } from './auth'
+import { handleLogin, handleMe } from './auth.js'
 import {
   handleCreateCustomer,
   handleDeleteCustomer,
@@ -9,8 +9,17 @@ import {
   handleGetCustomerLedger,
   handleGetCustomers,
   handleUpdateCustomer,
-} from './customers'
-import { handleCreateUser, handleGetUsers } from './users'
+} from './customers.js'
+import {
+  handleCreateCylinder,
+  handleGetCylinder,
+  handleGetCylinderHistory,
+  handleGetCylinders,
+  handleGetCylinderSummary,
+  handleGetRecoveryAgeing,
+  handleTransitionCylinder,
+} from './cylinders.js'
+import { handleCreateUser, handleGetUsers } from './users.js'
 
 // Simulate realistic network latency (150 - 400 ms)
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -79,11 +88,50 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     }
   }
 
-  // Cylinders endpoint (e.g. GET /cylinders?customer_id=1)
+  // Cylinder summary (must be before :id match)
+  if (method === 'GET' && normalizedPath === '/cylinders/summary') {
+    return handleGetCylinderSummary(token)
+  }
+
+  // Empty recovery ageing endpoint (mock-only)
+  if (method === 'GET' && normalizedPath === '/recovery/ageing') {
+    return handleGetRecoveryAgeing(token)
+  }
+
+  // Cylinder history endpoint
+  const cylinderHistoryMatch = normalizedPath.match(/^\/cylinders\/(\d+)\/history$/)
+  if (cylinderHistoryMatch) {
+    const cylinderId = parseInt(cylinderHistoryMatch[1], 10)
+    if (method === 'GET') {
+      return handleGetCylinderHistory(token, cylinderId)
+    }
+  }
+
+  // Cylinder transition endpoint
+  const cylinderTransitionMatch = normalizedPath.match(/^\/cylinders\/(\d+)\/transition$/)
+  if (cylinderTransitionMatch) {
+    const cylinderId = parseInt(cylinderTransitionMatch[1], 10)
+    if (method === 'POST') {
+      return handleTransitionCylinder(token, cylinderId, body)
+    }
+  }
+
+  // Cylinder collection endpoints (GET /cylinders, POST /cylinders)
   if (normalizedPath === '/cylinders') {
-    const customerId = queryParams.get('customer_id')
-    if (method === 'GET' && customerId) {
-      return handleGetCustomerCylinders(token, customerId)
+    if (method === 'GET') {
+      return handleGetCylinders(token, queryParams)
+    }
+    if (method === 'POST') {
+      return handleCreateCylinder(token, body)
+    }
+  }
+
+  // Single cylinder endpoint (GET /cylinders/:id)
+  const cylinderIdMatch = normalizedPath.match(/^\/cylinders\/(\d+)$/)
+  if (cylinderIdMatch) {
+    const cylinderId = parseInt(cylinderIdMatch[1], 10)
+    if (method === 'GET') {
+      return handleGetCylinder(token, cylinderId)
     }
   }
 

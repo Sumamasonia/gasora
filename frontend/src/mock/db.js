@@ -1,5 +1,6 @@
-import { SEED_USERS } from './auth'
-import { SEED_CUSTOMERS } from './seedCustomers'
+import { SEED_USERS } from './auth.js'
+import { SEED_CUSTOMERS } from './seedCustomers.js'
+import { SEED_CYLINDER_HISTORY, SEED_CYLINDERS } from './seedCylinders.js'
 
 const STORAGE_KEY = 'gasora-mock-db'
 
@@ -7,8 +8,8 @@ const STORAGE_KEY = 'gasora-mock-db'
 export const createInitialDb = () => ({
   users: [...SEED_USERS],
   customers: [...SEED_CUSTOMERS],
-  cylinders: [],
-  cylinder_history: [],
+  cylinders: [...SEED_CYLINDERS],
+  cylinder_history: [...SEED_CYLINDER_HISTORY],
   deliveries: [],
   urgent_requests: [],
   routes: [],
@@ -52,6 +53,12 @@ export function loadDb() {
             is_active: c.is_active !== undefined ? c.is_active : (seedMatch?.is_active ?? true),
           }
         })
+      }
+      if (!db.cylinders || db.cylinders.length === 0) {
+        db.cylinders = [...SEED_CYLINDERS]
+      }
+      if (!db.cylinder_history || db.cylinder_history.length === 0) {
+        db.cylinder_history = [...SEED_CYLINDER_HISTORY]
       }
       return db
     }

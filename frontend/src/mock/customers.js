@@ -1,6 +1,6 @@
 import { ApiError } from '../api.js'
-import { requireAuth } from './auth'
-import { getDb, nextId, recordEvent, saveDb } from './db'
+import { requireAuth } from './auth.js'
+import { getDb, nextId, recordEvent, saveDb } from './db.js'
 
 // Handle GET /customers (returns all customers with is_active)
 export function handleGetCustomers(token) {
