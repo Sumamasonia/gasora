@@ -128,6 +128,37 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
 
   useEffect(() => { guard(loadAll) }, [guard, loadAll])
 
+  // Live progress polling: while routes are published, poll GET /routes every 15s (stop when tab hidden)
+  useEffect(() => {
+    if (!routes || routes.length === 0) return
+
+    let timer = null
+
+    const pollLiveProgress = async () => {
+      if (document.hidden) return
+      try {
+        const freshRoutes = await getRoutes(auth.token)
+        setRoutes(freshRoutes)
+      } catch (err) {
+        console.warn('Live progress poll failed:', err)
+      }
+    }
+
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        pollLiveProgress()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    timer = setInterval(pollLiveProgress, 15000)
+
+    return () => {
+      if (timer) clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [auth.token, routes?.length])
+
   return (
     <div className="planner-container">
       <div className="planner-toolbar">
@@ -149,6 +180,11 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
           </button>
         </div>
         <div className="planner-toolbar-right">
+          {routes.length > 0 && (
+            <span className="live-poll-badge" title="Live route updates: polling every 15s when tab is active">
+              <span className="live-pulse-dot" /> Live Polling (15s)
+            </span>
+          )}
           {routes.length > 0 ? (
             <span className="planner-status-pill published">
               ● Routes Published ({routes.length} vehicles, {routes.reduce((acc, r) => acc + r.total, 0)} stops)

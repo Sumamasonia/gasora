@@ -57,8 +57,8 @@ export default function PlanMap({
         const visited = inRoute.has(row.customer_id)
         const info = stopInfo[row.customer_id]
         let color = row.urgent ? BAND_COLOR.Urgent : BAND_COLOR[row.band]
-        if (info && info.status === 'delivered') color = '#2e7d32'
-        if (info && info.status === 'skipped') color = '#757575'
+        if (info && info.status === 'delivered') color = '#16a34a'
+        if (info && info.status === 'skipped') color = '#9ca3af'
         const isSelected = selectedCustomerId !== null && Number(row.customer_id) === Number(selectedCustomerId)
 
         return (
@@ -68,7 +68,7 @@ export default function PlanMap({
             radius={isSelected ? 13 : (visited ? 8 : 5)}
             pathOptions={{
               color: isSelected ? '#1d4ed8' : color,
-              fillColor: isSelected ? '#3b82f6' : color,
+              fillColor: color,
               fillOpacity: isSelected ? 1 : (visited ? 0.9 : 0.45),
               weight: isSelected ? 4 : (visited ? 2 : 1),
             }}
@@ -93,7 +93,14 @@ export default function PlanMap({
                 : `${row.days_since_delivery} days since last delivery`}
               <br />
               {!visited && 'Not on a route today'}
-              {visited && `Stop ${stopInfo[row.customer_id].seq}: ${stopInfo[row.customer_id].status}`}
+              {visited && (
+                <div style={{ marginTop: 4, fontWeight: 600 }}>
+                  Stop {info.seq}:{' '}
+                  <span style={{ color: info.status === 'delivered' ? '#16a34a' : info.status === 'skipped' ? '#9ca3af' : color }}>
+                    {info.status === 'delivered' ? '✓ Delivered' : info.status === 'skipped' ? '✕ Skipped' : 'Pending'}
+                  </span>
+                </div>
+              )}
             </Popup>
           </CircleMarker>
         )

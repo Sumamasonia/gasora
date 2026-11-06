@@ -303,6 +303,34 @@ input:disabled, select:disabled {
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.live-poll-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+}
+
+.live-pulse-dot {
+  width: 7px;
+  height: 7px;
+  background: #16a34a;
+  border-radius: var(--radius-full);
+  display: inline-block;
+  animation: live-pulse-anim 1.8s infinite ease-in-out;
+}
+
+@keyframes live-pulse-anim {
+  0% { transform: scale(0.85); opacity: 0.5; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.5; }
+}
+
 .planner-layout {
   flex: 1;
   display: flex;
