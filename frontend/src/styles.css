@@ -235,6 +235,7 @@ input:disabled, select:disabled {
 
 /* Compatibility with Existing Views (OwnerView & DriverView) */
 .app { display: flex; flex-direction: column; height: 100vh; }
+.shell-content .app { height: 100%; }
 header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border-subtle); }
 header label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
 main { flex: 1; display: flex; min-height: 0; }
@@ -271,6 +272,56 @@ main { flex: 1; display: flex; min-height: 0; }
   .panel { width: 100%; border-left: 0; }
 }
 
-/* Login Page Base Layout */
-.login { max-width: 400px; margin: 10vh auto; padding: 0 16px; }
-.login h1 { margin-bottom: 16px; text-align: center; }
+/* Login Page Layout & Demo Hint */
+.login { max-width: 440px; margin: 8vh auto; padding: 0 16px; }
+.login-header { text-align: center; margin-bottom: 24px; }
+.login-logo { font-size: 44px; margin-bottom: 6px; line-height: 1; }
+.login-header h1 { font-size: 26px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.demo-accounts-card {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.demo-accounts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.demo-accounts-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.demo-account-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: auto;
+  font-size: 13px;
+  text-align: left;
+}
+.demo-account-pill:hover {
+  background: var(--bg-hover);
+  border-color: var(--color-primary);
+}
+.demo-account-role {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--color-primary);
+}
+.demo-account-cred {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
