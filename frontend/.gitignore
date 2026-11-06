@@ -1,0 +1,9 @@
+# Frontend gitignore
+node_modules
+dist
+dist-ssr
+*.local
+
+# Unignore src/lib/ which was matched by root lib/
+!src/lib/
+!src/lib/**

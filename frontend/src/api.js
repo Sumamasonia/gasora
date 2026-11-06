@@ -1,3 +1,6 @@
+import { USE_MOCK } from './config.js'
+import { mockRequest } from './mock/router.js'
+
 const BASE = '/api'
 
 export class ApiError extends Error {
@@ -8,6 +11,9 @@ export class ApiError extends Error {
 }
 
 async function request(path, { token, method = 'GET', body } = {}) {
+  if (USE_MOCK) {
+    return mockRequest(path, { token, method, body })
+  }
   const headers = {}
   if (body) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
@@ -30,9 +36,50 @@ async function request(path, { token, method = 'GET', body } = {}) {
   return res.json()
 }
 
+// Auth
 export const login = (username, password) =>
   request('/auth/login', { method: 'POST', body: { username, password } })
+
+// Customers
 export const getCustomers = (token) => request('/customers', { token })
+export const getCustomer = (token, id) => request(`/customers/${id}`, { token })
+export const createCustomer = (token, data) =>
+  request('/customers', { token, method: 'POST', body: data })
+export const updateCustomer = (token, id, data) =>
+  request(`/customers/${id}`, { token, method: 'PUT', body: data })
+export const deactivateCustomer = (token, id) =>
+  request(`/customers/${id}`, { token, method: 'DELETE' })
+export const getCustomerCylinders = (token, customerId) =>
+  request(`/cylinders?customer_id=${customerId}`, { token })
+export const getCustomerLedger = (token, customerId) =>
+  request(`/customers/${customerId}/ledger`, { token })
+export const getCustomerDeliveries = (token, customerId) =>
+  request(`/customers/${customerId}/deliveries`, { token })
+
+// Cylinders
+export const getCylinders = (token, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.state) q.set('state', params.state)
+    if (params.owner) q.set('owner', params.owner)
+    if (params.customer_id) q.set('customer_id', params.customer_id)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/cylinders${query}`, { token })
+}
+export const createCylinder = (token, data) =>
+  request('/cylinders', { token, method: 'POST', body: data })
+export const getCylinder = (token, id) => request(`/cylinders/${id}`, { token })
+export const getCylinderHistory = (token, id) =>
+  request(`/cylinders/${id}/history`, { token })
+export const getCylinderSummary = (token) => request('/cylinders/summary', { token })
+export const transitionCylinder = (token, id, data) =>
+  request(`/cylinders/${id}/transition`, { token, method: 'POST', body: data })
+export const getRecoveryAgeing = (token) => request('/recovery/ageing', { token })
+
+// Planning & Dispatch
 export const getPlan = (token, seconds) => request(`/plan/today?seconds=${seconds}`, { token })
 export const getUsers = (token) => request('/users', { token })
 export const getUrgent = (token) => request('/urgent', { token })
