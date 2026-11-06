@@ -10,6 +10,7 @@ export default function DataTable({
   emptyTitle = 'No data available',
   emptyDescription = 'There are no items to display right now.',
   onRowClick,
+  rowClassName,
 }) {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState(null)
@@ -105,41 +106,47 @@ export default function DataTable({
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row) => (
-                  <tr
-                    key={row[keyField] ?? JSON.stringify(row)}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    className={onRowClick ? 'clickable-row' : ''}
-                  >
-                    {columns.map((col) => (
-                      <td key={col.key}>
-                        {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {sorted.map((row) => {
+                  const extraClass = rowClassName ? rowClassName(row) : ''
+                  return (
+                    <tr
+                      key={row[keyField] ?? JSON.stringify(row)}
+                      onClick={onRowClick ? () => onRowClick(row) : undefined}
+                      className={[onRowClick ? 'clickable-row' : '', extraClass].filter(Boolean).join(' ')}
+                    >
+                      {columns.map((col) => (
+                        <td key={col.key}>
+                          {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Mobile Card Stack (< 720px) */}
           <div className="datatable-mobile">
-            {sorted.map((row) => (
-              <div
-                key={row[keyField] ?? JSON.stringify(row)}
-                className={`datatable-card ${onRowClick ? 'clickable-card' : ''}`}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-              >
-                {columns.map((col) => (
-                  <div key={col.key} className="card-field-row">
-                    <span className="card-field-label">{col.label}</span>
-                    <span className="card-field-value">
-                      {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ))}
+            {sorted.map((row) => {
+              const extraClass = rowClassName ? rowClassName(row) : ''
+              return (
+                <div
+                  key={row[keyField] ?? JSON.stringify(row)}
+                  className={['datatable-card', onRowClick ? 'clickable-card' : '', extraClass].filter(Boolean).join(' ')}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
+                  {columns.map((col) => (
+                    <div key={col.key} className="card-field-row">
+                      <span className="card-field-label">{col.label}</span>
+                      <span className="card-field-value">
+                        {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
           </div>
         </>
       )}

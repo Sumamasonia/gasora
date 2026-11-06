@@ -6,6 +6,7 @@ import { USE_MOCK } from './config'
 import DriverView from './DriverView'
 import { useHashRoute } from './lib/useHashRoute'
 import OwnerView from './OwnerView'
+import CustomerList from './pages/customers/CustomerList'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -142,6 +143,8 @@ export default function App() {
     >
       {route === 'dispatch' ? (
         <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} />
+      ) : route === 'customers' ? (
+        <CustomerList auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}
