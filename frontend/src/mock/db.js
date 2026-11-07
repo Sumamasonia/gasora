@@ -1,4 +1,5 @@
 import { SEED_USERS } from './auth.js'
+import { SEED_BILLS, SEED_LEDGER, SEED_PAYMENTS } from './seedBilling.js'
 import { SEED_CUSTOMERS } from './seedCustomers.js'
 import { SEED_CYLINDER_HISTORY, SEED_CYLINDERS } from './seedCylinders.js'
 
@@ -35,9 +36,9 @@ export const createInitialDb = () => ({
   ],
   routes: [],
   route_stops: [],
-  bills: [],
-  payments: [],
-  ledger: [],
+  bills: [...SEED_BILLS],
+  payments: [...SEED_PAYMENTS],
+  ledger: [...SEED_LEDGER],
   purchases: [],
   expenses: [],
   events: [],
@@ -104,6 +105,15 @@ export function loadDb() {
             created_by: 'owner',
           },
         ]
+      }
+      if (!db.bills || db.bills.length === 0) {
+        db.bills = [...SEED_BILLS]
+      }
+      if (!db.payments || db.payments.length === 0) {
+        db.payments = [...SEED_PAYMENTS]
+      }
+      if (!db.ledger || db.ledger.length === 0) {
+        db.ledger = [...SEED_LEDGER]
       }
       return db
     }

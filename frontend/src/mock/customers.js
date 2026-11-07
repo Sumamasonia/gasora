@@ -1,5 +1,6 @@
 import { ApiError } from '../api.js'
 import { requireAuth } from './auth.js'
+import { computeCustomerLedgerWithBalances } from './billing.js'
 import { getDb, nextId, recordEvent, saveDb } from './db.js'
 
 // Handle GET /customers (returns all customers with is_active)
@@ -175,60 +176,21 @@ export function handleGetCustomerLedger(token, customerId) {
   const customer = (db.customers || []).find((c) => c.id === Number(customerId))
   if (!customer) throw new ApiError(404, 'Customer not found')
 
-  const unitPrice = customer.cylinder_type === '45.4 kg' ? 10500 : customer.cylinder_type === '15 kg' ? 3800 : 3100
-  const qty = customer.demand || 1
-  const invoiceAmount = unitPrice * qty
+  const entries = computeCustomerLedgerWithBalances(customerId)
+  if (entries.length > 0) {
+    return entries
+  }
 
   return [
     {
       id: 1,
       customer_id: Number(customerId),
       entry_type: 'deposit',
-      description: `Security deposit for ${qty}x ${customer.cylinder_type} cylinders`,
+      description: `Security deposit held for ${customer.cylinder_type} cylinders`,
       debit: 0,
       credit: customer.deposit || 6000,
       balance: -(customer.deposit || 6000),
       created_at: customer.created_at || '2026-01-02T10:00:00Z',
-    },
-    {
-      id: 2,
-      customer_id: Number(customerId),
-      entry_type: 'invoice',
-      description: `Invoice #INV-2026-${String(customerId).padStart(4, '0')}-01 (${qty}x ${customer.cylinder_type})`,
-      debit: invoiceAmount,
-      credit: 0,
-      balance: invoiceAmount,
-      created_at: '2026-01-15T14:30:00Z',
-    },
-    {
-      id: 3,
-      customer_id: Number(customerId),
-      entry_type: 'payment',
-      description: `Payment received via Cash - Rec #REC-00${customerId}1`,
-      debit: 0,
-      credit: invoiceAmount,
-      balance: 0,
-      created_at: '2026-01-16T11:00:00Z',
-    },
-    {
-      id: 4,
-      customer_id: Number(customerId),
-      entry_type: 'invoice',
-      description: `Invoice #INV-2026-${String(customerId).padStart(4, '0')}-02 (${qty}x ${customer.cylinder_type})`,
-      debit: invoiceAmount,
-      credit: 0,
-      balance: invoiceAmount,
-      created_at: '2026-02-01T15:20:00Z',
-    },
-    {
-      id: 5,
-      customer_id: Number(customerId),
-      entry_type: 'payment',
-      description: 'Payment received via Bank Transfer (Meezan Bank)',
-      debit: 0,
-      credit: invoiceAmount,
-      balance: 0,
-      created_at: '2026-02-02T09:40:00Z',
     },
   ]
 }

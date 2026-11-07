@@ -1,6 +1,17 @@
 import { ApiError } from '../api.js'
 import { handleLogin, handleMe } from './auth.js'
-import { handlePostSale } from './billing.js'
+import {
+  handleCreateBill,
+  handleGetBill,
+  handleGetBills,
+  handleGetCustomerStatement,
+  handleGetLedger,
+  handleGetLoans,
+  handleGetPayments,
+  handlePostLedgerCorrection,
+  handlePostSale,
+  handleRecordPayment,
+} from './billing.js'
 import {
   handleCreateCustomer,
   handleDeleteCustomer,
@@ -196,6 +207,62 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
 
   if (method === 'POST' && normalizedPath === '/sales') {
     return handlePostSale(token, body)
+  }
+
+  // Bills & Invoices endpoints
+  if (normalizedPath === '/bills' || normalizedPath === '/billing/invoices') {
+    if (method === 'GET') {
+      return handleGetBills(token, queryParams)
+    }
+    if (method === 'POST') {
+      return handleCreateBill(token, body)
+    }
+  }
+
+  const singleBillMatch = normalizedPath.match(/^\/(?:bills|billing\/invoices)\/(\d+)$/)
+  if (singleBillMatch) {
+    const billId = parseInt(singleBillMatch[1], 10)
+    if (method === 'GET') {
+      return handleGetBill(token, billId)
+    }
+  }
+
+  // Payments endpoints
+  if (normalizedPath === '/payments') {
+    if (method === 'GET') {
+      return handleGetPayments(token, queryParams)
+    }
+    if (method === 'POST') {
+      return handleRecordPayment(token, body)
+    }
+  }
+
+  // Ledger endpoints (append-only)
+  if (normalizedPath === '/ledger') {
+    if (method === 'GET') {
+      return handleGetLedger(token, queryParams)
+    }
+  }
+  if (normalizedPath === '/ledger/correction') {
+    if (method === 'POST') {
+      return handlePostLedgerCorrection(token, body)
+    }
+  }
+
+  // Debt ageing & Loans endpoint
+  if (normalizedPath === '/billing/loans' || normalizedPath === '/billing/ageing') {
+    if (method === 'GET') {
+      return handleGetLoans(token, queryParams)
+    }
+  }
+
+  // Printable statement of account
+  const statementMatch = normalizedPath.match(/^\/billing\/statements?\/(\d+)$/)
+  if (statementMatch) {
+    const custId = parseInt(statementMatch[1], 10)
+    if (method === 'GET') {
+      return handleGetCustomerStatement(token, custId)
+    }
   }
 
   // User endpoints
