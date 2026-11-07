@@ -1,10 +1,11 @@
-# Evaluation protocol, version 1
+# Evaluation protocol, version 1.1
 
-Written: 2026-11-07. Status: **not yet frozen** (the freeze happens in step 5 of section 12).
+Version 1 was written on 2026-11-07. Version 1.1 amends it before any confirmation run (see the change log).
+Status: **not yet frozen** (the freeze happens in step 6 of section 12).
 
 This document fixes how the delivery policies will be compared, before the confirmation runs are made. Commit it
-before any new evaluation run, so the commit date shows it was written in advance. Later changes go in the change log
-at the end, and sections 4 to 9 cannot change after the freeze.
+before any new evaluation run, so the commit date shows it was written in advance. Later changes go in the change
+log at the end, and sections 4 to 9 cannot change after the freeze.
 
 ## 1. Purpose and limits
 
@@ -27,8 +28,12 @@ cylinder's true lifetime ("clean information"). They showed:
   about 12% fewer kilometres at the highest workload.
 - Gasora does not outperform the rule on irregular customers.
 
-The primary comparison below (cost at a fixed service level) was chosen **after** seeing these results. This is why
-seeds 21 to 40 are reserved for confirmation. The clean-information results stay in the report as the
+Development checks of the new information model were run on seeds 1 and 2 before version 1.1 (`info_check`). They
+showed that deliveries made before a customer runs out make recorded gaps too short, that a Gasora using gaps only
+delivers almost every day, and that with the memory length `M = 4` most predictions fell back to pooled values.
+
+The primary comparison below (cost at a fixed service level) was chosen **after** seeing the exploratory results.
+This is why seeds 21 to 40 are reserved for confirmation. The clean-information results stay in the report as the
 "clean information" arm and are labelled exploratory.
 
 ## 3. Simulation setting (fixed)
@@ -46,43 +51,43 @@ seeds 21 to 40 are reserved for confirmation. The clean-information results stay
 All values come from `config.py`, `backend/settings.py` and `evaluation/`. They are assumptions. They do not change
 after the freeze. The values and the code version are stored with every result.
 
-## 4. Information model (new)
+## 4. Information model
 
-Policies see only what a delivery record could contain:
+### 4.1 Main arm (`p_call` = 1.0)
 
-- each delivery date,
-- a **tick** by the driver at each swap: was the returned cylinder empty (yes or no),
-- the **date the customer called** when they ran out (known to the day).
+Every customer who runs out calls on the day they run out. A swap therefore gives one of two records:
 
-They do not see the true cylinder lifetime. Each delivery therefore gives one observation:
-
-| Situation | Observation |
+| Situation | Record |
 |---|---|
-| Customer ran out and called; tick = yes | complete: lifetime = call date minus previous delivery date |
-| Delivered before the cylinder was empty; tick = no | censored: lifetime is at least the gap since the previous delivery |
-| Tick = yes but no call recorded | the gap is an upper bound; arms treat it as in section 5 |
+| The customer called before the delivery | **exact**: lifetime = day of the call (to the day) minus the previous delivery day |
+| No call before the delivery (a planned delivery) | **at least this long**: lifetime is at least the gap since the previous delivery (right-censored) |
 
-**Cold start.** When a customer has fewer than 3 usable observations, every policy uses the same pooled estimate
-(the average of the per-customer estimates over customers with at least 2 usable observations, computed with that
-arm's own observations).
+No tick is needed. The history from before the system existed (the first 6 intervals of each customer) counts as
+exact records.
+
+**Cold start.** When a customer has fewer than 3 records, every policy uses the same pooled estimate (the average of
+the per-customer estimates over customers with at least 2 records, computed with that arm's own records).
+
+### 4.2 Arm D (`p_call` = 0.7, with the tick): see section 10.
 
 ## 5. Policies and arms
 
-| Id | Selection | Information used | Routing |
-|---|---|---|---|
-| P1 | Reactive (customers who ran out) | none | nearest neighbour |
-| R0 | Average-days rule, alert `lead` days before the average | the average of **all gaps** between deliveries (the original rule) | OR-Tools |
-| R1 | Same rule | average of the **complete** observations only | OR-Tools |
-| R2 | Same rule | the **censored fit** used by Gasora (fitted mean, rule alert) | OR-Tools |
-| G | Gasora: risk-weighted skip penalties, risk cut-off `c` | the **censored fit** | OR-Tools |
-| A | Ablation: Gasora selection | the censored fit | nearest neighbour |
+| Id | Selection | Information used | Routing | Role |
+|---|---|---|---|---|
+| P1 | Reactive (customers who called) | none | nearest neighbour | reference |
+| R0 | Average-days rule, alert `lead` days before the average | the average of **all gaps** between deliveries (the original rule) | OR-Tools | rule arm |
+| R1 | Same rule | the average of the **exact** records only | OR-Tools | rule arm |
+| G | Gasora: risk-weighted skip penalties, risk cut-off `c` | the **censored fit** | OR-Tools | method |
+| A | Gasora selection | the censored fit | nearest neighbour | ablation |
+| R2 | Same rule | the censored fit used by G | OR-Tools | supplementary arm |
 
-R2 isolates the effect of Gasora's selection and routing from the effect of better estimation: if Gasora wins
-against R2, the gain is not only due to the tick.
+R2 is reported to show how much of any gain comes from better estimation and how much from Gasora's selection and
+routing. It is **not part of the pass rule** in section 6.
 
-**Censored fit (Gasora v2).** A normal distribution fitted by maximum likelihood to the customer's most recent `M`
-observations, with complete observations contributing the density and censored ones the survival probability.
-Spread floor 1 day. Pooled estimate on cold start. Defaults: `M = 4`, floor 1 day, no early-arrival pull.
+**Censored fit.** A normal distribution fitted by maximum likelihood to the customer's most recent `M` records:
+exact records contribute the density, "at least this long" records the survival probability. Spread floor 1 day.
+Pooled estimate on cold start. Defaults: `M = 4`, floor 1 day, no early-arrival pull. **G and R2 always use the same
+fit settings.**
 
 **Grids (fixed).** Rule alert leads: 2, 4, 6, 8, 10, 12 days (R0, R1 and R2). Gasora risk cut-offs: 0.03, 0.05, 0.10,
 0.15, 0.20, 0.30. Before the freeze, leads may be extended (14, 16) if a reported level is not covered (section 6).
@@ -96,18 +101,22 @@ dropped and counted. If more than 20% of seeds are dropped, the level is reporte
 comparison is made.
 
 **Primary service level:** 15 run-outs per 100 customer-months.
-**Secondary levels:** 25 and 40.
+**Secondary levels:** 25 and 40, and 10 only if the curves of G and of both rule arms (R0 and R1) cover it.
 
-**Primary comparison:** Gasora (G) against R2 at level 15, on two measures:
+**Primary comparison:** Gasora (G) against each of the rule arms R0 and R1 separately, at level 15, on two measures:
 (a) total kilometres, (b) total vehicle hours.
 
-**Decision rule, fixed now.** The primary result is "supported" if the paired 95% bootstrap interval of
-(G minus R2) excludes zero in Gasora's favour for **both** measures on seeds 21 to 40. If only one measure passes it
-is "partly supported" and both are shown. If neither passes it is "not supported", and the report says so.
+**Decision rule, fixed now.** For each rule arm separately, on seeds 21 to 40:
 
-**Secondary comparisons (descriptive, with intervals, no claims beyond the evidence):** G against R0 and against R1
-at level 15; all comparisons at levels 25 and 40; G against A (the effect of routing); comparison at equal numbers
-of deliveries; results by customer type.
+- **supported**: the paired 95% bootstrap interval of (G minus the rule arm) is below zero for **both** measures;
+- **partly supported**: below zero for one measure only; both are shown;
+- **not supported**: below zero for neither.
+
+The overall grade of the primary claim is the weaker of the two grades (against R0 and against R1).
+
+**Secondary comparisons (descriptive, with intervals, no claims beyond the evidence):** G against R2; all
+comparisons at levels 25, 40 and 10; G against A (the effect of routing); comparison at equal numbers of deliveries;
+results by customer type. P1 is shown for reference.
 
 ## 7. Measures
 
@@ -140,7 +149,7 @@ reported.
 
 Only these changes may be tried during development, on seeds 1 to 10 and checked on 11 to 20:
 
-1. censored fit on or off (the original gap-only fit as a comparison),
+1. censored fit on or off (the gap-only fit as a comparison),
 2. memory length `M` in {3, 4, 6, all},
 3. spread floor in {1, 2} days,
 4. early-arrival pull on or off,
@@ -150,13 +159,26 @@ At most **12 combinations** may be tried in total. Each one is written in `docs/
 and the result, whether or not it is kept. The kept variant is chosen by the primary measure on seeds 1 to 10, and
 must pass the check on seeds 11 to 20.
 
-## 10. Robustness and extra arms (run on seeds 21 to 40 after the freeze, labelled secondary)
+## 10. Arm D and other secondary arms (run on seeds 21 to 40 after the freeze, labelled secondary)
 
-| Arm | Change |
+**Arm D (more realistic calling).** A customer who runs out calls on the same day with probability `p_call` = 0.7
+(a placeholder). A customer who does not call calls later with probability 0.3 per day (a placeholder), and the system
+records the call date as the run-out date. The driver ticks at each swap whether the returned cylinder was empty.
+
+| Situation | Record |
+|---|---|
+| Called before the delivery | exact (as in the main arm, the call date may be later than the true run-out) |
+| No call, tick = not empty | at least this long (right-censored) |
+| No call, tick = empty | **at most this long**: the lifetime is at most the gap (left-censored) |
+
+In arm D the reactive policy P1 serves customers who have called. The **wrong-tick** arm (the tick is wrong in 10% of
+swaps) and the **missing-tick** arm (the tick is missing in 20% of swaps; those records are unusable for R1 and for the
+fit, and count as plain gaps for R0) run **only in arm D**. Arm D and the tick can be dropped if time runs short,
+without changing the main result.
+
+| Other arm | Change |
 |---|---|
 | Clean information | policies receive true lifetimes (the earlier setting) |
-| Wrong ticks | the tick is wrong in 10% of deliveries |
-| Missing ticks | the tick is missing in 20% of deliveries; those observations are unusable for R1, R2, G and counted as plain gaps for R0 |
 | Skewed durations | lifetimes follow a lognormal distribution with the same mean and spread as the base setting |
 | Oracle bound | Gasora given each customer's true mean and spread, a ceiling for any predictor in this simulator |
 | Empties | the empties study (customers return each old cylinder with probability 0.8, ageing tiers 15, 30, 60 and 90 days) |
@@ -172,28 +194,36 @@ must pass the check on seeds 11 to 20.
 
 ## 12. Order of work
 
-1. Write and commit this protocol (this document). Tag it `protocol-v1`.
-2. Build: the information model, the tick and call date, the censored fit, arms R0 to R2, vehicle hours, the
+1. Write and commit this protocol. Tag it `protocol-v1.1`.
+2. Build the main arm: the information model, the censored fit, the arms R0, R1, R2, G, A and P1, vehicle hours, the
    cost-curve analysis with a coverage table, the seed guard, and the result metadata.
-3. Add the robustness arms and the extra measures (Brier score, calibration, oracle bound).
+3. Build arm D and the extra measures (Brier score, calibration, oracle bound, skewed durations). Arm D is built after
+   the main arm works.
 4. Run seeds 1 to 10 and tune within section 9. Check on seeds 11 to 20.
-5. Freeze: record the commit in `docs/freeze.json`, tag `eval-freeze-v1`, repeat one seed twice.
-6. Run seeds 21 to 40 once: the main comparison, the robustness arms, the empties study.
-7. Report everything, including results that do not favour Gasora. List any departure from this protocol in
+5. Repeat the freeze checks: no uncommitted changes, `docs/variant_log.md` complete.
+6. Freeze: record the commit in `docs/freeze.json`, tag `eval-freeze-v1`, repeat one seed twice.
+7. Run seeds 21 to 40 once: the main comparison, the secondary arms, the empties study.
+8. Report everything, including results that do not favour Gasora. List any departure from this protocol in
    `docs/deviations.md`.
 
 ## 13. Approvals and real data
 
-- The tick (a yes or no field at each swap) and the call date are a design change to the delivery record. They need
-  sign-off before the driver page is changed.
+- The main claim needs no change to what drivers record: the call date is already stored with urgent requests.
+- The tick (a yes or no field at each swap) is a design change needed only for arm D. It needs sign-off before the
+  driver page is changed, and it is dropped if arm D is dropped.
 - A small sample of real delivery history (30 to 50 anonymised customers) will be requested. If obtained, it is used
   only to compare forecast errors, never for tuning and never to claim savings.
 
 ## 14. Limits this protocol does not remove
 
 Simulated customers, a predictor whose assumptions match the simulator in the base arm, assumed shift and vehicle
-numbers, road speeds without traffic, placeholder penalties and ageing weights, and a timer-based solver.
+numbers, road speeds without traffic, placeholder penalties, calling probabilities and ageing weights, and a
+timer-based solver.
 
 ## Change log
 
 - v1 (2026-11-07): first version.
+- v1.1: main arm uses exact and "at least this long" records with `p_call` = 1.0, no tick needed; arm D (`p_call` = 0.7,
+  tick, third record type, realistic P1, wrong and missing ticks) added as a secondary arm that can be dropped;
+  primary comparison is now Gasora against R0 and R1 (the weaker grade counts), and R2 is a supplementary arm; level 10
+  added as conditional; the development checks on seeds 1 and 2 are recorded in section 2.
