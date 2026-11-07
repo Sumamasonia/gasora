@@ -1,5 +1,6 @@
 import { ApiError } from '../api.js'
 import { handleLogin, handleMe } from './auth.js'
+import { handlePostSale } from './billing.js'
 import {
   handleCreateCustomer,
   handleDeleteCustomer,
@@ -191,6 +192,10 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   }
   if (method === 'POST' && normalizedPath === '/paths') {
     return handlePostPaths(token, body)
+  }
+
+  if (method === 'POST' && normalizedPath === '/sales') {
+    return handlePostSale(token, body)
   }
 
   // User endpoints
