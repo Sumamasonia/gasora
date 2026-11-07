@@ -9,6 +9,12 @@ import OwnerView from './OwnerView'
 import CustomerList from './pages/customers/CustomerList'
 import CustomerProfile from './pages/customers/CustomerProfile'
 import CylinderRegister from './pages/cylinders/CylinderRegister'
+import BillsList from './pages/billing/BillsList'
+import InvoiceView from './pages/billing/InvoiceView'
+import LedgerPage from './pages/billing/LedgerPage'
+import LoansPage from './pages/billing/LoansPage'
+import PaymentsPage from './pages/billing/PaymentsPage'
+import RecordSalePage from './pages/billing/RecordSalePage'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -155,6 +161,32 @@ export default function App() {
         />
       ) : route === 'cylinders' || route.startsWith('cylinders') ? (
         <CylinderRegister auth={auth} onNavigate={navigate} route={route} />
+      ) : route === 'billing' ? (
+        <BillsList
+          auth={auth}
+          onNavigate={navigate}
+          onViewInvoice={(id) => navigate(`billing/invoice/${id}`)}
+          onRecordPayment={(bill) => navigate('billing/payments')}
+        />
+      ) : route === 'billing/sale' || route === 'sales' ? (
+        <RecordSalePage auth={auth} onNavigate={navigate} />
+      ) : route.startsWith('billing/invoice/') ? (
+        <InvoiceView
+          auth={auth}
+          invoiceId={route.split('/')[2]}
+          onNavigate={navigate}
+          onRecordPayment={(bill) => navigate('billing/payments')}
+        />
+      ) : route === 'billing/payments' || route === 'payments' ? (
+        <PaymentsPage auth={auth} onNavigate={navigate} />
+      ) : route === 'billing/loans' || route === 'loans' ? (
+        <LoansPage
+          auth={auth}
+          onNavigate={navigate}
+          onRecordPayment={(bill) => navigate('billing/payments')}
+        />
+      ) : route === 'ledger' || route.startsWith('ledger') ? (
+        <LedgerPage auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}
