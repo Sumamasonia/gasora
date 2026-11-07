@@ -8,12 +8,17 @@ Not yet included: empties outstanding.
 
 Run:  python -m evaluation.harness --seeds 5 --days 30 --n 100
 """
+from dataclasses import dataclass
+
 import numpy as np
+
+from backend.settings import EMPTY_AGEING_TIERS
 
 from evaluation.world import build_static, new_state
 from evaluation.policies import POLICIES
 
 PATTERNS = ("steady", "irregular")     # hidden usage patterns of the simulated customers
+AGE_TIERS = [(days, label) for days, _, label in EMPTY_AGEING_TIERS]
 EARLY_DAYS = 5     # delivered with more than this many days of gas left = early (placeholder)
 
 
@@ -25,7 +30,24 @@ def route_km(route, km):
     return dist + km[here][0]
 
 
-def run_policy(static, policy, days, warmup=0):
+@dataclass
+class EmptiesModel:
+    """Optional model of empty cylinders that customers do not hand back.
+    At every visit, each old cylinder (the ones just used and any empties held from before) is handed back
+    with probability p_return, independently. Those not handed back stay at the customer and age.
+    p_return is a PLACEHOLDER: we have no data on how often customers keep empties."""
+    p_return: float = 0.8
+
+
+def _tier_index(age_days):
+    found = None
+    for i, (min_days, _) in enumerate(AGE_TIERS):
+        if age_days >= min_days:
+            found = i
+    return found
+
+
+def run_policy(static, policy, days, warmup=0, empties=None):
     """Simulate warmup + days days. Only the last `days` days are counted: the warm-up lets the
     simulation forget its arbitrary starting state (customers start in the middle of a cylinder)."""
     state = new_state(static)
@@ -35,10 +57,19 @@ def run_policy(static, policy, days, warmup=0):
     by_p = fresh()                                        # the same counts, split by customer type
     runouts = deliveries = early = days_out = 0
     total_km = 0.0
+    vehicle_days = 0
+    held_days = 0                                          # empties held, summed over counted days
+    bucket_days = [0] * len(AGE_TIERS)                     # customer-days in each ageing tier
+    if empties is not None:
+        rng_back = {c["id"]: np.random.default_rng([static.seed, c["id"], 99]) for c in state}
+        for c in state:
+            c["held"], c["held_since"] = 0, None           # empties held by the customer, and since when
     for d in range(warmup + days):
         if d == warmup:                                   # start counting here
             runouts = deliveries = early = days_out = 0
             total_km = 0.0
+            vehicle_days = held_days = 0
+            bucket_days = [0] * len(AGE_TIERS)
             by_p = fresh()
         for c in state:
             c["days_since"] = d - c["last_delivery"]
@@ -46,6 +77,7 @@ def run_policy(static, policy, days, warmup=0):
         for route in routes:
             if not route:
                 continue
+            vehicle_days += 1
             total_km += route_km(route, static.km)
             for cid in route:
                 c = by_id[cid]
@@ -60,6 +92,15 @@ def run_policy(static, policy, days, warmup=0):
                 c["runout_day"] = d + dur[c["cyl"] % len(dur)]
                 deliveries += 1
                 by_p[pattern[cid]]["deliveries"] += 1
+                if empties is not None:                   # old cylinders come back with probability p_return
+                    n_old = c["demand"] + c["held"]
+                    back = int((rng_back[cid].random(n_old) < empties.p_return).sum())
+                    kept = n_old - back
+                    if kept == 0:
+                        c["held_since"] = None
+                    elif c["held"] == 0:
+                        c["held_since"] = d
+                    c["held"] = kept
         for c in state:                                   # end of day
             if not c["out"] and c["runout_day"] < d + 1:
                 c["out"] = True
@@ -68,6 +109,11 @@ def run_policy(static, policy, days, warmup=0):
             if c["out"]:
                 days_out += 1
                 by_p[pattern[c["id"]]]["days_out"] += 1
+            if empties is not None and c["held"] > 0:
+                held_days += c["held"]
+                i = _tier_index(d - c["held_since"])
+                if i is not None:
+                    bucket_days[i] += 1
     customer_months = static.n * days / 30
     result = {
         "runouts_per_100cm": 100 * runouts / customer_months,
@@ -76,7 +122,13 @@ def run_policy(static, policy, days, warmup=0):
         "days_out": days_out,
         "deliveries": deliveries,
         "total_km": total_km,
+        "vehicles_used_per_day": vehicle_days / days,
     }
+    if empties is not None:
+        result["empties_per_day"] = held_days / days
+        result["aged_customers_per_day"] = sum(bucket_days) / days
+        for (_, label), n_days in zip(AGE_TIERS, bucket_days):
+            result[f"aged_{label}_per_day"] = n_days / days
     for p in PATTERNS:                                    # km cannot be split: a route serves both types
         n_p = sum(1 for v in pattern.values() if v == p)
         result[f"n_{p}"] = n_p
