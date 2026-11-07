@@ -96,3 +96,71 @@ export const deliverStop = (token, stopId, data = {}) =>
   request(`/route-stops/${stopId}/deliver`, { token, method: 'POST', body: data })
 export const skipStop = (token, stopId, reason) =>
   request(`/route-stops/${stopId}/skip`, { token, method: 'POST', body: { reason } })
+
+// Sales, Billing, Payments & Ledger (Phase F5)
+export const recordSale = (token, data) =>
+  request('/sales', { token, method: 'POST', body: data })
+
+export const getBills = (token, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.customer_id) q.set('customer_id', params.customer_id)
+    if (params.status) q.set('status', params.status)
+    if (params.month) q.set('month', params.month)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/bills${query}`, { token })
+}
+
+export const getBill = (token, id) =>
+  request(`/bills/${id}`, { token })
+
+export const createBill = (token, data) =>
+  request('/bills', { token, method: 'POST', body: data })
+
+export const getPayments = (token, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.customer_id) q.set('customer_id', params.customer_id)
+    if (params.bill_id) q.set('bill_id', params.bill_id)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/payments${query}`, { token })
+}
+
+export const recordPayment = (token, data) =>
+  request('/payments', { token, method: 'POST', body: data })
+
+export const getLedger = (token, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.customer_id) q.set('customer_id', params.customer_id)
+    if (params.entry_type) q.set('entry_type', params.entry_type)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/ledger${query}`, { token })
+}
+
+export const createLedgerCorrection = (token, data) =>
+  request('/ledger/correction', { token, method: 'POST', body: data })
+
+export const getLoans = (token, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.include_all) q.set('include_all', params.include_all)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/billing/loans${query}`, { token })
+}
+
+export const getCustomerStatement = (token, customerId) =>
+  request(`/billing/statements/${customerId}`, { token })
+
