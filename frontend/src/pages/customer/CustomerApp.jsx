@@ -9,6 +9,7 @@ import {
   getMyOrders,
 } from '../../api'
 import Spinner from '../../components/Spinner'
+import DeliveryStatusPage from './DeliveryStatusPage'
 import './customer.css'
 
 export default function CustomerApp({ auth, onSignOut, onExpired }) {
@@ -330,163 +331,13 @@ export default function CustomerApp({ auth, onSignOut, onExpired }) {
               </div>
             )}
 
-            {/* TAB 2: TRACK DELIVERY (STEP 3 will expand this into the full Routific design) */}
+            {/* TAB 2: TRACK DELIVERY (Routific Design Reference) */}
             {activeTab === 'track' && (
-              <div className="tab-pane-track">
-                <div className="card-title-row" style={{ marginBottom: 14 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800 }}>
-                    🚚 Delivery Status
-                  </h2>
-                  <button
-                    type="button"
-                    className="customer-header-btn"
-                    onClick={loadData}
-                    title="Refresh status"
-                  >
-                    🔄 Refresh
-                  </button>
-                </div>
-
-                <div className="routific-tracking-wrapper">
-                  {/* Status Banner */}
-                  <div className={`routific-status-banner ${deliveryStatus?.status || 'planned'}`}>
-                    <div className="routific-status-title">
-                      {deliveryStatus?.status_title || 'Delivery Planned'}
-                    </div>
-                    <div className="routific-status-desc">
-                      {deliveryStatus?.status_description ||
-                        'Your delivery is scheduled on today\'s delivery route.'}
-                    </div>
-
-                    {deliveryStatus?.position_text && (
-                      <div className="routific-position-pill">
-                        📍 {deliveryStatus.position_text}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 3-Step Status Stepper */}
-                  <div className="customer-card">
-                    <div className="card-title" style={{ marginBottom: 16 }}>
-                      <span>Route Milestones</span>
-                      <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>
-                        Step {deliveryStatus?.step || 1} of 3
-                      </span>
-                    </div>
-
-                    <div className="routific-stepper">
-                      <div className="stepper-line">
-                        <div
-                          className="stepper-line-progress"
-                          style={{
-                            width:
-                              deliveryStatus?.step === 3
-                                ? '100%'
-                                : deliveryStatus?.step === 2
-                                ? '50%'
-                                : '0%',
-                          }}
-                        />
-                      </div>
-
-                      {/* Step 1: Planned */}
-                      <div
-                        className={`routific-step-node ${
-                          (deliveryStatus?.step || 1) > 1
-                            ? 'completed'
-                            : (deliveryStatus?.step || 1) === 1
-                            ? 'active'
-                            : ''
-                        }`}
-                      >
-                        <div className="routific-step-circle">
-                          {(deliveryStatus?.step || 1) > 1 ? '✓' : '1'}
-                        </div>
-                        <div className="routific-step-label">Planned</div>
-                      </div>
-
-                      {/* Step 2: On the way */}
-                      <div
-                        className={`routific-step-node ${
-                          (deliveryStatus?.step || 1) > 2
-                            ? 'completed'
-                            : (deliveryStatus?.step || 1) === 2
-                            ? 'active'
-                            : ''
-                        }`}
-                      >
-                        <div className="routific-step-circle">
-                          {(deliveryStatus?.step || 1) > 2 ? '✓' : '2'}
-                        </div>
-                        <div className="routific-step-label">On the way</div>
-                      </div>
-
-                      {/* Step 3: Delivered */}
-                      <div
-                        className={`routific-step-node ${
-                          (deliveryStatus?.step || 1) === 3 ? 'completed active' : ''
-                        }`}
-                      >
-                        <div className="routific-step-circle">
-                          {(deliveryStatus?.step || 1) === 3 ? '✓' : '3'}
-                        </div>
-                        <div className="routific-step-label">Delivered</div>
-                      </div>
-                    </div>
-
-                    {/* Honest Note About Live Location */}
-                    <div className="routific-no-live-note">
-                      <span>ℹ️</span>
-                      <div>
-                        <strong>No live GPS tracking:</strong>{' '}
-                        {deliveryStatus?.live_location_note ||
-                          'Real-time driver location is not broadcast. Delivery order reflects the planned route sequence.'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Driver and Vehicle Details */}
-                  <div className="customer-card">
-                    <div className="card-title" style={{ marginBottom: 12 }}>
-                      <span>Driver & Vehicle Information</span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div>
-                        <div className="balance-subitem-label">Driver</div>
-                        <div style={{ fontWeight: 700 }}>
-                          {deliveryStatus?.driver_name || 'Assigned Driver'}
-                        </div>
-                        {deliveryStatus?.driver_phone && (
-                          <a
-                            href={`tel:${deliveryStatus.driver_phone}`}
-                            style={{ fontSize: 12, color: '#0284c7', textDecoration: 'none' }}
-                          >
-                            📞 Call Driver
-                          </a>
-                        )}
-                      </div>
-
-                      <div>
-                        <div className="balance-subitem-label">Vehicle</div>
-                        <div style={{ fontWeight: 700 }}>
-                          Van #{deliveryStatus?.vehicle_no || 1}
-                        </div>
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          Faisalabad Commercial Route
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-border, #e2e8f0)' }}>
-                      <div className="balance-subitem-label">Delivery Destination</div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>
-                        {deliveryStatus?.delivery_address || 'Shop 4, D Ground Commercial Area, Faisalabad'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <DeliveryStatusPage
+                auth={auth}
+                onExpired={onExpired}
+                onRequestRefill={() => setActiveTab('request')}
+              />
             )}
 
             {/* TAB 3: PLACE A REQUEST */}
