@@ -15,6 +15,9 @@ import LedgerPage from './pages/billing/LedgerPage'
 import LoansPage from './pages/billing/LoansPage'
 import PaymentsPage from './pages/billing/PaymentsPage'
 import RecordSalePage from './pages/billing/RecordSalePage'
+import ExpensesPage from './pages/expenses/ExpensesPage'
+import PurchasesPage from './pages/stock/PurchasesPage'
+import StockPage from './pages/stock/StockPage'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -187,6 +190,12 @@ export default function App() {
         />
       ) : route === 'ledger' || route.startsWith('ledger') ? (
         <LedgerPage auth={auth} onNavigate={navigate} />
+      ) : route === 'stock' ? (
+        <StockPage auth={auth} onNavigate={navigate} />
+      ) : route === 'stock/purchases' || route === 'purchases' ? (
+        <PurchasesPage auth={auth} onNavigate={navigate} />
+      ) : route === 'expenses' || route.startsWith('expenses') ? (
+        <ExpensesPage auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}
