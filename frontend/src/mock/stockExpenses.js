@@ -526,7 +526,7 @@ export function handleGetFuelEstimate(token) {
  * Handle GET /settings/stock
  */
 export function handleGetStockSettings(token) {
-  requireAuth(token, ['owner', 'manager'])
+  requireAuth(token, ['owner'])
   const db = getDb()
   const settings = db.settings || {}
   return {

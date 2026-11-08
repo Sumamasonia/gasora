@@ -32,10 +32,10 @@ export function createSeedRoutes(todayStr) {
   const findCust = (id) => customers.find((c) => c.id === id) || { id, name: `Customer ${id}`, lat: 31.4181, lon: 73.0776, demand: 1 }
 
   const v1Customers = [
-    { id: 1, risk: 0.88, band: 'Critical', urgent: false },
     { id: 2, risk: 0.74, band: 'Critical', urgent: false },
     { id: 4, risk: 0.58, band: 'High', urgent: false },
     { id: 3, risk: 0.22, band: 'Normal', urgent: false },
+    { id: 1, risk: 0.88, band: 'Critical', urgent: false },
     { id: 5, risk: 1.00, band: 'Urgent', urgent: true },
   ]
 

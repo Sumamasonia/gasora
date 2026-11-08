@@ -44,6 +44,16 @@ import {
   handleSkipStop,
 } from './dispatch.js'
 import { handleCreateUser, handleGetUsers } from './users.js'
+import {
+  handleCreateMyRequest,
+  handleGetMyBalance,
+  handleGetMyBills,
+  handleGetMyDeliveryStatus,
+  handleGetMyNextDelivery,
+  handleGetMyOrders,
+} from './customerPortal.js'
+import { getDb, saveDb } from './db.js'
+import { requireAuth } from './auth.js'
 import { handleGetDashboardSummary, handleGetReport } from './dashboard.js'
 import { handleGetEvaluationResults } from './evaluation.js'
 import {
@@ -82,6 +92,26 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   }
   if (method === 'GET' && normalizedPath === '/auth/me') {
     return handleMe(token)
+  }
+
+  // Customer Portal Endpoints (/me/*) - Strictly Customer Role
+  if (normalizedPath === '/me/orders' && method === 'GET') {
+    return handleGetMyOrders(token)
+  }
+  if (normalizedPath === '/me/bills' && method === 'GET') {
+    return handleGetMyBills(token)
+  }
+  if (normalizedPath === '/me/balance' && method === 'GET') {
+    return handleGetMyBalance(token)
+  }
+  if (normalizedPath === '/me/next-delivery' && method === 'GET') {
+    return handleGetMyNextDelivery(token)
+  }
+  if (normalizedPath === '/me/delivery-status' && method === 'GET') {
+    return handleGetMyDeliveryStatus(token)
+  }
+  if (normalizedPath === '/me/requests' && method === 'POST') {
+    return handleCreateMyRequest(token, body)
   }
 
   // Customer ledger
@@ -352,6 +382,20 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     }
     if (method === 'PUT') {
       return handleUpdateStockSettings(token, body)
+    }
+  }
+
+  // Agency Settings (owner only)
+  if (normalizedPath === '/settings') {
+    requireAuth(token, ['owner'])
+    const currentDb = getDb()
+    if (method === 'GET') {
+      return currentDb.settings || {}
+    }
+    if (method === 'PUT') {
+      currentDb.settings = { ...(currentDb.settings || {}), ...(body || {}) }
+      saveDb()
+      return { status: 'updated', settings: currentDb.settings }
     }
   }
 

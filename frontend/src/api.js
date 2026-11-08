@@ -240,7 +240,11 @@ export const getReportData = (token, reportType, params = {}) => {
 
 export const getEvaluationResults = (token) =>
   request('/evaluation/results', { token })
-
-
-
-
+// Customer Role Endpoints (Phase F8 - Module 18)
+export const getMyOrders = (token) => request('/me/orders', { token })
+export const getMyBills = (token) => request('/me/bills', { token })
+export const getMyBalance = (token) => request('/me/balance', { token })
+export const getMyNextDelivery = (token) => request('/me/next-delivery', { token })
+export const getMyDeliveryStatus = (token) => request('/me/delivery-status', { token })
+export const createMyRequest = (token, data) =>
+  request('/me/requests', { token, method: 'POST', body: data })

@@ -5,14 +5,14 @@ import { getDb, nextId, recordEvent, saveDb } from './db.js'
 
 // Handle GET /customers (returns all customers with is_active)
 export function handleGetCustomers(token) {
-  requireAuth(token)
+  requireAuth(token, ['owner', 'manager'])
   const db = getDb()
   return db.customers || []
 }
 
 // Handle GET /customers/{id}
 export function handleGetCustomer(token, id) {
-  requireAuth(token)
+  requireAuth(token, ['owner', 'manager'])
   const db = getDb()
   const customer = (db.customers || []).find((c) => c.id === Number(id))
   if (!customer) {
@@ -23,7 +23,7 @@ export function handleGetCustomer(token, id) {
 
 // Handle POST /customers
 export function handleCreateCustomer(token, body) {
-  const user = requireAuth(token, ['owner', 'manager'])
+  const user = requireAuth(token, ['owner'])
   if (!body || !body.name || !body.phone) {
     throw new ApiError(422, 'Customer name and phone number are required')
   }
@@ -61,7 +61,7 @@ export function handleCreateCustomer(token, body) {
 
 // Handle PUT /customers/{id} (partial update; explicit null rejected with 422 for name, lat, lon, demand, is_active)
 export function handleUpdateCustomer(token, id, body) {
-  const user = requireAuth(token, ['owner', 'manager'])
+  const user = requireAuth(token, ['owner'])
   if (!body || typeof body !== 'object') {
     throw new ApiError(422, 'Invalid request body')
   }
@@ -122,7 +122,7 @@ export function handleUpdateCustomer(token, id, body) {
 
 // Handle DELETE /customers/{id} (soft delete: is_active=false, row stays, deleting twice is fine and writes no second event)
 export function handleDeleteCustomer(token, id) {
-  const user = requireAuth(token, ['owner', 'manager'])
+  const user = requireAuth(token, ['owner'])
   const db = getDb()
   const customer = (db.customers || []).find((c) => c.id === Number(id))
   if (!customer) {
