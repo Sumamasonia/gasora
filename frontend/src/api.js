@@ -225,4 +225,18 @@ export const updateStockSettings = (token, data) =>
 export const getDashboardSummary = (token) =>
   request('/dashboard/summary', { token })
 
+export const getReportData = (token, reportType, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.from_date) q.set('from_date', params.from_date)
+    if (params.to_date) q.set('to_date', params.to_date)
+    if (params.search) q.set('search', params.search)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/reports/${reportType}${query}`, { token })
+}
+
+
 

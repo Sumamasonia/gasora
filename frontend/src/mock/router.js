@@ -44,7 +44,7 @@ import {
   handleSkipStop,
 } from './dispatch.js'
 import { handleCreateUser, handleGetUsers } from './users.js'
-import { handleGetDashboardSummary } from './dashboard.js'
+import { handleGetDashboardSummary, handleGetReport } from './dashboard.js'
 import {
   handleCreateExpense,
   handleCreatePurchase,
@@ -314,6 +314,16 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   // Dashboard summary endpoint (Phase F7)
   if (method === 'GET' && (normalizedPath === '/dashboard/summary' || normalizedPath === '/dashboard')) {
     return handleGetDashboardSummary(token)
+  }
+
+  // Reports endpoint (Phase F7 - Module 10)
+  const reportMatch = normalizedPath.match(/^\/reports\/([a-zA-Z0-9_-]+)$/)
+  if (reportMatch && method === 'GET') {
+    return handleGetReport(token, reportMatch[1], queryParams)
+  }
+  if (normalizedPath === '/reports' && method === 'GET') {
+    const reportType = queryParams.get('type') || 'sales'
+    return handleGetReport(token, reportType, queryParams)
   }
 
   // Operating Expenses endpoints

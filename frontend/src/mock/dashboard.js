@@ -626,3 +626,380 @@ export function handleGetDashboardSummary(token) {
     financial_trends: monthlyFinancials,
   }
 }
+
+/**
+ * Handle GET /reports/{type}
+ * Computes structured, filterable report datasets for:
+ * - sales
+ * - expenses
+ * - loans
+ * - stock
+ * - deliveries
+ * - empties_ageing
+ */
+export function handleGetReport(token, reportType, queryParams = new URLSearchParams()) {
+  requireAuth(token, ['owner', 'manager', 'ceo'])
+  const db = getDb()
+  const fromDate = queryParams.get('from_date')
+  const toDate = queryParams.get('to_date')
+  const search = (queryParams.get('search') || '').toLowerCase().trim()
+
+  const isInDateRange = (dateStr) => {
+    if (!dateStr) return true
+    const d = dateStr.slice(0, 10)
+    if (fromDate && d < fromDate) return false
+    if (toDate && d > toDate) return false
+    return true
+  }
+
+  // 1. SALES REPORT
+  if (reportType === 'sales') {
+    const bills = db.bills || []
+    let rows = bills.map((b) => {
+      const firstItem = (b.items && b.items[0]) || {}
+      const totalQty = (b.items || []).reduce((sum, it) => sum + (Number(it.quantity) || 0), 0)
+      return {
+        id: b.id,
+        date: (b.created_at || '').slice(0, 10),
+        invoice_no: b.invoice_no,
+        customer_name: b.customer_name,
+        customer_code: b.customer_code,
+        customer_area: b.customer_area || 'Faisalabad',
+        bill_type: b.bill_type || 'direct_sale',
+        cylinder_type: firstItem.cylinder_type || '11.8 kg',
+        quantity: totalQty || 1,
+        unit_price: firstItem.unit_price || 3100,
+        total: Number(b.total) || 0,
+        paid_amount: Number(b.paid_amount) || 0,
+        balance_due: Number(b.balance_due) || 0,
+        status: b.status || 'paid',
+        created_at: b.created_at,
+      }
+    })
+
+    rows = rows.filter((r) => isInDateRange(r.date))
+    if (search) {
+      rows = rows.filter(
+        (r) =>
+          r.customer_name?.toLowerCase().includes(search) ||
+          r.invoice_no?.toLowerCase().includes(search) ||
+          r.customer_code?.toLowerCase().includes(search) ||
+          r.customer_area?.toLowerCase().includes(search)
+      )
+    }
+
+    rows.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
+
+    const totalSales = rows.reduce((sum, r) => sum + r.total, 0)
+    const totalPaid = rows.reduce((sum, r) => sum + r.paid_amount, 0)
+    const totalBalance = rows.reduce((sum, r) => sum + r.balance_due, 0)
+    const totalQty = rows.reduce((sum, r) => sum + r.quantity, 0)
+
+    return {
+      type: 'sales',
+      title: 'Sales & Invoices Report',
+      rows,
+      summary: {
+        total_sales: totalSales,
+        total_paid: totalPaid,
+        total_balance: totalBalance,
+        total_quantity: totalQty,
+        records_count: rows.length,
+      },
+    }
+  }
+
+  // 2. EXPENSES REPORT
+  if (reportType === 'expenses') {
+    const expenses = db.expenses || []
+    let rows = expenses.map((e) => ({
+      id: e.id,
+      date: (e.date || e.created_at || '').slice(0, 10),
+      category: e.category || 'other',
+      amount: Number(e.amount) || 0,
+      note: e.note || '-',
+      vehicle_id: e.vehicle_id || '-',
+      actor: e.actor || e.created_by || 'owner',
+      created_at: e.created_at,
+    }))
+
+    rows = rows.filter((r) => isInDateRange(r.date))
+    if (search) {
+      rows = rows.filter(
+        (r) =>
+          r.category?.toLowerCase().includes(search) ||
+          r.note?.toLowerCase().includes(search) ||
+          r.vehicle_id?.toLowerCase().includes(search)
+      )
+    }
+
+    rows.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
+
+    const totalAmount = rows.reduce((sum, r) => sum + r.amount, 0)
+    const categoryTotals = { fuel: 0, rent: 0, salary: 0, repair: 0, other: 0 }
+    rows.forEach((r) => {
+      categoryTotals[r.category] = (categoryTotals[r.category] || 0) + r.amount
+    })
+
+    return {
+      type: 'expenses',
+      title: 'Operating Expenses Report',
+      rows,
+      summary: {
+        total_amount: totalAmount,
+        by_category: categoryTotals,
+        records_count: rows.length,
+      },
+    }
+  }
+
+  // 3. LOANS & RECEIVABLES REPORT
+  if (reportType === 'loans') {
+    const loansReport = handleGetLoans(token, new URLSearchParams('include_all=true'))
+    let rows = (loansReport.customers || []).map((c) => ({
+      customer_id: c.customer_id,
+      customer_name: c.name,
+      customer_code: c.code,
+      phone: c.phone,
+      area: c.area || 'Faisalabad',
+      total_balance: c.total_balance || 0,
+      deposit: c.deposit || 0,
+      unsecured_risk: c.unsecured_risk || 0,
+      current: c.ageing?.current || 0,
+      days_31_60: c.ageing?.days_31_60 || 0,
+      days_61_90: c.ageing?.days_61_90 || 0,
+      days_90_plus: c.ageing?.days_90_plus || 0,
+      unpaid_bills_count: c.unpaid_bills_count || 0,
+      last_payment_date: c.last_payment_date ? c.last_payment_date.slice(0, 10) : 'Never',
+    }))
+
+    if (search) {
+      rows = rows.filter(
+        (r) =>
+          r.customer_name?.toLowerCase().includes(search) ||
+          r.customer_code?.toLowerCase().includes(search) ||
+          r.area?.toLowerCase().includes(search) ||
+          r.phone?.toLowerCase().includes(search)
+      )
+    }
+
+    // Default sort by highest outstanding balance
+    rows.sort((a, b) => b.total_balance - a.total_balance)
+
+    return {
+      type: 'loans',
+      title: 'Customer Debt & Receivables Ageing Report',
+      rows,
+      summary: loansReport.summary || {},
+    }
+  }
+
+  // 4. STOCK & INVENTORY REPORT
+  if (reportType === 'stock') {
+    const cylinders = db.cylinders || []
+    const settings = db.settings || {}
+    const thresholds = settings.low_stock_thresholds || DEFAULT_THRESHOLDS
+    const types = ['11.8 kg', '15 kg', '45.4 kg']
+
+    const rows = types.map((t) => {
+      const typeCyls = cylinders.filter((c) => c.cylinder_type === t)
+      const filled = typeCyls.filter((c) => c.state === 'Filled').length
+      const empty = typeCyls.filter((c) => c.state === 'Empty').length
+      const recovered = typeCyls.filter((c) => c.state === 'Recovered').length
+      const delivered = typeCyls.filter((c) => c.state === 'Delivered').length
+      const total = typeCyls.length
+      const threshold = thresholds[t] !== undefined ? thresholds[t] : DEFAULT_THRESHOLDS[t]
+      const isLow = filled <= threshold
+
+      return {
+        cylinder_type: t,
+        total_assets: total,
+        filled,
+        empty,
+        recovered,
+        empty_total: empty + recovered,
+        delivered,
+        threshold,
+        status: isLow ? 'Low Stock Warning' : 'Healthy Stock',
+        is_low: isLow,
+      }
+    })
+
+    const totalCylinders = rows.reduce((sum, r) => sum + r.total_assets, 0)
+    const totalFilled = rows.reduce((sum, r) => sum + r.filled, 0)
+    const totalDelivered = rows.reduce((sum, r) => sum + r.delivered, 0)
+    const totalEmpty = rows.reduce((sum, r) => sum + r.empty_total, 0)
+    const lowStockCount = rows.filter((r) => r.is_low).length
+
+    return {
+      type: 'stock',
+      title: 'Depot Stock & Asset Inventory Report',
+      rows,
+      summary: {
+        total_cylinders: totalCylinders,
+        total_filled: totalFilled,
+        total_empty: totalEmpty,
+        total_delivered: totalDelivered,
+        low_stock_count: lowStockCount,
+      },
+    }
+  }
+
+  // 5. DELIVERIES REPORT
+  if (reportType === 'deliveries') {
+    const deliveriesList = db.deliveries || []
+    const customers = db.customers || []
+
+    // Synthesize historical customer deliveries if db.deliveries has few items
+    const allDeliveries = [...deliveriesList]
+    if (allDeliveries.length < 15) {
+      customers.forEach((cust) => {
+        const qty = cust.demand || 1
+        const seedDates = [
+          { date: '2026-01-15T11:25:00Z', interval: 14, driver: 'Muhammad Tariq', veh: 'FD-8921' },
+          { date: '2026-02-01T14:10:00Z', interval: 17, driver: 'Muhammad Tariq', veh: 'FD-8921' },
+          { date: '2026-02-16T10:45:00Z', interval: 15, driver: 'Zahid Ali', veh: 'FD-4412' },
+          { date: '2026-03-02T13:30:00Z', interval: 14, driver: 'Muhammad Tariq', veh: 'FD-8921' },
+        ]
+        seedDates.forEach((s, idx) => {
+          allDeliveries.push({
+            id: cust.id * 100 + idx + 1,
+            customer_id: cust.id,
+            customer_name: cust.name,
+            customer_code: cust.code,
+            route_id: 100 + idx + 1,
+            driver_name: s.driver,
+            vehicle_no: s.veh,
+            cylinder_type: cust.cylinder_type || '11.8 kg',
+            cylinders_delivered: qty,
+            cylinders_collected: qty,
+            delivered_at: s.date,
+            delivered_on: s.date.slice(0, 10),
+            interval_days: s.interval,
+            status: 'delivered',
+            notes: idx === 0 ? 'Initial verified refill' : 'Regular scheduled cylinder refill',
+          })
+        })
+      })
+    }
+
+    let rows = allDeliveries.map((d) => ({
+      id: d.id,
+      date: (d.delivered_on || d.delivered_at || '').slice(0, 10),
+      delivered_at: d.delivered_at,
+      customer_id: d.customer_id,
+      customer_name: d.customer_name,
+      customer_code: d.customer_code,
+      driver_name: d.driver_name || 'Muhammad Tariq',
+      vehicle_no: d.vehicle_no || 'FD-8921',
+      cylinder_type: d.cylinder_type || '11.8 kg',
+      cylinders_delivered: Number(d.cylinders_delivered) || 1,
+      cylinders_collected: Number(d.cylinders_collected) || 1,
+      interval_days: Number(d.interval_days) || 15,
+      status: d.status || 'delivered',
+      notes: d.notes || 'Refill completed',
+    }))
+
+    rows = rows.filter((r) => isInDateRange(r.date))
+    if (search) {
+      rows = rows.filter(
+        (r) =>
+          r.customer_name?.toLowerCase().includes(search) ||
+          r.driver_name?.toLowerCase().includes(search) ||
+          r.vehicle_no?.toLowerCase().includes(search) ||
+          r.notes?.toLowerCase().includes(search)
+      )
+    }
+
+    rows.sort((a, b) => new Date(b.delivered_at || b.date) - new Date(a.delivered_at || a.date))
+
+    const totalDelivered = rows.reduce((sum, r) => sum + r.cylinders_delivered, 0)
+    const totalCollected = rows.reduce((sum, r) => sum + r.cylinders_collected, 0)
+    const avgInterval = rows.length > 0 ? Math.round((rows.reduce((sum, r) => sum + r.interval_days, 0) / rows.length) * 10) / 10 : 15
+
+    return {
+      type: 'deliveries',
+      title: 'Fleet Deliveries & Refill Log',
+      rows,
+      summary: {
+        total_deliveries: rows.length,
+        cylinders_delivered: totalDelivered,
+        cylinders_collected: totalCollected,
+        avg_interval_days: avgInterval,
+      },
+    }
+  }
+
+  // 6. EMPTIES AGEING REPORT
+  if (reportType === 'empties_ageing' || reportType === 'recovery') {
+    const cylinders = db.cylinders || []
+    const customers = db.customers || []
+    const history = db.cylinder_history || []
+    const now = Date.now()
+
+    const deliveredCylinders = cylinders.filter((c) => c.state === 'Delivered' && c.customer_id)
+    let rows = deliveredCylinders.map((cyl) => {
+      const cust = customers.find((k) => k.id === cyl.customer_id)
+      const lastDelivTxn = [...history]
+        .reverse()
+        .find((t) => t.cylinder_id === cyl.id && t.to_state === 'Delivered')
+
+      const delivTime = lastDelivTxn ? new Date(lastDelivTxn.created_at).getTime() : new Date(cyl.created_at).getTime()
+      const daysHeld = Math.max(0, Math.floor((now - delivTime) / 86400000))
+      const dueDate = lastDelivTxn?.due_date || new Date(delivTime + 15 * 86400000).toISOString().split('T')[0]
+
+      let bucket = '0-14'
+      if (daysHeld >= 90) bucket = '90+'
+      else if (daysHeld >= 60) bucket = '60-89'
+      else if (daysHeld >= 30) bucket = '30-59'
+      else if (daysHeld >= 15) bucket = '15-29'
+
+      return {
+        cylinder_id: cyl.id,
+        serial_no: cyl.serial_no,
+        customer_id: cyl.customer_id,
+        customer_name: cust ? cust.name : `Customer #${cyl.customer_id}`,
+        customer_phone: cust ? cust.phone : '-',
+        customer_area: cust ? cust.area || 'Faisalabad' : '-',
+        cylinder_type: cyl.cylinder_type,
+        days_held: daysHeld,
+        bucket,
+        due_date: dueDate,
+        deposit_held: cust?.deposit || 6000,
+        is_swap_candidate: daysHeld >= 15,
+      }
+    })
+
+    if (search) {
+      rows = rows.filter(
+        (r) =>
+          r.serial_no?.toLowerCase().includes(search) ||
+          r.customer_name?.toLowerCase().includes(search) ||
+          r.customer_area?.toLowerCase().includes(search) ||
+          r.bucket?.toLowerCase().includes(search)
+      )
+    }
+
+    rows.sort((a, b) => b.days_held - a.days_held)
+
+    const totalDelivered = rows.length
+    const swapCandidates = rows.filter((r) => r.is_swap_candidate).length
+    const overdue30Plus = rows.filter((r) => r.days_held >= 30).length
+    const overdue60Plus = rows.filter((r) => r.days_held >= 60).length
+
+    return {
+      type: 'empties_ageing',
+      title: 'Empty Cylinder Recovery & Ageing Report',
+      rows,
+      summary: {
+        total_delivered: totalDelivered,
+        swap_candidates_count: swapCandidates,
+        overdue_30_plus: overdue30Plus,
+        overdue_60_plus: overdue60Plus,
+      },
+    }
+  }
+
+  throw new ApiError(400, `Unknown report type: ${reportType}`)
+}
+
