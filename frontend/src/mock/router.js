@@ -45,6 +45,7 @@ import {
 } from './dispatch.js'
 import { handleCreateUser, handleGetUsers } from './users.js'
 import { handleGetDashboardSummary, handleGetReport } from './dashboard.js'
+import { handleGetEvaluationResults } from './evaluation.js'
 import {
   handleCreateExpense,
   handleCreatePurchase,
@@ -324,6 +325,11 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   if (normalizedPath === '/reports' && method === 'GET') {
     const reportType = queryParams.get('type') || 'sales'
     return handleGetReport(token, reportType, queryParams)
+  }
+
+  // Evaluation results endpoint (Phase F7 - Module 17)
+  if (method === 'GET' && (normalizedPath === '/evaluation/results' || normalizedPath === '/evaluation')) {
+    return handleGetEvaluationResults(token)
   }
 
   // Operating Expenses endpoints

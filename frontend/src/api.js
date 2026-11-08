@@ -238,5 +238,9 @@ export const getReportData = (token, reportType, params = {}) => {
   return request(`/reports/${reportType}${query}`, { token })
 }
 
+export const getEvaluationResults = (token) =>
+  request('/evaluation/results', { token })
+
+
 
 

@@ -20,6 +20,7 @@ import PurchasesPage from './pages/stock/PurchasesPage'
 import StockPage from './pages/stock/StockPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import ReportsPage from './pages/reports/ReportsPage'
+import EvaluationPage from './pages/evaluation/EvaluationPage'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -202,6 +203,8 @@ export default function App() {
         <DashboardPage auth={auth} onNavigate={navigate} />
       ) : route === 'reports' || route === 'insights/reports' || route.startsWith('reports') ? (
         <ReportsPage auth={auth} onNavigate={navigate} />
+      ) : route === 'evaluation' || route === 'insights/evaluation' || route.startsWith('evaluation') ? (
+        <EvaluationPage auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}
