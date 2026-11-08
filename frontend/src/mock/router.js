@@ -44,6 +44,19 @@ import {
   handleSkipStop,
 } from './dispatch.js'
 import { handleCreateUser, handleGetUsers } from './users.js'
+import {
+  handleCreateExpense,
+  handleCreatePurchase,
+  handleGetExpenses,
+  handleGetFuelEstimate,
+  handleGetPurchases,
+  handleGetStockMovements,
+  handleGetStockSettings,
+  handleGetStockSummary,
+  handleUpdatePurchase,
+  handleUpdateStockSettings,
+  handleVerifyPurchase,
+} from './stockExpenses.js'
 
 // Simulate realistic network latency (150 - 400 ms)
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -262,6 +275,61 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     const custId = parseInt(statementMatch[1], 10)
     if (method === 'GET') {
       return handleGetCustomerStatement(token, custId)
+    }
+  }
+
+  // Stock & Inventory endpoints
+  if (method === 'GET' && normalizedPath === '/stock/summary') {
+    return handleGetStockSummary(token)
+  }
+  if (method === 'GET' && normalizedPath === '/stock/movements') {
+    return handleGetStockMovements(token)
+  }
+  if (normalizedPath === '/stock/purchases') {
+    if (method === 'GET') {
+      return handleGetPurchases(token, queryParams)
+    }
+    if (method === 'POST') {
+      return handleCreatePurchase(token, body)
+    }
+  }
+
+  const verifyPurchaseMatch = normalizedPath.match(/^\/stock\/purchases\/(\d+)\/verify$/)
+  if (verifyPurchaseMatch) {
+    const purchaseId = parseInt(verifyPurchaseMatch[1], 10)
+    if (method === 'POST' || method === 'PATCH') {
+      return handleVerifyPurchase(token, purchaseId)
+    }
+  }
+
+  const singlePurchaseMatch = normalizedPath.match(/^\/stock\/purchases\/(\d+)$/)
+  if (singlePurchaseMatch) {
+    const purchaseId = parseInt(singlePurchaseMatch[1], 10)
+    if (method === 'PUT' || method === 'PATCH') {
+      return handleUpdatePurchase(token, purchaseId, body)
+    }
+  }
+
+  // Operating Expenses endpoints
+  if (method === 'GET' && normalizedPath === '/expenses/fuel-estimate') {
+    return handleGetFuelEstimate(token)
+  }
+  if (normalizedPath === '/expenses') {
+    if (method === 'GET') {
+      return handleGetExpenses(token, queryParams)
+    }
+    if (method === 'POST') {
+      return handleCreateExpense(token, body)
+    }
+  }
+
+  // Stock Settings endpoints
+  if (normalizedPath === '/settings/stock') {
+    if (method === 'GET') {
+      return handleGetStockSettings(token)
+    }
+    if (method === 'PUT') {
+      return handleUpdateStockSettings(token, body)
     }
   }
 

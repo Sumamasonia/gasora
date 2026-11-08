@@ -2,6 +2,7 @@ import { SEED_USERS } from './auth.js'
 import { SEED_BILLS, SEED_LEDGER, SEED_PAYMENTS } from './seedBilling.js'
 import { SEED_CUSTOMERS } from './seedCustomers.js'
 import { SEED_CYLINDER_HISTORY, SEED_CYLINDERS } from './seedCylinders.js'
+import { SEED_EXPENSES, SEED_PURCHASES } from './seedStockExpenses.js'
 
 const STORAGE_KEY = 'gasora-mock-db'
 
@@ -39,8 +40,8 @@ export const createInitialDb = () => ({
   bills: [...SEED_BILLS],
   payments: [...SEED_PAYMENTS],
   ledger: [...SEED_LEDGER],
-  purchases: [],
-  expenses: [],
+  purchases: [...SEED_PURCHASES],
+  expenses: [...SEED_EXPENSES],
   events: [],
   settings: {
     depot: { lat: 31.4181, lon: 73.0776, name: 'Main Depot Faisalabad' },
@@ -114,6 +115,12 @@ export function loadDb() {
       }
       if (!db.ledger || db.ledger.length === 0) {
         db.ledger = [...SEED_LEDGER]
+      }
+      if (!db.purchases || db.purchases.length === 0) {
+        db.purchases = [...SEED_PURCHASES]
+      }
+      if (!db.expenses || db.expenses.length === 0) {
+        db.expenses = [...SEED_EXPENSES]
       }
       return db
     }
