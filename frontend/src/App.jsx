@@ -18,6 +18,7 @@ import RecordSalePage from './pages/billing/RecordSalePage'
 import ExpensesPage from './pages/expenses/ExpensesPage'
 import PurchasesPage from './pages/stock/PurchasesPage'
 import StockPage from './pages/stock/StockPage'
+import DashboardPage from './pages/dashboard/DashboardPage'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -196,6 +197,8 @@ export default function App() {
         <PurchasesPage auth={auth} onNavigate={navigate} />
       ) : route === 'expenses' || route.startsWith('expenses') ? (
         <ExpensesPage auth={auth} onNavigate={navigate} />
+      ) : route === 'dashboard' || route === 'insights/dashboard' ? (
+        <DashboardPage auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}
