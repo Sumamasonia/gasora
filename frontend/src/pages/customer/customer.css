@@ -1,0 +1,845 @@
+/* Phone-first Customer App Styles (Phase F8) */
+
+.customer-app-wrapper {
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg, #f8fafc);
+  color: var(--color-text, #0f172a);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+[data-theme='dark'] .customer-app-wrapper {
+  background: #0f172a;
+  color: #f1f5f9;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Header */
+.customer-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+[data-theme='dark'] .customer-top-bar {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+
+.customer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-brand-icon {
+  font-size: 22px;
+}
+
+.customer-brand-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ea580c;
+  letter-spacing: -0.02em;
+}
+
+.customer-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-account-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  background: #ffedd5;
+  color: #c2410c;
+  border-radius: 9999px;
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme='dark'] .customer-account-badge {
+  background: #431407;
+  color: #fdba74;
+}
+
+.customer-header-btn {
+  background: transparent;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--color-text, #334155);
+}
+
+[data-theme='dark'] .customer-header-btn {
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+/* Main Content Body */
+.customer-body {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: 84px; /* Space for bottom tabs */
+  overflow-y: auto;
+}
+
+/* Bottom Navigation Bar */
+.customer-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  background: var(--color-surface, #ffffff);
+  border-top: 1px solid var(--color-border, #e2e8f0);
+  z-index: 50;
+  padding: 6px 4px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .customer-bottom-nav {
+  background: #1e293b;
+  border-top-color: #334155;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.customer-nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  border-radius: 8px;
+}
+
+[data-theme='dark'] .customer-nav-tab {
+  color: #94a3b8;
+}
+
+.customer-nav-tab .tab-icon {
+  font-size: 18px;
+  margin-bottom: 3px;
+}
+
+.customer-nav-tab.active {
+  color: #ea580c;
+  font-weight: 700;
+}
+
+.customer-nav-tab.active .tab-icon {
+  transform: scale(1.1);
+}
+
+/* Cards & Sections */
+.customer-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme='dark'] .customer-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text, #0f172a);
+}
+
+[data-theme='dark'] .card-title {
+  color: #f1f5f9;
+}
+
+/* Hero Next Delivery Card */
+.next-delivery-card {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid #fed7aa;
+}
+
+[data-theme='dark'] .next-delivery-card {
+  background: linear-gradient(135deg, #2a1b12 0%, #1e293b 100%);
+  border-color: #7c2d12;
+}
+
+.next-delivery-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #ea580c;
+  color: #ffffff;
+}
+
+.next-delivery-window {
+  font-size: 18px;
+  font-weight: 800;
+  color: #9a3412;
+  margin: 10px 0 6px 0;
+}
+
+[data-theme='dark'] .next-delivery-window {
+  color: #fdba74;
+}
+
+.next-delivery-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 12px;
+  color: #7c2d12;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #fdba74;
+}
+
+[data-theme='dark'] .next-delivery-details {
+  color: #fed7aa;
+  border-top-color: #7c2d12;
+}
+
+.next-delivery-cta-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.next-delivery-cta-btn:hover {
+  background: #c2410c;
+}
+
+/* Balance Card */
+.balance-metric-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 8px 0 14px 0;
+}
+
+.balance-amount {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.balance-amount.positive {
+  color: #ea580c;
+}
+
+.balance-amount.zero {
+  color: #16a34a;
+}
+
+.balance-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--color-bg, #f8fafc);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+}
+
+[data-theme='dark'] .balance-subgrid {
+  background: #0f172a;
+}
+
+.balance-subitem-label {
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.balance-subitem-val {
+  font-weight: 700;
+}
+
+/* Urgent Callout Banner */
+.urgent-banner {
+  border: 2px solid #dc2626 !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+[data-theme='dark'] .urgent-banner {
+  background: #450a0a !important;
+  border-color: #ef4444 !important;
+  color: #fecaca !important;
+}
+
+.urgent-banner-title {
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.urgent-banner-text {
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+/* Request Type Selector */
+.request-type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.type-select-btn {
+  padding: 12px 8px;
+  border-radius: 8px;
+  border: 2px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #ffffff);
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+[data-theme='dark'] .type-select-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.type-select-btn.selected-normal {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  color: #0369a1;
+  font-weight: 700;
+}
+
+[data-theme='dark'] .type-select-btn.selected-normal {
+  background: #082f49;
+  border-color: #38bdf8;
+  color: #bae6fd;
+}
+
+.type-select-btn.selected-urgent {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+[data-theme='dark'] .type-select-btn.selected-urgent {
+  background: #450a0a;
+  border-color: #ef4444;
+  color: #fecaca;
+}
+
+/* Quantity Stepper */
+.stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 12px 0 16px 0;
+}
+
+.stepper-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-surface, #ffffff);
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme='dark'] .stepper-btn {
+  background: #334155;
+  border-color: #475569;
+  color: #ffffff;
+}
+
+.stepper-val {
+  font-size: 24px;
+  font-weight: 800;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* Submit Request Buttons */
+.request-submit-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #ffffff;
+  transition: opacity 0.15s ease;
+}
+
+.request-submit-btn.normal {
+  background: #0284c7;
+}
+
+.request-submit-btn.normal:hover {
+  background: #0369a1;
+}
+
+.request-submit-btn.urgent {
+  background: #dc2626;
+}
+
+.request-submit-btn.urgent:hover {
+  background: #b91c1c;
+}
+
+.request-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Orders List */
+.order-item-card {
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--color-surface, #ffffff);
+}
+
+[data-theme='dark'] .order-item-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.order-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.order-no {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.order-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  text-transform: capitalize;
+}
+
+.order-status-badge.delivered {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+[data-theme='dark'] .order-status-badge.delivered {
+  background: #14532d;
+  color: #86efac;
+}
+
+.order-status-badge.in_route,
+.order-status-badge.on_the_way {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+[data-theme='dark'] .order-status-badge.in_route,
+[data-theme='dark'] .order-status-badge.on_the_way {
+  background: #0c4a6e;
+  color: #7dd3fc;
+}
+
+.order-status-badge.pending,
+.order-status-badge.planned {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+[data-theme='dark'] .order-status-badge.pending,
+[data-theme='dark'] .order-status-badge.planned {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.order-details-line {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text, #334155);
+  margin-bottom: 4px;
+}
+
+[data-theme='dark'] .order-details-line {
+  color: #cbd5e1;
+}
+
+.order-meta-line {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Bills List */
+.bill-item-card {
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--color-surface, #ffffff);
+}
+
+[data-theme='dark'] .bill-item-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.bill-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.bill-inv-no {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ea580c;
+}
+
+.bill-amount-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 8px 0;
+}
+
+.bill-total-pkr {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.view-invoice-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-text, #334155);
+}
+
+[data-theme='dark'] .view-invoice-btn {
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+.view-invoice-btn:hover {
+  background: #f1f5f9;
+}
+
+[data-theme='dark'] .view-invoice-btn:hover {
+  background: #334155;
+}
+
+/* Routific-inspired Delivery Tracking (Step 3) */
+.routific-tracking-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.routific-status-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+[data-theme='dark'] .routific-status-banner {
+  background: #052e16;
+  border-color: #166534;
+}
+
+.routific-status-banner.on_the_way {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+[data-theme='dark'] .routific-status-banner.on_the_way {
+  background: #082f49;
+  border-color: #0369a1;
+}
+
+.routific-status-banner.planned {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+[data-theme='dark'] .routific-status-banner.planned {
+  background: #451a03;
+  border-color: #92400e;
+}
+
+.routific-status-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.routific-status-desc {
+  font-size: 13px;
+  color: #64748b;
+}
+
+[data-theme='dark'] .routific-status-desc {
+  color: #94a3b8;
+}
+
+/* Stop Position Badge */
+.routific-position-pill {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 14px;
+  background: #ea580c;
+  color: #ffffff;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
+}
+
+/* 3-Step Progress Stepper */
+.routific-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 8px;
+  position: relative;
+}
+
+.stepper-line {
+  position: absolute;
+  top: 16px;
+  left: 24px;
+  right: 24px;
+  height: 4px;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+[data-theme='dark'] .stepper-line {
+  background: #334155;
+}
+
+.stepper-line-progress {
+  height: 100%;
+  background: #16a34a;
+  transition: width 0.3s ease;
+}
+
+.routific-step-node {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.routific-step-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-surface, #ffffff);
+  border: 3px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #64748b;
+  margin-bottom: 6px;
+  transition: all 0.2s ease;
+}
+
+[data-theme='dark'] .routific-step-circle {
+  background: #1e293b;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+.routific-step-node.completed .routific-step-circle {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
+.routific-step-node.active .routific-step-circle {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.2);
+}
+
+.routific-step-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.routific-step-node.completed .routific-step-label,
+.routific-step-node.active .routific-step-label {
+  color: var(--color-text, #0f172a);
+}
+
+[data-theme='dark'] .routific-step-node.completed .routific-step-label,
+[data-theme='dark'] .routific-step-node.active .routific-step-label {
+  color: #f1f5f9;
+}
+
+/* Honest Note Regarding Live Location */
+.routific-no-live-note {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.45;
+}
+
+[data-theme='dark'] .routific-no-live-note {
+  background: #0f172a;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+/* Modal Overlay for Invoice View */
+.customer-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.customer-modal-card {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-surface, #ffffff);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme='dark'] .customer-modal-card {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+.customer-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  padding-bottom: 12px;
+}
+
+[data-theme='dark'] .customer-modal-header {
+  border-bottom-color: #334155;
+}
+
+.customer-modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #64748b;
+}
