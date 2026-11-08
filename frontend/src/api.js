@@ -221,4 +221,8 @@ export const getStockSettings = (token) =>
 export const updateStockSettings = (token, data) =>
   request('/settings/stock', { token, method: 'PUT', body: data })
 
+// Dashboard & Evaluation (Phase F7 - Modules 10, 17)
+export const getDashboardSummary = (token) =>
+  request('/dashboard/summary', { token })
+
 

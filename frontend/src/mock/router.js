@@ -44,6 +44,7 @@ import {
   handleSkipStop,
 } from './dispatch.js'
 import { handleCreateUser, handleGetUsers } from './users.js'
+import { handleGetDashboardSummary } from './dashboard.js'
 import {
   handleCreateExpense,
   handleCreatePurchase,
@@ -308,6 +309,11 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     if (method === 'PUT' || method === 'PATCH') {
       return handleUpdatePurchase(token, purchaseId, body)
     }
+  }
+
+  // Dashboard summary endpoint (Phase F7)
+  if (method === 'GET' && (normalizedPath === '/dashboard/summary' || normalizedPath === '/dashboard')) {
+    return handleGetDashboardSummary(token)
   }
 
   // Operating Expenses endpoints
