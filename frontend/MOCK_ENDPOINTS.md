@@ -115,13 +115,49 @@ This document lists all frontend mock endpoints that are not yet implemented or 
 
 ---
 
+## Executive Dashboard Endpoints (Phase F7 - Module 10)
+
+> **Dashboard Integrity Rules**:
+> 1. **Live Computed from Mock Tables**: All dashboard sales, expenses, net profit, loans/receivables, and cylinder stock counts are computed dynamically from `db.bills`, `db.expenses`, `db.customers`, and `db.cylinders` so numbers agree with other screens.
+> 2. **Routific Logistics Benchmark**: Planned versus actual route execution minutes track driver schedule adherence, variance, and on-time percentages inspired by Routific analytics.
+> 3. **Demo Data Tagging**: Engine indicators and simulated rates are explicitly flagged as demo placeholders.
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Validation Rules |
+|---|---|---|---|---|---|
+| `GET` | `/dashboard/summary` | `owner`, `manager`, `ceo` | None | `{ as_of, sales: { total, current_period, previous_period, change_pct, trend, total_paid }, expenses: { total, current_period, previous_period, change_pct, trend, by_category }, profit: { net_profit, current_period, previous_period, margin_pct, change_pct, trend }, loans: { total_receivables, debtor_count, overdue_30_days, overdue_60_days, overdue_90_days, unsecured_risk, ageing_breakdown }, stock: { total_cylinders, filled, empty, delivered, low_stock_count, has_low_stock, by_type }, risk: { counts, total_customers, top_risks }, runouts: { active_urgent, total_urgent, runouts_per_100_customer_months, disclaimer }, kilometres: { daily, total_km_30d, avg_km_per_day, trend }, planned_vs_actual: { summary, routes, daily_trends, design_reference }, financial_trends }` | **Executive Operations Dashboard Summary**:<br>• Dynamic computation of total sales, revenue collected, and period-over-period growth.<br>• Real-time operating expenses with category distribution.<br>• Net profit and operating profit margins.<br>• Customer receivables ageing and unsecured credit risk.<br>• Depot stock health across 3 cylinder specifications with low-stock warnings.<br>• Customer depletion risk profile (Normal, High, Critical, Urgent) with top risk list.<br>• 30-day fleet travel distance timeline.<br>• **Routific Design Reference**: Planned vs actual route minutes, net variance, and driver on-time rates. |
+
+---
+
+## Business Intelligence & Reports Endpoints (Phase F7 - Module 10)
+
+> **Reporting Rules**:
+> 1. **Six Canonical Reports**: Supports `sales`, `expenses`, `loans`, `stock`, `deliveries`, and `empties_ageing`.
+> 2. **Date Range Filtering**: Invoices, expenses, and deliveries filter by `from_date` and `to_date`.
+> 3. **Search & Aggregations**: Every report returns a pre-aggregated `summary` object alongside tabular `rows` for instant KPI tile preview, CSV export, and print formatting.
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Supported Reports |
+|---|---|---|---|---|---|
+| `GET` | `/reports/{type}` *(alias: `/reports?type={type}`)* | `owner`, `manager`, `ceo` | Query: `from_date?`, `to_date?`, `search?` | `{ type, title, rows: [...], summary: { ... } }` | **Multi-Domain Report Generation**:<br>• `type='sales'`: Sales and invoice records with quantities, totals, payments, and balances.<br>• `type='expenses'`: Operating expense logs categorized by fuel, rent, salary, repairs, other.<br>• `type='loans'`: Customer debt ageing (0-30d, 31-60d, 61-90d, 90+d) and deposit coverage.<br>• `type='stock'`: Depot cylinder inventory counts and safety stock alert status.<br>• `type='deliveries'`: Completed delivery and refill logs with interval days.<br>• `type='empties_ageing'`: Empty cylinder retention duration buckets (0-14, 15-29, 30-59, 60-89, 90+ days) and swap candidates. |
+
+---
+
+## Route Policy & Algorithm Evaluation Endpoints (Phase F7 - Module 17)
+
+> **Evaluation Benchmarking Protocol**:
+> 1. **Strictly Demo Data Placeholders**: Every figure is generated from synthetic simulation runs. It is explicitly labeled "Demo data" and never claims or guarantees real-world savings.
+> 2. **Four Evaluated Policies**: Compares **P1 Reactive** (customer calls after running out), **P2 Average-Days** (fixed cyclic schedule), **P3 Gasora Risk** (Bayesian predictive risk + dynamic routing), and **Ablation** (routing only without risk uncertainty).
+> 3. **Paired-Seeds Protocol**: Evaluated across 50 paired random simulation seeds over 180 simulated operating days in Faisalabad geography with identical customer demand sequences for fair comparison.
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Metrics |
+|---|---|---|---|---|---|
+| `GET` | `/evaluation/results` *(alias: `/evaluation`)* | `owner`, `ceo`, `manager` | None | `{ title, label: "Demo data", paired_seeds_explanation, disclaimer, simulation_parameters, policies: [{ id, code, name, category, badge, description, runouts_per_100_customer_months, km_per_delivery, total_km, early_deliveries_pct, customer_days_without_gas, interval_range, color, is_gasora }], chart_data }` | **Four-Policy Algorithm Evaluation Benchmark**:<br>• Returns comparative metrics for P1, P2, P3, and Ablation.<br>• **Metrics**: Run-outs per 100 customer-months, kilometres per delivery, total kilometres, early deliveries percentage, customer-days without gas, and interval ranges.<br>• Includes paired-seeds explanation line, simulation parameter metadata, and Recharts bar chart datasets.<br>• All figures explicitly marked `Demo data`. |
+
+---
+
 ## Other Mock-Only Endpoints Table
 
 | Method | Path | Allowed Roles | Request Body | Response Shape | Description |
 |---|---|---|---|---|---|
-| `GET` | `/dashboard/summary` | `owner`, `manager`, `ceo` | None | `{ today_deliveries: { completed, total }, active_cylinders, stock_levels, revenue_today, low_stock_warning }` | High-level operations dashboard KPIs |
-| `GET` | `/reports/deliveries` | `owner`, `manager`, `ceo` | Query: `from_date`, `to_date` | `[{ date, completed_deliveries, skipped_deliveries, total_cylinders, total_km }]` | Delivery performance report |
-| `GET` | `/reports/revenue` | `owner`, `manager`, `ceo` | Query: `from_date`, `to_date` | `[{ date, revenue_pkr, expenses_pkr, net_margin_pkr }]` | Financial summary report |
 | `GET` | `/settings` | `owner` | None | `{ depot: { lat, lon, name }, default_solver_seconds, cylinder_prices, sms_notifications }` | Agency configuration settings |
 | `PUT` | `/settings` | `owner` | `{ depot?, default_solver_seconds?, cylinder_prices?, sms_notifications? }` | `{ status: "updated", settings: { ... } }` | Update agency configuration |
 | `POST` | `/settings/reset-demo` | `owner` | None | `{ status: "reset_complete" }` | Reset mock database to seed state |
