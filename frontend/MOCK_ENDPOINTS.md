@@ -79,15 +79,46 @@ This document lists all frontend mock endpoints that are not yet implemented or 
 
 ---
 
+## Purchases & Stock Endpoints (Phase F6 - Module 12)
+
+> **Stock & Procurement Rules**:
+> 1. **Automatic Stock Rise**: Saving a purchase (`POST /stock/purchases`) automatically rises available depot stock. Existing depot empties/recovered cylinders are transitioned to `Filled`. If the purchased quantity exceeds available empties, new `Filled` cylinder assets are automatically registered in `db.cylinders` so physical stock counts increment immediately.
+> 2. **Manager / Owner Verification**: Only users with role `owner` or `manager` may verify a purchase order. Non-manager/owner roles receive `403 Forbidden`.
+> 3. **Verification Edit Lock**: Once verified (`purchase.verified === true`), a purchase is permanently locked. Any subsequent edit attempt via `PUT /stock/purchases/{id}` is rejected with `409 Conflict`.
+> 4. **Safety Stock Thresholds**: Depot stock levels are monitored against configurable low-stock thresholds per cylinder specification (`GET/PUT /settings/stock`), triggering visible low-stock alerts when `filled <= threshold`.
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Validation Rules |
+|---|---|---|---|---|---|
+| `GET` | `/stock/summary` | `owner`, `manager` | None | `{ by_type: { "11.8 kg": { filled, empty, delivered, total, low_stock, threshold }, ... }, total_filled, total_empty, total_delivered, total_cylinders, low_stock_count, low_stock_types, has_low_stock }` | **Depot Stock Summary & Health**:<br>• Returns aggregated cylinder inventory breakdown per specification across all lifecycle states.<br>• Compares `filled` stock against safety thresholds (`/settings/stock`).<br>• Flags `has_low_stock` and lists `low_stock_types` for warning banners. |
+| `GET` | `/stock/movements` | `owner`, `manager` | Query: `limit?` *(default 50)*, `type?` | `[{ id, cylinder_id, serial_no, cylinder_type, txn_type, from_state, to_state, actor, note, created_at }]` | **Inventory Movement History**:<br>• Chronological audit log of physical stock movements, refill purchases, sales dispatches, and empty recoveries.<br>• Supports filtering by cylinder type. |
+| `GET` | `/stock/purchases` *(alias: `/purchases`)* | `owner`, `manager` | Query: `search?`, `item?`, `verified?` *('all'\|'verified'\|'unverified')*, `vendor?` | `[{ id, vendor, item, cylinder_type, quantity, unit_cost, total_cost, date, invoice_no, verified, verified_by, verified_at, notes, created_at, created_by }]` | **Procurement History & Orders**:<br>• List bulk LPG purchase orders with vendor search and verification status filters.<br>• Sorted newest first. |
+| `POST` | `/stock/purchases` *(alias: `/purchases`)* | `owner`, `manager` | `{ vendor, item, quantity, unit_cost, date?, invoice_no?, notes? }` | `{ id, vendor, item, cylinder_type, quantity, unit_cost, total_cost, date, invoice_no, verified: false, verified_by: null, verified_at: null, notes, created_at, created_by }` | **Record Purchase & Automatic Stock Rise**:<br>• Requires `vendor`, `item`, positive integer `quantity`, and non-negative `unit_cost` (422 if invalid).<br>• Computes `total_cost = quantity * unit_cost`.<br>• **Automatic Stock Rise**: Transitions depot `Empty` cylinders to `Filled`, or registers new `Filled` cylinder assets if purchase exceeds available empties.<br>• Logs `refill_purchase` audit history. Defaults `verified: false`. |
+| `PUT` | `/stock/purchases/{id}` *(alias: `/purchases/{id}`)* | `owner`, `manager` | `{ vendor?, item?, quantity?, unit_cost?, date?, invoice_no?, notes? }` | `{ id, vendor, item, cylinder_type, quantity, unit_cost, total_cost, date, invoice_no, verified, verified_by, verified_at, notes, created_at, created_by }` | **Edit Unverified Purchase**:<br>• Updates purchase details and recalculates `total_cost`.<br>• **Lock Rule**: If `verified === true`, rejects with `409 Conflict` ("Verified purchases are locked and cannot be edited"). Returns 404 if not found. |
+| `POST` | `/stock/purchases/{id}/verify` *(alias: `/purchases/{id}/verify`)* | `owner`, `manager` only | None | `{ ok: true, purchase: { id, verified: true, verified_by, verified_at, ... } }` | **Manager Verification Action**:<br>• Restricted strictly to `owner` and `manager` roles (`403 Forbidden` for drivers).<br>• Sets `verified = true`, stamps `verified_by` and `verified_at`.<br>• Permanently locks purchase against future modifications. |
+| `GET` | `/settings/stock` | `owner`, `manager` | None | `{ thresholds: { "11.8 kg": int, "15 kg": int, "45.4 kg": int } }` | Retrieve low-stock safety threshold levels per cylinder specification. |
+| `PUT` | `/settings/stock` | `owner`, `manager` | `{ thresholds: { "11.8 kg"?: int, "15 kg"?: int, "45.4 kg"?: int } }` | `{ ok: true, thresholds: { ... } }` | Update low-stock safety alert thresholds. Validates values are non-negative integers (422 if invalid). |
+
+---
+
+## Operating Expenses Endpoints (Phase F6 - Module 16)
+
+> **Expense Management Rules**:
+> 1. **Categorization**: All expenses must be categorized under one of the 5 canonical categories: `fuel`, `rent`, `repair`, `salary`, or `other`.
+> 2. **Real-Time Aggregations**: `/expenses` returns both filtered expense logs and pre-calculated aggregations (category breakdown, daily totals, monthly totals) for instant Recharts bar chart rendering.
+> 3. **Fuel Cost Benchmark (Modelled)**: `/expenses/fuel-estimate` computes benchmark diesel costs based on actual dispatch route kilometres (`route_km / 7.5 km/L * PKR 280/L`) and is clearly labelled with `is_estimate: true`, explicit estimate tagging, and variance comparison against actual fuel expenses.
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Validation Rules |
+|---|---|---|---|---|---|
+| `GET` | `/expenses` | `owner`, `manager` | Query: `category?` *('fuel'\|'rent'\|'repair'\|'salary'\|'other'\|'all')*, `from_date?`, `to_date?`, `search?` | `{ expenses: [{ id, category, amount, date, note, created_by, created_at }], totals: { total, by_category: { fuel, rent, repair, salary, other }, daily: { [date]: amount }, monthly: { [month]: amount } } }` | **Operating Expenses & Totals**:<br>• Returns filtered expense records sorted newest first.<br>• Includes calculated `totals` object with category subtotals, daily aggregates, and monthly aggregates. |
+| `POST` | `/expenses` | `owner`, `manager` | `{ category, amount, date?, note? }` | `{ id, category, amount, date, note, created_by, created_at }` | **Log Operational Expense**:<br>• Validates category is one of `fuel`, `rent`, `repair`, `salary`, `other` (422 if invalid).<br>• Validates `amount > 0` (422 if missing or non-positive).<br>• Defaults `date` to current local date (`YYYY-MM-DD`). |
+| `GET` | `/expenses/fuel-estimate` | `owner`, `manager` | None | `{ estimated_fuel_cost_pkr, total_route_km, active_routes_count, rate_per_liter_pkr, km_per_liter, actual_fuel_expenses_pkr, label, formula, is_estimate: true, disclaimer }` | **Modelled Route Fuel Benchmark (Clearly Labelled Estimate)**:<br>• Calculates total route kilometres from published delivery routes in dispatch module (falls back to 33.2 km baseline).<br>• Evaluates consumption at 7.5 km/L and PKR 280/L diesel rate.<br>• Explicitly identifies response as an estimate with disclaimer and compares against actual logged fuel expenses. |
+
+---
+
 ## Other Mock-Only Endpoints Table
 
 | Method | Path | Allowed Roles | Request Body | Response Shape | Description |
 |---|---|---|---|---|---|
-| `GET` | `/stock/summary` | `owner`, `manager` | None | `{ by_type: { "11.8 kg": { empty, filled }, ... }, total_gas_kg, central_depot }` | Aggregated gas and cylinder stock |
-| `GET` | `/stock/purchases` | `owner`, `manager` | None | `[{ id, supplier, cylinder_type, quantity, cost_per_unit, total_cost, invoice_no, created_at }]` | LPG bulk stock purchase records |
-| `POST` | `/stock/purchases` | `owner`, `manager` | `{ supplier, cylinder_type, quantity, cost_per_unit, invoice_no? }` | `{ id, supplier, total_cost, created_at }` | Record LPG refill batch purchase |
-| `GET` | `/expenses` | `owner`, `manager` | None | `[{ id, category, amount, description, vehicle_id?, actor, created_at }]` | Operational expenses list |
-| `POST` | `/expenses` | `owner`, `manager` | `{ category, amount, description, vehicle_id? }` | `{ id, category, amount, created_at }` | Log daily expense (fuel, maintenance) |
 | `GET` | `/dashboard/summary` | `owner`, `manager`, `ceo` | None | `{ today_deliveries: { completed, total }, active_cylinders, stock_levels, revenue_today, low_stock_warning }` | High-level operations dashboard KPIs |
 | `GET` | `/reports/deliveries` | `owner`, `manager`, `ceo` | Query: `from_date`, `to_date` | `[{ date, completed_deliveries, skipped_deliveries, total_cylinders, total_km }]` | Delivery performance report |
 | `GET` | `/reports/revenue` | `owner`, `manager`, `ceo` | Query: `from_date`, `to_date` | `[{ date, revenue_pkr, expenses_pkr, net_margin_pkr }]` | Financial summary report |
