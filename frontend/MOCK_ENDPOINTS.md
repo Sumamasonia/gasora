@@ -162,3 +162,50 @@ This document lists all frontend mock endpoints that are not yet implemented or 
 | `PUT` | `/settings` | `owner` | `{ depot?, default_solver_seconds?, cylinder_prices?, sms_notifications? }` | `{ status: "updated", settings: { ... } }` | Update agency configuration |
 | `POST` | `/settings/reset-demo` | `owner` | None | `{ status: "reset_complete" }` | Reset mock database to seed state |
 | `GET` | `/customer-portal/summary` | `customer` | None | `{ customer_id, name, balance_due, cylinders_held, last_delivery, pending_orders }` | Customer self-service home summary |
+---
+
+## Role-Based Customer App, Manager View & CEO View Endpoints (Phase F8 - Module 18, Roles in 6.3)
+
+> **Role Isolation & Security Rules**:
+> 1. **Customer Self-Service Isolation**: A customer can only read and write its own data. All customer operations use the `/me/*` namespace. Attempting to call non-customer administrative endpoints (such as `/customers`, `/cylinders`, `/routes`, `/sales`, `/stock/purchases`, `/expenses`, `/dashboard/summary`, `/users`, or `/settings`) returns `403 Forbidden`.
+> 2. **Manager Scope Limits (Proposal 6.3)**: Manager endpoints reuse sales entry (`POST /sales`), purchases with verification (`GET/POST /stock/purchases`, `POST /stock/purchases/{id}/verify`), and operating expenses (`GET/POST /expenses`). Customer management is strictly **read-only** (`GET /customers`, `GET /customers/{id}`; attempts to call `POST/PUT/DELETE /customers` return `403 Forbidden`). System configuration (`/settings`, `/settings/stock`) and user access management (`/users`) return `403 Forbidden`.
+> 3. **CEO Read-Only Governance**: The CEO role has read-only visibility over executive summaries (`GET /dashboard/summary`), multi-domain reports (`GET /reports/*`), and route algorithm evaluations (`GET /evaluation/results`). Mutating endpoints return `403 Forbidden`.
+> 4. **Routific Customer Delivery Tracking Protocol**: Customer delivery status provides a 3-step progress model (Planned ➔ On the way ➔ Delivered) with exact stop sequence relative to preceding deliveries (e.g. "3 stops before you"). An honest disclaimer states that no live driver GPS location is tracked.
+> 5. **Urgent Request Priority**: Customer refill requests marked as `urgent` are displayed in red in the UI with a mandatory line explaining that urgent requests are planned first by the OR-Tools routing engine, and are automatically queued with highest penalty in the planning solver.
+
+### Customer Self-Service Endpoints (`/me/*`)
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Business Rules |
+|---|---|---|---|---|---|
+| `GET` | `/me/orders` | `customer` only | None | `[{ id, order_no, type: "normal"\|"urgent", cylinders, cylinder_type, status: "pending"\|"in_route"\|"delivered", note, created_at, delivered_at }]` | **Customer Order History**:<br>• Returns all past and active refill orders for the authenticated customer account.<br>• Non-customer roles receive `403 Forbidden`. Sorted newest first. |
+| `GET` | `/me/bills` | `customer` only | None | `[{ id, invoice_no, customer_id, customer_name, bill_type, items: [{ cylinder_type, quantity, unit_price }], total, paid_amount, balance_due, status: "paid"\|"partial"\|"unpaid", due_date, created_at, notes }]` | **Customer Invoices**:<br>• Filtered strictly to invoices matching `user.customer_id`.<br>• Cannot view other accounts' billing documents. Sorted newest first. |
+| `GET` | `/me/balance` | `customer` only | None | `{ customer_id, customer_code, customer_name, customer_type, cylinder_type, balance, deposit, total_invoiced, total_paid, unpaid_bills_count, last_payment: { receipt_no, amount, date } }` | **Customer Balance & Credit Overview**:<br>• Running balance dynamically computed from ledger debits and credits.<br>• Shows security deposit held for cylinder collateral and last receipt payment details. |
+| `GET` | `/me/next-delivery` | `customer` only | None | `{ scheduled, is_today, expected_date, window, cylinders, cylinder_type, status, driver_name, driver_phone, vehicle_no, depletion_band, is_urgent }` | **Expected Next Refill**:<br>• Evaluates current day's active published routes for a scheduled stop.<br>• If not scheduled today, returns next planning cycle estimate and delivery window. |
+| `GET` | `/me/delivery-status` | `customer` only | None | `{ has_active_delivery, status: "planned"\|"on_the_way"\|"delivered", step: 1\|2\|3, status_title, status_description, stops_before_you, position_text, stop_sequence, total_stops, driver_name, driver_phone, vehicle_no, cylinders, cylinder_type, delivery_address, area, is_urgent, has_live_location: false, live_location_note, timeline: [{ step, label, completed, current }] }` | **Routific Customer Delivery Tracking Page**:<br>• **3-Step Progress**: `1: Planned`, `2: On the way` (route published & driver assigned), `3: Delivered`.<br>• **Stop Position**: Calculates pending stops ahead on vehicle route (e.g. `"3 stops before you"`, `"1 stop before you"`, or `"You are the next stop!"`).<br>• **Honest Note**: `has_live_location: false` with explicit disclaimer that real-time GPS tracking is not broadcast and estimates update honestly as stops are completed. |
+| `POST` | `/me/requests` | `customer` only | `{ request_type: "normal"\|"urgent", cylinders?: int, note?: string }` | `{ id, request_no, customer_id, customer_name, request_type, cylinders, cylinder_type, note, status: "pending", created_at, delivered_at: null }` | **Place Cylinder Refill Request**:<br>• Validates `request_type` in `['normal', 'urgent']` (defaults to normal).<br>• Quantities validated between 1 and 20 cylinders.<br>• **Urgent Priority**: When `request_type === 'urgent'`, adds to `urgent_requests` for high-penalty OR-Tools engine planning.<br>• Emits `customer.request_created` audit event. |
+
+### Manager Role Endpoints & Limit Matrix
+
+| Method | Path | Manager Access | Description & Limit Rules |
+|---|---|---|---|
+| `POST` | `/sales` | **Allowed** | Direct sales entry and delivery record creation. |
+| `GET` | `/stock/purchases` | **Allowed** | View LPG procurement orders and batch history. |
+| `POST` | `/stock/purchases` | **Allowed** | Record new bulk LPG purchase orders with automatic stock rise. |
+| `POST` | `/stock/purchases/{id}/verify` | **Allowed** | Verify and permanently lock purchase batches. |
+| `GET` | `/expenses` | **Allowed** | View operating expense records and category aggregations. |
+| `POST` | `/expenses` | **Allowed** | Record daily operating expenses (fuel, rent, repair, salary, other). |
+| `GET` | `/customers` | **Allowed (Read Only)** | Browse customer directory accounts and delivery profiles. |
+| `GET` | `/customers/{id}` | **Allowed (Read Only)** | Inspect individual customer account, ledger, and cylinders. |
+| `POST/PUT/DELETE` | `/customers` | **403 Forbidden** | Proposal limit: Manager cannot create, edit, or deactivate customer accounts. |
+| `GET/PUT` | `/settings` | **403 Forbidden** | Proposal limit: Agency configuration settings are owner-only. |
+| `GET/PUT` | `/settings/stock` | **403 Forbidden** | Proposal limit: Safety threshold settings are owner-only. |
+| `GET/POST` | `/users` | **403 Forbidden** | Proposal limit: User account provisioning is owner-only. |
+
+### CEO Role Endpoints & Limit Matrix
+
+| Method | Path | CEO Access | Description & Read-Only Governance |
+|---|---|---|---|
+| `GET` | `/dashboard/summary` | **Allowed (Read Only)** | Phone-first executive dashboard: sales, net profit, stock health, and engine results. |
+| `GET` | `/reports/{type}` | **Allowed (Read Only)** | Multi-domain reporting across sales, expenses, loans, stock, deliveries, and ageing. |
+| `GET` | `/evaluation/results` | **Allowed (Read Only)** | Four-policy algorithm evaluation benchmark (P1, P2, P3, Ablation). |
+| `POST/PUT/DELETE` | *All Mutating Endpoints* | **403 Forbidden** | CEO view is strictly read-only for audit and governance. No data mutation permitted. |
