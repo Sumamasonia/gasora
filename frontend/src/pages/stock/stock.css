@@ -1,0 +1,187 @@
+/* ==========================================================================
+   Gasora Stock, Purchases, and Inventory Styling
+   ========================================================================== */
+
+.stock-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 4px;
+}
+
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--bg-card);
+  padding: 20px 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+.stock-header-title h1 {
+  margin: 0 0 6px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stock-header-title p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Stock Cards Grid */
+.stock-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.stock-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stock-card.warning-card {
+  border: 2px solid var(--color-danger);
+  background: linear-gradient(to bottom, #fff5f5, var(--bg-card));
+}
+
+.stock-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.stock-card-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.stock-card-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.stock-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  background: var(--bg-subtle);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.stock-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stock-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-stat-num {
+  font-size: 24px;
+  font-weight: 800;
+  margin-top: 2px;
+  font-family: monospace;
+}
+
+.stock-stat-num.filled {
+  color: var(--color-success);
+}
+
+.stock-stat-num.empty {
+  color: var(--text-secondary);
+}
+
+.stock-stat-num.delivered {
+  color: var(--color-primary);
+}
+
+/* Low Stock Alert Pill */
+.low-stock-banner {
+  background: #fee2e2;
+  border: 1px solid #f87171;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Verification Tick Button */
+.btn-verify {
+  background: transparent;
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-verify:hover {
+  background: var(--color-success);
+  color: #ffffff;
+}
+
+.badge-verified {
+  background: #dcfce7;
+  color: #15803d;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-unverified {
+  background: #fef3c7;
+  color: #b45309;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
