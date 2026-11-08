@@ -164,3 +164,61 @@ export const getLoans = (token, params = {}) => {
 export const getCustomerStatement = (token, customerId) =>
   request(`/billing/statements/${customerId}`, { token })
 
+// Stock & Purchases (Phase F6 - Module 12)
+export const getStockSummary = (token) =>
+  request('/stock/summary', { token })
+
+export const getStockMovements = (token) =>
+  request('/stock/movements', { token })
+
+export const getPurchases = (token, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.vendor) q.set('vendor', params.vendor)
+    if (params.cylinder_type) q.set('cylinder_type', params.cylinder_type)
+    if (params.verified) q.set('verified', params.verified)
+    if (params.month) q.set('month', params.month)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/stock/purchases${query}`, { token })
+}
+
+export const createPurchase = (token, data) =>
+  request('/stock/purchases', { token, method: 'POST', body: data })
+
+export const updatePurchase = (token, id, data) =>
+  request(`/stock/purchases/${id}`, { token, method: 'PUT', body: data })
+
+export const verifyPurchase = (token, id) =>
+  request(`/stock/purchases/${id}/verify`, { token, method: 'POST' })
+
+// Operating Expenses (Phase F6 - Module 16)
+export const getExpenses = (token, params = {}) => {
+  let query = ''
+  if (params) {
+    const q = new URLSearchParams()
+    if (params.category) q.set('category', params.category)
+    if (params.month) q.set('month', params.month)
+    if (params.date) q.set('date', params.date)
+    const qs = q.toString()
+    if (qs) query = `?${qs}`
+  }
+  return request(`/expenses${query}`, { token })
+}
+
+export const createExpense = (token, data) =>
+  request('/expenses', { token, method: 'POST', body: data })
+
+export const getFuelEstimate = (token) =>
+  request('/expenses/fuel-estimate', { token })
+
+// Stock Settings
+export const getStockSettings = (token) =>
+  request('/settings/stock', { token })
+
+export const updateStockSettings = (token, data) =>
+  request('/settings/stock', { token, method: 'PUT', body: data })
+
+
