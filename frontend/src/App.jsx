@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { login } from './api'
 import AppShell from './components/AppShell'
 import ComingSoon from './components/ComingSoon'
@@ -114,6 +114,17 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [route, navigate] = useHashRoute('dispatch')
+
+  // Enforce manager navigation limits: sales entry, purchases with verify, expenses, customers (read only)
+  useEffect(() => {
+    if (auth?.role === 'manager') {
+      const allowed = ['sales', 'billing/sale', 'purchases', 'stock/purchases', 'expenses', 'customers']
+      const isAllowed = allowed.some((r) => route === r || route.startsWith(r + '/'))
+      if (!isAllowed) {
+        navigate('sales')
+      }
+    }
+  }, [auth, route, navigate])
 
   // Hidden UI Kit showcase route (accessible at #/ui-kit)
   if (route === 'ui-kit') {

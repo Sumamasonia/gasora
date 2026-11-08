@@ -208,23 +208,27 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
           >
             Profile
           </button>
-          <button
-            type="button"
-            className="ghost table-action-btn"
-            onClick={() => handleOpenEdit(row)}
-            title="Edit customer"
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className={row.is_active !== false ? 'ghost table-action-btn' : 'secondary table-action-btn'}
-            onClick={() => handleOpenToggleActive(row)}
-            title={row.is_active !== false ? 'Deactivate customer' : 'Reactivate customer'}
-            style={{ color: row.is_active !== false ? 'var(--color-danger)' : 'var(--color-success)' }}
-          >
-            {row.is_active !== false ? 'Deactivate' : 'Reactivate'}
-          </button>
+          {auth?.role !== 'manager' && (
+            <>
+              <button
+                type="button"
+                className="ghost table-action-btn"
+                onClick={() => handleOpenEdit(row)}
+                title="Edit customer"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className={row.is_active !== false ? 'ghost table-action-btn' : 'secondary table-action-btn'}
+                onClick={() => handleOpenToggleActive(row)}
+                title={row.is_active !== false ? 'Deactivate customer' : 'Reactivate customer'}
+                style={{ color: row.is_active !== false ? 'var(--color-danger)' : 'var(--color-success)' }}
+              >
+                {row.is_active !== false ? 'Deactivate' : 'Reactivate'}
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -235,14 +239,23 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
       {/* Top Header & Quick Actions */}
       <div className="customers-header">
         <div className="customers-title-wrap">
-          <h1>Customer Management</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ margin: 0 }}>Customer Management</h1>
+            {auth?.role === 'manager' && (
+              <span className="demo-badge" style={{ fontSize: 11, background: '#fef3c7', color: '#b45309' }}>
+                👁️ Read Only
+              </span>
+            )}
+          </div>
           <p className="muted">Manage customer directory, LPG cylinder allocations, and delivery profiles</p>
         </div>
-        <div className="customers-header-actions">
-          <button type="button" onClick={handleOpenCreate}>
-            + Add Customer
-          </button>
-        </div>
+        {auth?.role !== 'manager' && (
+          <div className="customers-header-actions">
+            <button type="button" onClick={handleOpenCreate}>
+              + Add Customer
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Tiles Header */}

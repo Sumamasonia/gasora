@@ -50,6 +50,22 @@ export const NAV_GROUPS = [
 
 // Filter navigation groups by user role
 export function getNavForRole(role) {
+  // Manager view is strictly limited to sales entry, purchases with verify, expenses, customers (read only)
+  if (role === 'manager') {
+    return [
+      {
+        id: 'manager-ops',
+        title: 'Manager Operations',
+        items: [
+          { id: 'sales', label: 'Sales Entry', icon: '🧾', roles: ['manager'] },
+          { id: 'purchases', label: 'Purchases (Verify)', icon: '📦', roles: ['manager'] },
+          { id: 'expenses', label: 'Operating Expenses', icon: '💸', roles: ['manager'] },
+          { id: 'customers', label: 'Customers (Read Only)', icon: '👥', roles: ['manager'] },
+        ],
+      },
+    ]
+  }
+
   return NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) => !item.roles || item.roles.includes(role)),

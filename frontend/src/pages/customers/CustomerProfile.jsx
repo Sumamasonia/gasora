@@ -216,6 +216,11 @@ export default function CustomerProfile({ auth, customerId, onNavigate }) {
             <span className={customer.customer_type === 'commercial' ? 'badge-commercial' : 'badge-domestic'}>
               {customer.customer_type === 'commercial' ? '🏢 Commercial' : '🏠 Domestic'}
             </span>
+            {auth?.role === 'manager' && (
+              <span className="demo-badge" style={{ fontSize: 11, background: '#fef3c7', color: '#b45309' }}>
+                👁️ Read Only Profile
+              </span>
+            )}
           </div>
 
           {/* Quick Actions */}
@@ -228,40 +233,44 @@ export default function CustomerProfile({ auth, customerId, onNavigate }) {
             >
               ← Back to List
             </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setDeliveryModalOpen(true)}
-              title="Record a manual delivery"
-            >
-              🚚 Record Delivery
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              style={{ color: 'var(--color-urgent)', borderColor: 'rgba(123, 31, 162, 0.3)' }}
-              onClick={() => setUrgentModalOpen(true)}
-              title="Flag as urgent replenishment"
-            >
-              🚨 Urgent Request
-            </button>
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => setEditModalOpen(true)}
-              title="Edit customer information"
-            >
-              ✏️ Edit
-            </button>
-            <button
-              type="button"
-              className={customer.is_active !== false ? 'ghost' : 'secondary'}
-              style={{ color: customer.is_active !== false ? 'var(--color-danger)' : 'var(--color-success)' }}
-              onClick={() => setDeactivateModalOpen(true)}
-              title={customer.is_active !== false ? 'Deactivate customer' : 'Reactivate customer'}
-            >
-              {customer.is_active !== false ? 'Deactivate' : 'Reactivate'}
-            </button>
+            {auth?.role !== 'manager' ? (
+              <>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setDeliveryModalOpen(true)}
+                  title="Record a manual delivery"
+                >
+                  🚚 Record Delivery
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ color: 'var(--color-urgent)', borderColor: 'rgba(123, 31, 162, 0.3)' }}
+                  onClick={() => setUrgentModalOpen(true)}
+                  title="Flag as urgent replenishment"
+                >
+                  🚨 Urgent Request
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setEditModalOpen(true)}
+                  title="Edit customer information"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  type="button"
+                  className={customer.is_active !== false ? 'ghost' : 'secondary'}
+                  style={{ color: customer.is_active !== false ? 'var(--color-danger)' : 'var(--color-success)' }}
+                  onClick={() => setDeactivateModalOpen(true)}
+                  title={customer.is_active !== false ? 'Deactivate customer' : 'Reactivate customer'}
+                >
+                  {customer.is_active !== false ? 'Deactivate' : 'Reactivate'}
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
 
