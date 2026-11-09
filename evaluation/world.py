@@ -10,7 +10,7 @@ Dynamic part (new for every policy run): who has gas, delivery history, run-out 
 Assumption (placeholder): when a driver swaps a cylinder, the system records how long that
 cylinder really lasted (the driver estimates it from the remaining gas).
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import os
 import pickle
@@ -33,14 +33,17 @@ class Static:
     km: list
     durations: list       # durations[c-1] = array of hidden cylinder durations of customer c
     source: str
+    duration_kind: str = "normal"       # "normal" or "lognormal" (same mean and spread)
 
 
-def _durations(seed, c):
+def _durations(seed, c, kind="normal"):
     rng = np.random.default_rng([seed, c["id"]])
-    if c["pattern"] == "steady":
-        d = rng.normal(c["base"], 1.5, N_DRAWS)
+    mean, sd = (c["base"], 1.5) if c["pattern"] == "steady" else (c["base"] * 0.7, 5.0)   # irregular: after the rate change
+    if kind == "lognormal":                              # skewed, with the same mean and spread
+        sigma2 = np.log(1 + sd ** 2 / mean ** 2)
+        d = rng.lognormal(np.log(mean) - sigma2 / 2, np.sqrt(sigma2), N_DRAWS)
     else:
-        d = rng.normal(c["base"] * 0.7, 5.0, N_DRAWS)   # irregular: after the rate change
+        d = rng.normal(mean, sd, N_DRAWS)
     return np.maximum(5.0, d)
 
 
@@ -54,7 +57,16 @@ def _road_cache_file(seed, n):
     return os.path.join("data", f"static_road_s{seed}_n{n}_{sig}.pkl")
 
 
-def build_static(seed, n=N_CUSTOMERS, source="straight"):
+def build_static(seed, n=N_CUSTOMERS, source="straight", durations="normal"):
+    """durations="lognormal": the same agency (places, matrices, history) with skewed cylinder lifetimes."""
+    static = _build_cached(seed, n, source)
+    if durations == "normal":
+        return static
+    return replace(static, duration_kind=durations,
+                   durations=[_durations(seed, c, durations) for c in static.customers])
+
+
+def _build_cached(seed, n, source):
     if source == "road":
         cache = _road_cache_file(seed, n)
         if cache and os.path.exists(cache):

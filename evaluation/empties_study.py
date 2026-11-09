@@ -21,6 +21,7 @@ import numpy as np
 
 from backend.settings import EMPTY_AGEING_TIERS
 from evaluation import policies
+from evaluation.policies import is_called
 from evaluation.checkpoint import Checkpoint
 from evaluation.harness import AGE_TIERS, EmptiesModel, bootstrap_ci, run_policy
 from evaluation.world import build_static
@@ -43,11 +44,11 @@ def swap_weight(c, day):
 
 def gasora_with_swaps(static, state, day):
     risk = policies._risks(state)
-    called = {c["id"] for c in state if c["out"]}
+    called = {c["id"] for c in state if is_called(c)}
     candidates, weights = [], {}
     for c in state:
         sw = swap_weight(c, day)
-        if c["out"] or risk[c["id"]] >= policies.CANDIDATE_RISK or sw is not None:
+        if is_called(c) or risk[c["id"]] >= policies.CANDIDATE_RISK or sw is not None:
             candidates.append(c)
             weights[c["id"]] = max(risk[c["id"]], sw or 0.0)
     return policies._ortools_routes(static, candidates, weights, called)

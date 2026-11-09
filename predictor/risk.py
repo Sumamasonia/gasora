@@ -5,6 +5,10 @@ import numpy as np
 from scipy.stats import norm
 
 from config import CRITICAL_AT, HIGH_AT
+from predictor.censored import censored_normal_fit
+
+FIT_M = 4            # censored fit: number of most recent records used (None = all). Allowed variants: 3, 4, 6, None
+FIT_FLOOR = 1.0      # censored fit: lowest spread in days. Allowed variants: 1, 2
 
 
 def pooled_values(customers):
@@ -13,8 +17,24 @@ def pooled_values(customers):
     return mu, sd
 
 
+def _fit_censored(customer, obs, pooled_mu, pooled_sd):
+    """Censored fit to the records of (lifetime or lower bound, censored). Fewer than 3 records: pooled values."""
+    if len(obs) < 3:
+        customer["_fallback"] = True
+        return pooled_mu, pooled_sd
+    recent = tuple(obs if FIT_M is None else obs[-FIT_M:])
+    key = (recent, FIT_M, FIT_FLOOR)
+    if customer.get("_fit_key") != key:                       # the records change only at a delivery
+        fit = censored_normal_fit(list(recent), sd_floor=FIT_FLOOR)
+        customer["_fallback"] = fit is None                       # no complete record among the recent ones
+        customer["_fit_key"], customer["_fit_val"] = key, (pooled_mu, pooled_sd) if fit is None else fit
+    return customer["_fit_val"]
+
+
 def _fit(customer, pooled_mu, pooled_sd):
     """Mean and spread of the customer's days between refills."""
+    if customer.get("obs") is not None:                       # records with censoring: use the censored fit
+        return _fit_censored(customer, customer["obs"], pooled_mu, pooled_sd)
     iv = customer["intervals"]
     if len(iv) >= 3:
         mu = float(np.mean(iv[-4:]))               # recent intervals count more
