@@ -154,6 +154,57 @@ This document lists all frontend mock endpoints that are not yet implemented or 
 
 ---
 
+## Admin, Audit, Settings, AI Assistant and Notes & Utilities Endpoints (Phase F9 - Modules 1, 6, 19, 20, 21, 22)
+
+> **Governance, Security & Audit Rules**:
+> 1. **Owner-Only Privilege**: User management (`/users`), system backup/restore (`/settings/backup`, `/settings/restore`), and factory reset (`/settings/reset`) are strictly restricted to the `owner` role.
+> 2. **Password Length Enforcement**: New user creation requires a password of at least 8 characters. Any password shorter than 8 characters is rejected with `422 Unprocessable Entity`.
+> 3. **SHA-256 Hash Chained Audit Trail**: Every system action appends an immutable event record carrying `prev_hash` and SHA-256 `hash`. `GET /audit/verify` verifies the continuous cryptographic integrity from genesis (`0`*64) to head. A demo switch in settings simulates a tampered row (#3) to verify failure detection.
+> 4. **AI Assistant Demo Compliance**: The AI Assistant operates locally with zero external API dependencies or cloud API keys. It answers queries through rule-based keyword matching over live in-memory database collections and is clearly labeled as a demo in the UI.
+
+### 1. Users & Staff Access Management (Module 1, 6)
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Validation Rules |
+|---|---|---|---|---|---|
+| `GET` | `/users` | `owner` only | None | `[{ id, username, name?, role, is_active, permissions?: string[], created_at }]` | **List Staff & User Accounts**:<br>• Real backend endpoint in `backend/app.py`.<br>• Enforces `owner` role (`403 Forbidden` for other roles). |
+| `POST` | `/users` | `owner` only | `{ username, password, role, name?, is_active?: boolean, permissions?: string[] }` | `{ id, username, name, role, is_active, permissions, created_at }` | **Create Staff Account**:<br>• Requires `username`, `password` (minimum 8 characters), and `role` (`422 Unprocessable Entity` if password < 8 chars).<br>• Duplicate usernames return `409 Conflict`.<br>• `is_active` and `permissions` are mock-only authorization fields. |
+| `PATCH` | `/users/{id}` | `owner` only | `{ is_active?: boolean, permissions?: string[], role?: string, name?: string }` | `{ id, username, name, role, is_active, permissions, created_at }` | **Update Staff Status & Module Permissions**:<br>• Toggles account active status (`is_active: false` disables login).<br>• Assigns granular per-module permission IDs. |
+
+### 2. Activity Log & Cryptographic Verification (Module 1, 19)
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Cryptographic Specification |
+|---|---|---|---|---|---|
+| `GET` | `/audit/verify` | `owner`, `ceo` | None | `{ ok: boolean, message: string, events: int, head: string }` | **Cryptographic Chain Verification (Matches Real Backend)**:<br>• Matches `backend/eventlog.py` SHA-256 chaining specification.<br>• Computes `_hash(prev_hash, ts, actor, event_type, payload)` for each sequential event row.<br>• When `simulate_tampered_audit === false`: returns `{ ok: true, message: "chain OK (N events verified with SHA-256)", events: N, head }`.<br>• When `simulate_tampered_audit === true`: returns `{ ok: false, message: "event 3: content does not match its hash (tampering detected at sequence #3)", events: N, head }`. |
+| `GET` | `/audit/events` *(alias: `/events`)* | `owner`, `ceo` | Query: `actor?`, `type?`, `search?` | `[{ id, ts, actor, event_type, payload, prev_hash, hash, description }]` | **Activity & Audit Event Ledger**:<br>• Append-only event history with cryptographic link attributes.<br>• Restricted to `owner` and `ceo` roles. |
+
+### 3. Business Settings, Backup, Restore & Reset (Module 6, 22)
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Validation Rules |
+|---|---|---|---|---|---|
+| `GET` | `/settings` | `owner`, `manager`, `ceo` | None | `{ overdue_days: int, alert_days: int, currency: string, business_name: string, business_address: string, low_stock_level: int, theme: string, simulate_tampered_audit: boolean, depot: { lat, lon, name } }` | **Retrieve System & Business Settings**:<br>• Default overdue threshold: 15 days.<br>• Base currency: PKR. |
+| `PUT` | `/settings` | `owner`, `manager` | `{ overdue_days?, alert_days?, currency?, business_name?, business_address?, low_stock_level?, theme?, simulate_tampered_audit? }` | `{ status: "updated", settings: { ... } }` | **Update System Settings**:<br>• Saves operational configurations and demo simulation switches.<br>• Emits `SETTINGS_UPDATED` audit event. |
+| `GET` | `/settings/backup` *(alias: `/backup`)* | `owner` only | None | Complete database JSON snapshot | **Disaster Recovery JSON Backup**:<br>• Downloads complete JSON snapshot of all collections: users, customers, cylinders, bills, ledger, stock, events, and settings. |
+| `POST` | `/settings/restore` *(alias: `/restore`)* | `owner` only | `{ data: object }` | `{ ok: true, message: string }` | **Restore Database from JSON**:<br>• Validates required schema collections (`customers`, `users`, `cylinders`).<br>• Returns `422 Unprocessable Entity` if schema is invalid.<br>• Replaces in-memory collections and saves to localStorage.<br>• Emits `DATABASE_RESTORED` audit event. |
+| `POST` | `/settings/reset` *(alias: `/demo/reset`)* | `owner` only | None | `{ ok: true, message: string }` | **Factory Reset Demo Data**:<br>• Resets mock database back to initial seed data.<br>• Emits `DATABASE_RESET` audit event. |
+
+### 4. AI Business Assistant (Could Item - Module 20/21)
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description & Keyword Rule Set |
+|---|---|---|---|---|---|
+| `POST` | `/assistant/chat` *(alias: `/ai/chat`)* | `owner`, `manager`, `ceo` | `{ message: string }` | `{ reply: string, suggestions: string[], timestamp: string }` | **Rule-Based Operational Query Assistant**:<br>• **Demo Mode**: Requires zero external API keys.<br>• **Keyword Rule: Overdue ("overdue", "debt", "balance")**: Queries customers and bills with balances > 0, outputs sorted top debtors and total outstanding in PKR.<br>• **Keyword Rule: Stock ("stock", "inventory", "cylinder")**: Calculates filled vs empty stock by size (11.8kg, 15kg, 45.4kg), compares against buffer threshold.<br>• **Keyword Rule: Sales ("sale", "revenue", "bill")**: Summarizes invoice counts, gross value, and collection recovery percentages.<br>• **Keyword Rule: Urgent ("urgent", "emergency")**: Surfaces open urgent delivery requests.<br>• **Keyword Rule: Dispatch ("route", "driver", "dispatch")**: Summarizes driver assignments and active stops. |
+
+### 5. Daily Notes & Calculators (Could Item - Module 19, 22)
+
+| Method | Path | Allowed Roles | Request Body | Response Shape | Description |
+|---|---|---|---|---|---|
+| `GET` | `/notes` | `owner`, `manager`, `ceo`, `driver` | Query: `date?` *(YYYY-MM-DD)* | `[{ id, date, content, author, updated_at }]` or single note object | **Daily Operations Notes**:<br>• If `date` query provided, returns single daily note for that date.<br>• Otherwise returns all historical notes. |
+| `POST` | `/notes` | `owner`, `manager` | `{ date: string, content: string }` | `{ status: "saved", note: { id, date, content, author, updated_at } }` | **Save Daily Operations Note**:<br>• Upserts shift handover, safety inspection, or bowser receipt log.<br>• Emits `NOTE_SAVED` audit event. |
+| `DELETE` | `/notes/{id}` | `owner` only | None | `{ ok: true }` | Delete note record by ID. |
+| *Client-Side Tool* | `Calculator` | All roles | None | In-memory evaluation | General arithmetic calculator (digits 0-9, decimal, +, -, ×, ÷, %, C, ⌫, ±, =). |
+| *Client-Side Tool* | `Cylinder Cost Calculator` | All roles | None | Financial model | Interactive unit cost & margin calculator (Bulk PKR/ton, decanting fee/kg, transport, 11.8kg/15kg/45.4kg margins, and truckload batch profit simulator). |
+
+---
+
 ## Other Mock-Only Endpoints Table
 
 | Method | Path | Allowed Roles | Request Body | Response Shape | Description |
