@@ -127,7 +127,8 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
               aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
             >
-              {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+              <span className="theme-icon">{theme === 'light' ? '🌙' : '☀️'}</span>
+              <span className="theme-text">{theme === 'light' ? ' Dark' : ' Light'}</span>
             </button>
 
             <div className="user-menu">

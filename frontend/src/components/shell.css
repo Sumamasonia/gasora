@@ -322,6 +322,57 @@
   }
 
   .page-title {
-    font-size: 16px;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 600px) {
+  .top-bar {
+    padding: 0 8px;
+    gap: 8px;
+  }
+
+  .page-title {
+    max-width: 140px;
+  }
+
+  .top-bar-right {
+    gap: 6px;
+  }
+
+  .theme-text {
+    display: none;
+  }
+
+  .demo-badge {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .user-menu .muted {
+    display: none;
+  }
+
+  .signout-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .page-title {
+    max-width: 100px;
+    font-size: 14px;
+  }
+
+  .user-role-badge {
+    display: none;
+  }
+
+  .demo-badge {
+    display: none;
   }
 }
