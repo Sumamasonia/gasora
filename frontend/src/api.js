@@ -257,3 +257,8 @@ export const verifyAudit = (token) => request('/audit/verify', { token })
 export const getSettings = (token) => request('/settings', { token })
 export const updateSettings = (token, data) =>
   request('/settings', { token, method: 'PUT', body: data })
+export const getBackup = (token) => request('/settings/backup', { token })
+export const restoreBackup = (token, data) =>
+  request('/settings/restore', { token, method: 'POST', body: { data } })
+export const resetDemoData = (token) =>
+  request('/settings/reset', { token, method: 'POST' })

@@ -2,6 +2,13 @@ import { ApiError } from '../api.js'
 import { handleLogin, handleMe } from './auth.js'
 import { handleGetAuditEvents, handleVerifyAudit } from './audit.js'
 import {
+  handleGetBackup,
+  handleGetSettings,
+  handleResetDemoData,
+  handleRestoreBackup,
+  handleUpdateSettings,
+} from './settings.js'
+import {
   handleCreateBill,
   handleGetBill,
   handleGetBills,
@@ -386,17 +393,41 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     }
   }
 
-  // Agency Settings (owner only)
+  // Agency Settings, Backup, Restore & Demo Reset
   if (normalizedPath === '/settings') {
-    requireAuth(token, ['owner'])
-    const currentDb = getDb()
     if (method === 'GET') {
-      return currentDb.settings || {}
+      const res = handleGetSettings(token)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
     }
-    if (method === 'PUT') {
-      currentDb.settings = { ...(currentDb.settings || {}), ...(body || {}) }
-      saveDb()
-      return { status: 'updated', settings: currentDb.settings }
+    if (method === 'PUT' || method === 'PATCH') {
+      const res = handleUpdateSettings(token, body)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
+    }
+  }
+
+  if (normalizedPath === '/settings/backup' || normalizedPath === '/backup') {
+    if (method === 'GET') {
+      const res = handleGetBackup(token)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
+    }
+  }
+
+  if (normalizedPath === '/settings/restore' || normalizedPath === '/restore') {
+    if (method === 'POST') {
+      const res = handleRestoreBackup(token, body)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
+    }
+  }
+
+  if (normalizedPath === '/settings/reset' || normalizedPath === '/demo/reset') {
+    if (method === 'POST') {
+      const res = handleResetDemoData(token)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
     }
   }
 
