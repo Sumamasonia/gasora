@@ -1624,3 +1624,54 @@ main { flex: 1; display: flex; min-height: 0; }
     word-break: break-all;
   }
 }
+
+
+/* Responsive Planner & Dispatch Layout */
+@media (max-width: 900px) {
+  .planner-container {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .planner-toolbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .planner-toolbar-left,
+  .planner-toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .planner-layout {
+    flex-direction: column-reverse;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .planner-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    border-right: none;
+    border-top: 1px solid var(--border-subtle);
+    height: auto;
+    overflow-y: visible;
+    padding: 14px 12px;
+  }
+  .planner-map-wrapper {
+    height: 48vh;
+    min-height: 280px;
+    flex: none;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .planner-sidebar {
+    padding: 12px 8px;
+  }
+  .planner-map-wrapper {
+    height: 42vh;
+    min-height: 240px;
+  }
+}
