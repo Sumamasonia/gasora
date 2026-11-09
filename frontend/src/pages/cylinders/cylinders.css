@@ -493,3 +493,53 @@
     font-size: 11pt !important;
   }
 }
+
+
+/* Responsive Cylinders Layout */
+.cylinders-page {
+  padding: 16px;
+}
+
+.cylinders-nav-tabs {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cylinders-nav-tab {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .cylinders-page {
+    padding: 14px 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .cylinders-toolbar-card,
+  .lifecycle-strip-card {
+    padding: 14px 12px;
+  }
+  .drawer-panel {
+    max-width: 100vw;
+  }
+}
+
+@media (max-width: 480px) {
+  .lifecycle-steps-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .ageing-buckets-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .ageing-buckets-grid {
+    grid-template-columns: 1fr;
+  }
+}
