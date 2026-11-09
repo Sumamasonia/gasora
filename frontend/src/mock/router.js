@@ -1,6 +1,7 @@
 import { ApiError } from '../api.js'
 import { handleLogin, handleMe } from './auth.js'
 import { handleGetAuditEvents, handleVerifyAudit } from './audit.js'
+import { handleAssistantChat } from './assistant.js'
 import {
   handleGetBackup,
   handleGetSettings,
@@ -443,6 +444,15 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     const res = handleGetAuditEvents(token, getDb())
     if (res.status >= 400) {
       throw new ApiError(res.status, res.data.detail || 'Audit events error')
+    }
+    return res.data
+  }
+
+  // AI Business Assistant (Could Item)
+  if (method === 'POST' && (normalizedPath === '/assistant/chat' || normalizedPath === '/ai/chat')) {
+    const res = handleAssistantChat(token, body)
+    if (res.status >= 400) {
+      throw new ApiError(res.status, res.data.detail || 'Assistant error')
     }
     return res.data
   }

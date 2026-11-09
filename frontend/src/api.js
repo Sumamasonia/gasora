@@ -262,3 +262,5 @@ export const restoreBackup = (token, data) =>
   request('/settings/restore', { token, method: 'POST', body: { data } })
 export const resetDemoData = (token) =>
   request('/settings/reset', { token, method: 'POST' })
+export const askAssistant = (token, message) =>
+  request('/assistant/chat', { token, method: 'POST', body: { message } })

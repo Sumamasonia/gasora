@@ -26,6 +26,7 @@ import EvaluationPage from './pages/evaluation/EvaluationPage'
 import UsersPage from './pages/admin/UsersPage'
 import AuditPage from './pages/admin/AuditPage'
 import SettingsPage from './pages/admin/SettingsPage'
+import AssistantPage from './pages/admin/AssistantPage'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -227,6 +228,8 @@ export default function App() {
         <AuditPage auth={auth} onNavigate={navigate} />
       ) : route === 'settings' || route === 'admin/settings' ? (
         <SettingsPage auth={auth} onNavigate={navigate} />
+      ) : route === 'assistant' || route === 'admin/assistant' ? (
+        <AssistantPage auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}

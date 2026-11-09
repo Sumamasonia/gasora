@@ -44,6 +44,8 @@ export const NAV_GROUPS = [
       { id: 'users', label: 'Users & Access', icon: '🔐', roles: ['owner'] },
       { id: 'settings', label: 'Settings', icon: '⚙️', roles: ['owner', 'manager'] },
       { id: 'audit', label: 'System Health & Audit', icon: '🛡️', roles: ['owner', 'ceo'] },
+      { id: 'assistant', label: 'AI Assistant (Demo)', icon: '🤖', roles: ['owner', 'manager', 'ceo'] },
+      { id: 'utilities', label: 'Notes & Tools', icon: '📝', roles: ['owner', 'manager', 'ceo'] },
     ],
   },
 ]
