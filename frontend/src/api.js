@@ -82,6 +82,8 @@ export const getRecoveryAgeing = (token) => request('/recovery/ageing', { token 
 // Planning & Dispatch
 export const getPlan = (token, seconds) => request(`/plan/today?seconds=${seconds}`, { token })
 export const getUsers = (token) => request('/users', { token })
+export const createUser = (token, data) => request('/users', { token, method: 'POST', body: data })
+export const updateUser = (token, id, data) => request(`/users/${id}`, { token, method: 'PATCH', body: data })
 export const getUrgent = (token) => request('/urgent', { token })
 export const createUrgent = (token, customer_id, note) =>
   request('/urgent', { token, method: 'POST', body: { customer_id, note: note || null } })

@@ -43,7 +43,7 @@ import {
   handlePublishPlan,
   handleSkipStop,
 } from './dispatch.js'
-import { handleCreateUser, handleGetUsers } from './users.js'
+import { handleCreateUser, handleGetUsers, handleUpdateUser } from './users.js'
 import {
   handleCreateMyRequest,
   handleGetMyBalance,
@@ -405,6 +405,13 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   }
   if (method === 'POST' && normalizedPath === '/users') {
     return handleCreateUser(token, body)
+  }
+  const singleUserMatch = normalizedPath.match(/^\/users\/(\d+)$/)
+  if (singleUserMatch) {
+    const userId = parseInt(singleUserMatch[1], 10)
+    if (method === 'PATCH' || method === 'PUT') {
+      return handleUpdateUser(token, userId, body)
+    }
   }
 
   throw new ApiError(404, `Mock endpoint not found: ${method} ${path}`)

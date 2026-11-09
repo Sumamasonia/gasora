@@ -23,6 +23,7 @@ import StockPage from './pages/stock/StockPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import ReportsPage from './pages/reports/ReportsPage'
 import EvaluationPage from './pages/evaluation/EvaluationPage'
+import UsersPage from './pages/admin/UsersPage'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
