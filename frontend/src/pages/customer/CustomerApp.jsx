@@ -8,6 +8,7 @@ import {
   getMyNextDelivery,
   getMyOrders,
 } from '../../api'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import DeliveryStatusPage from './DeliveryStatusPage'
 import './customer.css'
@@ -159,9 +160,19 @@ export default function CustomerApp({ auth, onSignOut, onExpired }) {
         ) : (
           <>
             {error && (
-              <div className="customer-card urgent-banner" style={{ marginBottom: 12 }}>
-                <div className="urgent-banner-title">⚠️ Error</div>
-                <div className="urgent-banner-text">{error}</div>
+              <div className="customer-card urgent-banner" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div className="urgent-banner-title">⚠️ Error</div>
+                  <div className="urgent-banner-text">{error}</div>
+                </div>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={loadCustomerData}
+                  style={{ padding: '6px 12px', fontSize: 13, alignSelf: 'center', flexShrink: 0 }}
+                >
+                  Retry
+                </button>
               </div>
             )}
 

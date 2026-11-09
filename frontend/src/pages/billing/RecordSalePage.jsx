@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getCustomers, getLedger, recordSale } from '../../api'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 
@@ -9,7 +10,7 @@ const STANDARD_PRICES = {
   '45.4 kg': 10500,
 }
 
-export default function RecordSalePage({ auth, onNavigate, initialCustomerId = null }) {
+export default function RecordSalePage({ auth, onNavigate, initialCustomerId = null, onExpired }) {
   const [customers, setCustomers] = useState([])
   const [loadingCustomers, setLoadingCustomers] = useState(true)
   const [customerSearch, setCustomerSearch] = useState('')
@@ -48,7 +49,8 @@ export default function RecordSalePage({ auth, onNavigate, initialCustomerId = n
           }
         }
       } catch (err) {
-        if (active) setError(err.message || 'Failed to load customers')
+        if (err && err.status === 401) { onExpired?.(); return; }
+        if (active) setError(err)
       } finally {
         if (active) setLoadingCustomers(false)
       }

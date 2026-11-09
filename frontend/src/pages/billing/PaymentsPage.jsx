@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getBills, getCustomers, getLedger, getPayments, recordPayment } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Modal from '../../components/Modal'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 
-export default function PaymentsPage({ auth, onNavigate, initialBill = null }) {
+export default function PaymentsPage({ auth, onNavigate, initialBill = null, onExpired }) {
   const [payments, setPayments] = useState([])
   const [customers, setCustomers] = useState([])
   const [bills, setBills] = useState([])
@@ -53,7 +54,8 @@ export default function PaymentsPage({ auth, onNavigate, initialBill = null }) {
         }
       }
     } catch (err) {
-      setError(err.message || 'Failed to load payments')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

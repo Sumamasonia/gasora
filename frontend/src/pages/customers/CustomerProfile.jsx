@@ -27,7 +27,7 @@ import CustomerDeactivateModal from './CustomerDeactivateModal'
 import CustomerModal from './CustomerModal'
 import './customers.css'
 
-export default function CustomerProfile({ auth, customerId, onNavigate }) {
+export default function CustomerProfile({ auth, customerId, onNavigate, onExpired }) {
   const { showToast } = useToast()
 
   const [customer, setCustomer] = useState(null)

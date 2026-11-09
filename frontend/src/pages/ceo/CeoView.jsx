@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { ApiError, getDashboardSummary } from '../../api'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './ceo.css'
 
@@ -70,6 +71,10 @@ export default function CeoView({ auth, onSignOut, onExpired }) {
         </div>
       </div>
     )
+  }
+
+  if (error && (error.status === 404 || error.status === 501 || error.status === 0)) {
+    return <NotReady endpoint="GET /dashboard/summary" />
   }
 
   const sales = data?.sales || {}
@@ -157,9 +162,20 @@ export default function CeoView({ auth, onSignOut, onExpired }) {
               borderColor: '#ef4444',
               color: '#b91c1c',
               marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
-            ⚠️ {error}
+            <span>⚠️ {error}</span>
+            <button
+              type="button"
+              className="secondary"
+              onClick={loadDashboard}
+              style={{ padding: '4px 10px', fontSize: 12 }}
+            >
+              Retry
+            </button>
           </div>
         )}
 

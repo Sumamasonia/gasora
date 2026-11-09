@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { getExpenses, getFuelEstimate } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import AddExpenseModal from './AddExpenseModal'
 import './expenses.css'
@@ -23,7 +24,7 @@ const CATEGORY_LABELS = {
   other: { label: 'Utilities & Other', icon: '📦' },
 }
 
-export default function ExpensesPage({ auth, onNavigate }) {
+export default function ExpensesPage({ auth, onNavigate, onExpired }) {
   const [data, setData] = useState({ expenses: [], category_totals: {}, monthly_totals: {}, daily_totals: {} })
   const [fuelEst, setFuelEst] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -50,7 +51,8 @@ export default function ExpensesPage({ auth, onNavigate }) {
       setData(expData)
       setFuelEst(fuelData)
     } catch (err) {
-      setError(err.message || 'Failed to load expense records')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

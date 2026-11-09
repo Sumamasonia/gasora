@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getLoans } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 import CustomerStatementModal from './CustomerStatementModal'
 
-export default function LoansPage({ auth, onNavigate, onRecordPayment }) {
+export default function LoansPage({ auth, onNavigate, onRecordPayment, onExpired }) {
   const [data, setData] = useState({ summary: {}, customers: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -25,7 +26,8 @@ export default function LoansPage({ auth, onNavigate, onRecordPayment }) {
       const res = await getLoans(auth.token)
       setData(res)
     } catch (err) {
-      setError(err.message || 'Failed to load customer debt data')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

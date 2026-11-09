@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getReportData } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import { exportToCsv } from '../../lib/csv.js'
 import './reports.css'
@@ -14,7 +15,7 @@ const REPORT_TABS = [
   { id: 'empties_ageing', label: 'Empties Recovery Ageing', icon: '🛢️' },
 ]
 
-export default function ReportsPage({ auth, onNavigate }) {
+export default function ReportsPage({ auth, onNavigate, onExpired }) {
   const [selectedReport, setSelectedReport] = useState('sales')
   const [datePreset, setDatePreset] = useState('all')
   const [fromDate, setFromDate] = useState('')

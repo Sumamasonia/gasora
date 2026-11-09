@@ -197,7 +197,14 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
         </div>
       </div>
 
-      {error && <p className="error banner">{error}</p>}
+      {error && (
+        <div className="error banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 16px', gap: 12 }}>
+          <span>⚠️ {error}</span>
+          <button type="button" className="secondary" onClick={() => guard(loadAll)} style={{ padding: '4px 10px', fontSize: 12 }}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {plan && (
         <main className="planner-layout">

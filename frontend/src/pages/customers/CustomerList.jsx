@@ -8,7 +8,7 @@ import CustomerDeactivateModal from './CustomerDeactivateModal'
 import CustomerModal from './CustomerModal'
 import './customers.css'
 
-export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
+export default function CustomerList({ auth, onNavigate, onOpenToggleActive, onExpired }) {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -128,8 +128,24 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive }) {
   }
 
   // NotReady check if real backend lacks the endpoint (e.g. 404)
-  if (error && (error.status === 404 || error.status === 0)) {
-    return <NotReady endpoint="GET /customers" />
+  if (error) {
+    if (error.status === 401) {
+      onExpired?.()
+      return null
+    }
+    if (error.status === 404 || error.status === 501 || error.status === 0) {
+      return <NotReady endpoint="GET /customers" />
+    }
+    return (
+      <div className="customers-page">
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          <p className="error banner">{error.message || String(error)}</p>
+          <button type="button" onClick={fetchCustomers} style={{ marginTop: 12 }}>
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // Columns definition for DataTable

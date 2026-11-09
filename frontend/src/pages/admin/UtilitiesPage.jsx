@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getNotes, saveNote } from '../../api'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './admin.css'
 
-export default function UtilitiesPage({ auth, onNavigate }) {
+export default function UtilitiesPage({ auth, onNavigate, onExpired }) {
   const [activeTab, setActiveTab] = useState('notes') // 'notes' | 'calculator' | 'cylinder-cost'
 
   // =====================
@@ -16,6 +17,7 @@ export default function UtilitiesPage({ auth, onNavigate }) {
   const [noteUpdatedAt, setNoteUpdatedAt] = useState(null)
   const [allNotes, setAllNotes] = useState([])
   const [loadingNotes, setLoadingNotes] = useState(true)
+  const [error, setError] = useState(null)
   const [savingNote, setSavingNote] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
 
@@ -36,7 +38,8 @@ export default function UtilitiesPage({ auth, onNavigate }) {
         setNoteUpdatedAt(null)
       }
     } catch (err) {
-      console.error('Failed to load notes:', err)
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoadingNotes(false)
     }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { getStockMovements, getStockSettings, getStockSummary } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import StockSettingsModal from './StockSettingsModal'
 import './stock.css'
 
-export default function StockPage({ auth, onNavigate }) {
+export default function StockPage({ auth, onNavigate, onExpired }) {
   const [summary, setSummary] = useState(null)
   const [movements, setMovements] = useState([])
   const [thresholds, setThresholds] = useState({})
@@ -26,7 +27,8 @@ export default function StockPage({ auth, onNavigate }) {
       setMovements(movData)
       setThresholds(setData.low_stock_thresholds || {})
     } catch (err) {
-      setError(err.message || 'Failed to load stock data')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -44,13 +46,19 @@ export default function StockPage({ auth, onNavigate }) {
     )
   }
 
+  if (error && (error.status === 404 || error.status === 501 || error.status === 0)) {
+    return <NotReady endpoint="GET /stock/summary" />
+  }
+
   if (error || !summary) {
     return (
       <div className="stock-container">
-        <div className="error banner">⚠️ {error || 'Failed to load stock'}</div>
-        <button type="button" className="secondary" onClick={loadStockData}>
-          Retry
-        </button>
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          <p className="error banner">⚠️ {error?.message || String(error) || 'Failed to load stock'}</p>
+          <button type="button" className="secondary" onClick={loadStockData} style={{ marginTop: 12 }}>
+            Retry
+          </button>
+        </div>
       </div>
     )
   }

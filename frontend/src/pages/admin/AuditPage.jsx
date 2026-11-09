@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAuditEvents, getSettings, updateSettings, verifyAudit } from '../../api'
 import Modal from '../../components/Modal'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './admin.css'
 
-export default function AuditPage({ auth, onNavigate }) {
+export default function AuditPage({ auth, onNavigate, onExpired }) {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -36,7 +37,8 @@ export default function AuditPage({ auth, onNavigate }) {
       setEvents(eventsList || [])
       setTamperSimulated(Boolean(settings?.simulate_tampered_audit))
     } catch (err) {
-      setError(err.message || 'Failed to load audit events')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

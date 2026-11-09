@@ -17,11 +17,12 @@ import {
 import { getDashboardSummary } from '../../api'
 import { BAND_COLOR } from '../../colors'
 import KpiTile from '../../components/KpiTile'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import { Badge, UrgentTag } from '../../ui'
 import './dashboard.css'
 
-export default function DashboardPage({ auth, onNavigate }) {
+export default function DashboardPage({ auth, onNavigate, onExpired }) {
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -33,7 +34,8 @@ export default function DashboardPage({ auth, onNavigate }) {
       const data = await getDashboardSummary(auth.token)
       setSummary(data)
     } catch (err) {
-      setError(err.message || 'Failed to load executive dashboard summary')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -51,13 +53,19 @@ export default function DashboardPage({ auth, onNavigate }) {
     )
   }
 
+  if (error && (error.status === 404 || error.status === 501 || error.status === 0)) {
+    return <NotReady endpoint="GET /dashboard/summary" />
+  }
+
   if (error || !summary) {
     return (
       <div className="dashboard-container">
-        <div className="error banner">⚠️ {error || 'Failed to load dashboard data'}</div>
-        <button type="button" className="secondary" onClick={loadData}>
-          Retry
-        </button>
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          <p className="error banner">⚠️ {error?.message || String(error) || 'Failed to load dashboard data'}</p>
+          <button type="button" className="secondary" onClick={loadData} style={{ marginTop: 12 }}>
+            Retry
+          </button>
+        </div>
       </div>
     )
   }

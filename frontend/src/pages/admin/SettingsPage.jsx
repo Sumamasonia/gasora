@@ -7,10 +7,11 @@ import {
   updateSettings,
 } from '../../api'
 import Modal from '../../components/Modal'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './admin.css'
 
-export default function SettingsPage({ auth, onNavigate }) {
+export default function SettingsPage({ auth, onNavigate, onExpired }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -52,7 +53,8 @@ export default function SettingsPage({ auth, onNavigate }) {
         setSimulateTamper(Boolean(data.simulate_tampered_audit))
       }
     } catch (err) {
-      setError(err.message || 'Failed to load system settings')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

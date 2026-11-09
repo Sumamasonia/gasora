@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getBills, getCustomers } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 import CreateBillModal from './CreateBillModal'
 
-export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPayment }) {
+export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPayment, onExpired }) {
   const [bills, setBills] = useState([])
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,7 +30,8 @@ export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPay
       setBills(bList)
       setCustomers(cList)
     } catch (err) {
-      setError(err.message || 'Failed to load bills')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -194,7 +196,16 @@ export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPay
           <Spinner size="lg" message="Loading billing invoices..." />
         </div>
       ) : error ? (
-        <div className="error banner">⚠️ {error}</div>
+        error.status === 404 || error.status === 501 || error.status === 0 ? (
+          <NotReady endpoint="GET /bills" />
+        ) : (
+          <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+            <p className="error banner">{error.message || String(error)}</p>
+            <button type="button" onClick={loadData} style={{ marginTop: 12 }}>
+              Retry
+            </button>
+          </div>
+        )
       ) : filteredBills.length === 0 ? (
         <EmptyState
           title="No Bills or Invoices Found"

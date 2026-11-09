@@ -3,6 +3,12 @@ import { mockRequest } from './mock/router.js'
 
 const BASE = '/api'
 
+let unauthorizedHandler = null
+
+export function setOnUnauthorized(handler) {
+  unauthorizedHandler = handler
+}
+
 export class ApiError extends Error {
   constructor(status, message) {
     super(message)
@@ -12,7 +18,14 @@ export class ApiError extends Error {
 
 async function request(path, { token, method = 'GET', body } = {}) {
   if (USE_MOCK) {
-    return mockRequest(path, { token, method, body })
+    try {
+      return await mockRequest(path, { token, method, body })
+    } catch (err) {
+      if (err && err.status === 401 && unauthorizedHandler) {
+        unauthorizedHandler()
+      }
+      throw err
+    }
   }
   const headers = {}
   if (body) headers['Content-Type'] = 'application/json'
@@ -30,6 +43,9 @@ async function request(path, { token, method = 'GET', body } = {}) {
       detail = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail)
     } catch {
       /* keep the status text */
+    }
+    if (res.status === 401 && unauthorizedHandler) {
+      unauthorizedHandler()
     }
     throw new ApiError(res.status, detail)
   }

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getPurchases, updatePurchase, verifyPurchase } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Modal from '../../components/Modal'
 import Spinner from '../../components/Spinner'
 import AddPurchaseModal from './AddPurchaseModal'
 import './stock.css'
 
-export default function PurchasesPage({ auth, onNavigate }) {
+export default function PurchasesPage({ auth, onNavigate, onExpired }) {
   const [purchases, setPurchases] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -38,7 +39,8 @@ export default function PurchasesPage({ auth, onNavigate }) {
       const data = await getPurchases(auth.token)
       setPurchases(data)
     } catch (err) {
-      setError(err.message || 'Failed to load purchases')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

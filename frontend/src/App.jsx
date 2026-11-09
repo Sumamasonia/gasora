@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { login } from './api'
+import { useCallback, useEffect, useState } from 'react'
+import { login, setOnUnauthorized } from './api'
 import AppShell from './components/AppShell'
 import ComingSoon from './components/ComingSoon'
 import { USE_MOCK } from './config'
@@ -151,10 +151,15 @@ export default function App() {
   }
 
   const signOut = () => setAuth(null)
-  const expired = () => {
+  const expired = useCallback(() => {
     setAuth(null)
     setError('Your session ended. Please sign in again.')
-  }
+  }, [])
+
+  useEffect(() => {
+    setOnUnauthorized(expired)
+  }, [expired])
+
 
   if (!auth) {
     return <LoginForm onLogin={handleLogin} error={error} busy={busy} />
@@ -184,63 +189,67 @@ export default function App() {
       {route === 'dispatch' ? (
         <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} />
       ) : route === 'customers' ? (
-        <CustomerList auth={auth} onNavigate={navigate} />
+        <CustomerList auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route.startsWith('customers/') ? (
         <CustomerProfile
           auth={auth}
+          onExpired={expired}
           customerId={route.split('/')[1]}
           onNavigate={navigate}
         />
       ) : route === 'cylinders' || route.startsWith('cylinders') ? (
-        <CylinderRegister auth={auth} onNavigate={navigate} route={route} />
+        <CylinderRegister auth={auth} onNavigate={navigate} onExpired={expired} route={route} />
       ) : route === 'billing' ? (
         <BillsList
           auth={auth}
+          onExpired={expired}
           onNavigate={navigate}
           onViewInvoice={(id) => navigate(`billing/invoice/${id}`)}
           onRecordPayment={(bill) => navigate('billing/payments')}
         />
       ) : route === 'billing/sale' || route === 'sales' ? (
-        <RecordSalePage auth={auth} onNavigate={navigate} />
+        <RecordSalePage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route.startsWith('billing/invoice/') ? (
         <InvoiceView
           auth={auth}
+          onExpired={expired}
           invoiceId={route.split('/')[2]}
           onNavigate={navigate}
           onRecordPayment={(bill) => navigate('billing/payments')}
         />
       ) : route === 'billing/payments' || route === 'payments' ? (
-        <PaymentsPage auth={auth} onNavigate={navigate} />
+        <PaymentsPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'billing/loans' || route === 'loans' ? (
         <LoansPage
           auth={auth}
+          onExpired={expired}
           onNavigate={navigate}
           onRecordPayment={(bill) => navigate('billing/payments')}
         />
       ) : route === 'ledger' || route.startsWith('ledger') ? (
-        <LedgerPage auth={auth} onNavigate={navigate} />
+        <LedgerPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'stock' ? (
-        <StockPage auth={auth} onNavigate={navigate} />
+        <StockPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'stock/purchases' || route === 'purchases' ? (
-        <PurchasesPage auth={auth} onNavigate={navigate} />
+        <PurchasesPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'expenses' || route.startsWith('expenses') ? (
-        <ExpensesPage auth={auth} onNavigate={navigate} />
+        <ExpensesPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'dashboard' || route === 'insights/dashboard' ? (
-        <DashboardPage auth={auth} onNavigate={navigate} />
+        <DashboardPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'reports' || route === 'insights/reports' || route.startsWith('reports') ? (
-        <ReportsPage auth={auth} onNavigate={navigate} />
+        <ReportsPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'evaluation' || route === 'insights/evaluation' || route.startsWith('evaluation') ? (
-        <EvaluationPage auth={auth} onNavigate={navigate} />
+        <EvaluationPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'users' || route === 'admin/users' ? (
-        <UsersPage auth={auth} onNavigate={navigate} />
+        <UsersPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'audit' || route === 'admin/audit' ? (
-        <AuditPage auth={auth} onNavigate={navigate} />
+        <AuditPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'settings' || route === 'admin/settings' ? (
-        <SettingsPage auth={auth} onNavigate={navigate} />
+        <SettingsPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'assistant' || route === 'admin/assistant' ? (
-        <AssistantPage auth={auth} onNavigate={navigate} />
+        <AssistantPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route === 'utilities' || route === 'admin/utilities' ? (
-        <UtilitiesPage auth={auth} onNavigate={navigate} />
+        <UtilitiesPage auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}

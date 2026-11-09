@@ -21,7 +21,7 @@ const QUICK_PROMPTS = [
   'Active routes',
 ]
 
-export default function AssistantPage({ auth, onNavigate }) {
+export default function AssistantPage({ auth, onNavigate, onExpired }) {
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -61,6 +61,7 @@ export default function AssistantPage({ auth, onNavigate }) {
       }
       setMessages((prev) => [...prev, botMsg])
     } catch (err) {
+      if (err && err.status === 401) { onExpired?.(); return; }
       const errorMsg = {
         id: Date.now() + 1,
         sender: 'bot',

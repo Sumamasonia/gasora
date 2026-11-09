@@ -134,7 +134,14 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
         </button>
       </header>
 
-      {error && <p className="error banner">{error}</p>}
+      {error && (
+        <div className="error banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 16px', gap: 12 }}>
+          <span>⚠️ {error}</span>
+          <button type="button" className="secondary" onClick={() => run(load)} style={{ padding: '4px 10px', fontSize: 12 }}>
+            Retry
+          </button>
+        </div>
+      )}
       {toastMessage && <div className="driver-toast">{toastMessage}</div>}
 
       {routes && routes.length === 0 && (

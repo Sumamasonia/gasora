@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getBill } from '../../api'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 
-export default function InvoiceView({ auth, invoiceId, onNavigate, onRecordPayment }) {
+export default function InvoiceView({ auth, invoiceId, onNavigate, onRecordPayment, onExpired }) {
   const [bill, setBill] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,7 +19,8 @@ export default function InvoiceView({ auth, invoiceId, onNavigate, onRecordPayme
         const data = await getBill(auth.token, invoiceId)
         if (active) setBill(data)
       } catch (err) {
-        if (active) setError(err.message || 'Failed to load invoice')
+        if (err && err.status === 401) { onExpired?.(); return; }
+        if (active) setError(err)
       } finally {
         if (active) setLoading(false)
       }
@@ -37,15 +39,24 @@ export default function InvoiceView({ auth, invoiceId, onNavigate, onRecordPayme
     )
   }
 
+  if (error && (error.status === 404 || error.status === 501 || error.status === 0)) {
+    return <NotReady endpoint={`GET /bills/${invoiceId}`} />
+  }
+
   if (error || !bill) {
     return (
       <div className="billing-container">
-        <div className="error banner">
-          ⚠️ {error || 'Invoice not found'}
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          <p className="error banner">⚠️ {error?.message || String(error) || 'Invoice not found'}</p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
+            <button type="button" onClick={() => { setLoading(true); getBill(auth.token, invoiceId).then(setBill).catch(setError).finally(() => setLoading(false)); }}>
+              Retry
+            </button>
+            <button type="button" className="secondary" onClick={() => onNavigate('billing')}>
+              ← Return to Bills Directory
+            </button>
+          </div>
         </div>
-        <button type="button" className="secondary" onClick={() => onNavigate('billing')}>
-          ← Return to Bills Directory
-        </button>
       </div>
     )
   }

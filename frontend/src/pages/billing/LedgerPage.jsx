@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getCustomers, getLedger } from '../../api'
 import EmptyState from '../../components/EmptyState'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import { exportToCsv } from '../../lib/csv'
 import './billing.css'
 import LedgerCorrectionModal from './LedgerCorrectionModal'
 
-export default function LedgerPage({ auth, onNavigate, initialCustomerId = null }) {
+export default function LedgerPage({ auth, onNavigate, initialCustomerId = null, onExpired }) {
   const [ledgerEntries, setLedgerEntries] = useState([])
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +34,8 @@ export default function LedgerPage({ auth, onNavigate, initialCustomerId = null 
       setLedgerEntries(entries)
       setCustomers(custList)
     } catch (err) {
-      setError(err.message || 'Failed to load ledger records')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

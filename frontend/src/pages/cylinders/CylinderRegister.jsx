@@ -10,7 +10,7 @@ import EmptyRecovery from './EmptyRecovery.jsx'
 import HeldByCustomersTable from './HeldByCustomersTable.jsx'
 import './cylinders.css'
 
-export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, route }) {
+export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, route, onExpired }) {
   const isOwner = auth?.role === 'owner'
 
   const initialTab =
@@ -154,8 +154,24 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, r
   }
 
   // NotReady check if real endpoint is missing
-  if (error && (error.status === 404 || error.status === 0)) {
-    return <NotReady endpoint="GET /cylinders" />
+  if (error) {
+    if (error.status === 401) {
+      onExpired?.()
+      return null
+    }
+    if (error.status === 404 || error.status === 501 || error.status === 0) {
+      return <NotReady endpoint="GET /cylinders" />
+    }
+    return (
+      <div className="cylinders-page">
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          <p className="error banner">{error.message || String(error)}</p>
+          <button type="button" onClick={loadData} style={{ marginTop: 12 }}>
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // Table columns definition

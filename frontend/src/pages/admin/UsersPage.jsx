@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError, createUser, getUsers, updateUser } from '../../api'
 import Modal from '../../components/Modal'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
-import { getDefaultPermissions, SYSTEM_MODULES } from '../../mock/users'
+import { getDefaultPermissions, SYSTEM_MODULES } from '../../lib/permissions'
 import './admin.css'
 
-export default function UsersPage({ auth, onNavigate }) {
+export default function UsersPage({ auth, onNavigate, onExpired }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,7 +43,8 @@ export default function UsersPage({ auth, onNavigate }) {
       const list = await getUsers(auth.token)
       setUsers(list || [])
     } catch (err) {
-      setError(err.message || 'Failed to load users list')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }

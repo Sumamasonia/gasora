@@ -11,10 +11,11 @@ import {
   YAxis,
 } from 'recharts'
 import { getEvaluationResults } from '../../api'
+import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
 import './evaluation.css'
 
-export default function EvaluationPage({ auth, onNavigate }) {
+export default function EvaluationPage({ auth, onNavigate, onExpired }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -26,7 +27,8 @@ export default function EvaluationPage({ auth, onNavigate }) {
       const res = await getEvaluationResults(auth.token)
       setData(res)
     } catch (err) {
-      setError(err.message || 'Failed to load policy evaluation benchmark results')
+      if (err && err.status === 401) { onExpired?.(); return; }
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -44,13 +46,19 @@ export default function EvaluationPage({ auth, onNavigate }) {
     )
   }
 
+  if (error && (error.status === 404 || error.status === 501 || error.status === 0)) {
+    return <NotReady endpoint="GET /evaluation" />
+  }
+
   if (error || !data) {
     return (
       <div className="evaluation-container">
-        <div className="error banner">⚠️ {error || 'Failed to load evaluation data'}</div>
-        <button type="button" className="secondary" onClick={loadData}>
-          Retry
-        </button>
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          <p className="error banner">⚠️ {error?.message || String(error) || 'Failed to load evaluation data'}</p>
+          <button type="button" className="secondary" onClick={loadData} style={{ marginTop: 12 }}>
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
