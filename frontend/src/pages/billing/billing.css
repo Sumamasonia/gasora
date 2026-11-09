@@ -464,3 +464,82 @@
     print-color-adjust: exact;
   }
 }
+
+
+/* Responsive Billing Layout */
+.billing-container {
+  padding: 16px;
+}
+
+.billing-tabs {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+.billing-tab-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .billing-container {
+    padding: 14px 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .billing-header {
+    padding: 14px 16px;
+  }
+  .billing-form-card,
+  .billing-preview-card {
+    padding: 16px 14px;
+  }
+  .printable-invoice-page,
+  .printable-statement-page {
+    padding: 16px 14px;
+  }
+  .invoice-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .invoice-meta {
+    text-align: left;
+    width: 100%;
+  }
+  .invoice-address-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .invoice-totals {
+    justify-content: stretch;
+    width: 100%;
+  }
+  .invoice-totals-box {
+    width: 100%;
+  }
+  .invoice-actions-bar {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .invoice-actions-bar button,
+  .invoice-actions-bar .btn-whatsapp {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .billing-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .customer-selected-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
