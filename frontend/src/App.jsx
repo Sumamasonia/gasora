@@ -161,6 +161,14 @@ export default function App() {
   }
 
   // Driver view is phone-first and opens standalone unchanged
+  if (auth.role === 'customer') {
+    return <CustomerApp auth={auth} onSignOut={signOut} onExpired={expired} />
+  }
+
+  if (auth.role === 'ceo') {
+    return <CeoView auth={auth} onSignOut={signOut} onExpired={expired} />
+  }
+
   if (auth.role === 'driver') {
     return <DriverView auth={auth} onSignOut={signOut} onExpired={expired} />
   }

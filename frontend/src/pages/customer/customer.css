@@ -843,3 +843,35 @@
   cursor: pointer;
   color: #64748b;
 }
+
+
+/* Responsive Customer App Layout */
+@media (max-width: 480px) {
+  .customer-top-bar {
+    padding: 10px 12px;
+  }
+  .customer-account-badge {
+    max-width: 100px;
+    font-size: 10px;
+  }
+  .customer-header-btn {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+  .customer-nav-tab {
+    padding: 4px 1px;
+    font-size: 10px;
+  }
+  .customer-nav-tab .tab-icon {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .customer-brand-name {
+    font-size: 14px;
+  }
+  .customer-account-badge {
+    display: none;
+  }
+}

@@ -1,7 +1,8 @@
 /* Phone-first CEO Executive View Styles (Phase F8) */
 
 .ceo-view-wrapper {
-  max-width: 560px;
+  max-width: 1080px;
+  width: 100%;
   margin: 0 auto;
   min-height: 100vh;
   display: flex;
@@ -293,4 +294,31 @@
 
 [data-theme='dark'] .ceo-read-only-footer {
   border-top-color: #334155;
+}
+
+
+/* Responsive CEO View Layout */
+@media (min-width: 800px) {
+  .ceo-summary-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .ceo-summary-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .ceo-card {
+    padding: 10px;
+  }
+  .ceo-card-val {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .ceo-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
