@@ -177,3 +177,42 @@
   background: #f3e8ff;
   color: #7e22ce;
 }
+
+
+/* Responsive Expenses Layout */
+.expenses-container {
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .expenses-container {
+    padding: 14px 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .expenses-header {
+    padding: 14px 16px;
+  }
+  .fuel-estimate-card,
+  .expenses-chart-card {
+    padding: 16px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fuel-estimate-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .chart-toggle-group {
+    width: 100%;
+    justify-content: space-around;
+  }
+}
+
+@media (max-width: 360px) {
+  .fuel-estimate-grid {
+    grid-template-columns: 1fr;
+  }
+}
