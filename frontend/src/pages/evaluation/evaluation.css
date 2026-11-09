@@ -332,3 +332,38 @@
   font-weight: 400;
   color: #94a3b8;
 }
+
+
+/* Responsive Evaluation Layout */
+.evaluation-container {
+  padding: 16px;
+}
+
+.evaluation-table-card {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.eval-table {
+  min-width: 620px;
+}
+
+@media (max-width: 768px) {
+  .evaluation-container {
+    padding: 14px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .simulation-parameters-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .simulation-parameters-grid {
+    grid-template-columns: 1fr;
+  }
+}
