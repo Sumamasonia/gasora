@@ -264,3 +264,11 @@ export const resetDemoData = (token) =>
   request('/settings/reset', { token, method: 'POST' })
 export const askAssistant = (token, message) =>
   request('/assistant/chat', { token, method: 'POST', body: { message } })
+
+// Daily Notes & Utilities (Phase F9)
+export const getNotes = (token, date) =>
+  request(`/notes${date ? `?date=${date}` : ''}`, { token })
+export const saveNote = (token, data) =>
+  request('/notes', { token, method: 'POST', body: data })
+export const deleteNote = (token, id) =>
+  request(`/notes/${id}`, { token, method: 'DELETE' })

@@ -2,6 +2,7 @@ import { ApiError } from '../api.js'
 import { handleLogin, handleMe } from './auth.js'
 import { handleGetAuditEvents, handleVerifyAudit } from './audit.js'
 import { handleAssistantChat } from './assistant.js'
+import { handleDeleteNote, handleGetNotes, handleSaveNote } from './notes.js'
 import {
   handleGetBackup,
   handleGetSettings,
@@ -455,6 +456,30 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
       throw new ApiError(res.status, res.data.detail || 'Assistant error')
     }
     return res.data
+  }
+
+  // Notes & Utilities Endpoints
+  if (normalizedPath === '/notes') {
+    if (method === 'GET') {
+      const dateQuery = queryParams.get('date')
+      const res = handleGetNotes(token, dateQuery)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
+    }
+    if (method === 'POST' || method === 'PUT') {
+      const res = handleSaveNote(token, body)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
+    }
+  }
+  const singleNoteMatch = normalizedPath.match(/^\/notes\/(\d+)$/)
+  if (singleNoteMatch) {
+    const noteId = parseInt(singleNoteMatch[1], 10)
+    if (method === 'DELETE') {
+      const res = handleDeleteNote(token, noteId)
+      if (res.status >= 400) throw new ApiError(res.status, res.data.detail)
+      return res.data
+    }
   }
 
   // User endpoints
