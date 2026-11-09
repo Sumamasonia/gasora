@@ -185,3 +185,45 @@
   align-items: center;
   gap: 4px;
 }
+
+
+/* Responsive Stock Layout */
+.stock-container {
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .stock-container {
+    padding: 14px 10px;
+  }
+}
+
+@media (max-width: 680px) {
+  .stock-type-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .stock-header {
+    padding: 14px 16px;
+  }
+  .stock-card {
+    padding: 16px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stock-stats-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .stock-stat-box {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 4px 8px;
+  }
+  .stock-stat-num {
+    font-size: 20px;
+  }
+}
