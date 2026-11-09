@@ -24,6 +24,7 @@ import DashboardPage from './pages/dashboard/DashboardPage'
 import ReportsPage from './pages/reports/ReportsPage'
 import EvaluationPage from './pages/evaluation/EvaluationPage'
 import UsersPage from './pages/admin/UsersPage'
+import AuditPage from './pages/admin/AuditPage'
 import UiKit from './pages/UiKit'
 import './styles.css'
 
@@ -219,6 +220,10 @@ export default function App() {
         <ReportsPage auth={auth} onNavigate={navigate} />
       ) : route === 'evaluation' || route === 'insights/evaluation' || route.startsWith('evaluation') ? (
         <EvaluationPage auth={auth} onNavigate={navigate} />
+      ) : route === 'users' || route === 'admin/users' ? (
+        <UsersPage auth={auth} onNavigate={navigate} />
+      ) : route === 'audit' || route === 'admin/audit' ? (
+        <AuditPage auth={auth} onNavigate={navigate} />
       ) : (
         <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
       )}

@@ -250,3 +250,10 @@ export const getMyNextDelivery = (token) => request('/me/next-delivery', { token
 export const getMyDeliveryStatus = (token) => request('/me/delivery-status', { token })
 export const createMyRequest = (token, data) =>
   request('/me/requests', { token, method: 'POST', body: data })
+
+// Admin & Audit Endpoints (Phase F9)
+export const getAuditEvents = (token) => request('/audit/events', { token })
+export const verifyAudit = (token) => request('/audit/verify', { token })
+export const getSettings = (token) => request('/settings', { token })
+export const updateSettings = (token, data) =>
+  request('/settings', { token, method: 'PUT', body: data })

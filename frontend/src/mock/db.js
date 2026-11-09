@@ -3,6 +3,7 @@ import { SEED_BILLS, SEED_LEDGER, SEED_PAYMENTS } from './seedBilling.js'
 import { SEED_CUSTOMERS } from './seedCustomers.js'
 import { SEED_CYLINDER_HISTORY, SEED_CYLINDERS } from './seedCylinders.js'
 import { SEED_EXPENSES, SEED_PURCHASES } from './seedStockExpenses.js'
+import { computeEventHash, generateSeedEvents, GENESIS_HASH } from './audit.js'
 
 const STORAGE_KEY = 'gasora-mock-db'
 
@@ -83,9 +84,17 @@ export const createInitialDb = () => ({
   ledger: [...SEED_LEDGER],
   purchases: [...SEED_PURCHASES],
   expenses: [...SEED_EXPENSES],
-  events: [],
+  events: generateSeedEvents(),
   settings: {
     depot: { lat: 31.4181, lon: 73.0776, name: 'Main Depot Faisalabad' },
+    overdue_days: 15,
+    alert_days: 5,
+    currency: 'PKR',
+    business_name: 'Gasora LPG Distribution',
+    business_address: 'Main Depot, Sheikhupura Road, Faisalabad',
+    low_stock_level: 25,
+    theme: 'light',
+    simulate_tampered_audit: false,
   },
 })
 
@@ -206,6 +215,22 @@ export function loadDb() {
       if (!db.expenses || db.expenses.length === 0) {
         db.expenses = [...SEED_EXPENSES]
       }
+      if (!db.events || db.events.length === 0) {
+        db.events = generateSeedEvents()
+      }
+      if (!db.settings) {
+        db.settings = {
+          depot: { lat: 31.4181, lon: 73.0776, name: 'Main Depot Faisalabad' },
+          overdue_days: 15,
+          alert_days: 5,
+          currency: 'PKR',
+          business_name: 'Gasora LPG Distribution',
+          business_address: 'Main Depot, Sheikhupura Road, Faisalabad',
+          low_stock_level: 25,
+          theme: 'light',
+          simulate_tampered_audit: false,
+        }
+      }
       return db
     }
   } catch (err) {
@@ -257,13 +282,26 @@ export function nextId(collectionName) {
 export function recordEvent({ type, actor = 'system', description, details = null }) {
   const currentDb = getDb()
   if (!currentDb.events) currentDb.events = []
+  const id = nextId('events')
+  const ts = new Date().toISOString()
+  const lastEvent = currentDb.events[currentDb.events.length - 1]
+  const prev_hash = lastEvent ? (lastEvent.hash || GENESIS_HASH) : GENESIS_HASH
+  const event_type = type
+  const payload = details || { description }
+  const hash = computeEventHash(prev_hash, ts, actor, event_type, payload)
+
   const event = {
-    id: nextId('events'),
-    type,
+    id,
+    ts,
+    created_at: ts,
     actor,
+    event_type,
+    type,
+    payload,
     description,
     details,
-    created_at: new Date().toISOString(),
+    prev_hash,
+    hash,
   }
   currentDb.events.push(event)
   saveDb()

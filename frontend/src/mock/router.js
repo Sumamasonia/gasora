@@ -1,5 +1,6 @@
 import { ApiError } from '../api.js'
 import { handleLogin, handleMe } from './auth.js'
+import { handleGetAuditEvents, handleVerifyAudit } from './audit.js'
 import {
   handleCreateBill,
   handleGetBill,
@@ -397,6 +398,22 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
       saveDb()
       return { status: 'updated', settings: currentDb.settings }
     }
+  }
+
+  // Audit & Chain Verification Endpoints
+  if (method === 'GET' && normalizedPath === '/audit/verify') {
+    const res = handleVerifyAudit(token, getDb())
+    if (res.status >= 400) {
+      throw new ApiError(res.status, res.data.detail || 'Audit verification error')
+    }
+    return res.data
+  }
+  if (method === 'GET' && (normalizedPath === '/audit/events' || normalizedPath === '/events')) {
+    const res = handleGetAuditEvents(token, getDb())
+    if (res.status >= 400) {
+      throw new ApiError(res.status, res.data.detail || 'Audit events error')
+    }
+    return res.data
   }
 
   // User endpoints
