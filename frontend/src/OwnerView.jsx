@@ -98,6 +98,16 @@ export default function OwnerView({ auth, onSignOut, onExpired, initialSection =
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
+  const [viewMode, setViewMode] = useState('tabs') // 'tabs' | 'all'
+
+  // Map initialSection route parameter to default tab
+  const getInitialTab = (sec) => {
+    if (sec === 'demand') return 'risk'
+    if (sec === 'urgent') return 'urgent'
+    if (sec === 'deliveries') return 'routes'
+    return 'routes'
+  }
+  const [activeTab, setActiveTab] = useState(() => getInitialTab(initialSection))
 
   const guard = useCallback(async (fn) => {
     setBusy(true)
@@ -129,18 +139,8 @@ export default function OwnerView({ auth, onSignOut, onExpired, initialSection =
   useEffect(() => { guard(loadAll) }, [guard, loadAll])
 
   useEffect(() => {
-    if (!initialSection || initialSection === 'dispatch') return
-    const idMap = {
-      demand: 'risk-list-section',
-      urgent: 'urgent-form-section',
-      deliveries: 'published-routes-section',
-    }
-    const targetId = idMap[initialSection]
-    if (targetId) {
-      setTimeout(() => {
-        const el = document.getElementById(targetId)
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 150)
+    if (initialSection) {
+      setActiveTab(getInitialTab(initialSection))
     }
   }, [initialSection])
 
@@ -175,41 +175,97 @@ export default function OwnerView({ auth, onSignOut, onExpired, initialSection =
     }
   }, [auth.token, routes?.length])
 
+  // Summary Metrics
+  const activeRoutesList = routes.length > 0 ? routes : (plan?.routes || [])
+  const totalStops = activeRoutesList.reduce((acc, r) => acc + (r.stops?.length || 0), 0)
+  const activeVehicles = activeRoutesList.length
+  const totalMinutes = activeRoutesList.reduce((acc, r) => acc + (r.minutes || 0), 0)
+  const criticalRiskCount = plan?.risk_table?.filter((r) => r.band === 'Critical' || r.urgent).length || 0
+  const openUrgentCount = openUrgent.length
+
   return (
     <div className="planner-container">
+      {/* Routific-inspired Dispatch Header Bar */}
       <div className="planner-toolbar">
         <div className="planner-toolbar-left">
-          <label className="toolbar-label">
-            <span>Solver time:</span>
+          <div className="planner-solver-control">
+            <span className="solver-label">OR-Tools Solver:</span>
             <select
+              className="solver-select"
               value={seconds}
               onChange={(e) => setSeconds(Number(e.target.value))}
               disabled={busy}
+              title="Time limit for Google OR-Tools guided local search"
             >
-              <option value={1}>1 s</option>
-              <option value={2}>2 s</option>
-              <option value={5}>5 s</option>
+              <option value={1}>⚡ 1s (Fast search)</option>
+              <option value={2}>⏱️ 2s (Balanced)</option>
+              <option value={5}>🔬 5s (Optimal)</option>
             </select>
-          </label>
-          <button disabled={busy} onClick={() => guard(loadAll)}>
-            {busy ? 'Working...' : 'Refresh plan'}
+          </div>
+          <button
+            type="button"
+            className="planner-refresh-btn"
+            disabled={busy}
+            onClick={() => guard(loadAll)}
+          >
+            {busy ? 'Optimizing...' : '🔄 Re-calculate Routes'}
           </button>
         </div>
+
         <div className="planner-toolbar-right">
           {routes.length > 0 && (
             <span className="live-poll-badge" title="Live route updates: polling every 15s when tab is active">
-              <span className="live-pulse-dot" /> Live Polling (15s)
+              <span className="live-pulse-dot" /> Live Polling
             </span>
           )}
           {routes.length > 0 ? (
             <span className="planner-status-pill published">
-              ● Routes Published ({routes.length} vehicles, {routes.reduce((acc, r) => acc + r.total, 0)} stops)
+              <span className="status-dot green" /> Routes Published &middot; {activeVehicles} Vans &middot; {totalStops} Stops
             </span>
           ) : (
             <span className="planner-status-pill preview">
-              ○ Proposed Plan (Preview Only)
+              <span className="status-dot amber" /> Proposed Plan (Awaiting Publish)
             </span>
           )}
+        </div>
+      </div>
+
+      {/* Quick KPI Status Strip */}
+      <div className="planner-kpi-strip">
+        <div className="kpi-strip-item">
+          <span className="kpi-strip-icon">🚚</span>
+          <div className="kpi-strip-text">
+            <span className="kpi-strip-val">{activeVehicles} Vehicles</span>
+            <span className="kpi-strip-label">Active Fleet</span>
+          </div>
+        </div>
+        <div className="kpi-strip-item">
+          <span className="kpi-strip-icon">📍</span>
+          <div className="kpi-strip-text">
+            <span className="kpi-strip-val">{totalStops} Stops</span>
+            <span className="kpi-strip-label">Scheduled Visits</span>
+          </div>
+        </div>
+        <div className="kpi-strip-item">
+          <span className="kpi-strip-icon">⏱️</span>
+          <div className="kpi-strip-text">
+            <span className="kpi-strip-val">~{totalMinutes} min</span>
+            <span className="kpi-strip-label">Shift Duration</span>
+          </div>
+        </div>
+        <div className="kpi-strip-item">
+          <span className="kpi-strip-icon">⚠️</span>
+          <div className="kpi-strip-text">
+            <span className="kpi-strip-val">{criticalRiskCount} Critical</span>
+            <span className="kpi-strip-label">Run-out Risk</span>
+          </div>
+        </div>
+        <div className="kpi-strip-item">
+          <span className="kpi-strip-icon">🚨</span>
+          <div className="kpi-strip-text">
+            <span className="kpi-strip-val">{openUrgentCount} Urgent</span>
+            <span className="kpi-strip-label">Priority Queue</span>
+          </div>
         </div>
       </div>
 
@@ -224,43 +280,126 @@ export default function OwnerView({ auth, onSignOut, onExpired, initialSection =
 
       {plan && (
         <main className="planner-layout">
-          {/* Left Column: Route and Stop list on the left */}
+          {/* Left Column: Routific Tabbed Dispatch Control Sidebar */}
           <aside className="panel planner-sidebar">
-            <div id="published-routes-section">
-            <PublishedRoutes
-              routes={routes}
-              drivers={drivers}
-              busy={busy}
-              selectedCustomerId={selectedCustomerId}
-              onSelectCustomer={setSelectedCustomerId}
-              onAssign={(id, name) => guard(async () => { await assignRoute(auth.token, id, name); await loadAll() })}
-              onPublish={() => guard(async () => { await publishPlan(auth.token, seconds); await loadAll() })}
-            />
+            <div className="planner-sidebar-header">
+              {/* Segmented Tab Controls */}
+              <div className="planner-tab-bar" role="tablist" aria-label="Dispatch panels">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'routes'}
+                  className={`planner-tab-btn ${activeTab === 'routes' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('routes')}
+                >
+                  <span>🚚 Routes</span>
+                  {totalStops > 0 && <span className="tab-pill">{totalStops}</span>}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'risk'}
+                  className={`planner-tab-btn ${activeTab === 'risk' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('risk')}
+                >
+                  <span>📊 Risk &amp; Demand</span>
+                  {criticalRiskCount > 0 && <span className="tab-pill warning">{criticalRiskCount}</span>}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'urgent'}
+                  className={`planner-tab-btn ${activeTab === 'urgent' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('urgent')}
+                >
+                  <span>🚨 Urgent</span>
+                  {openUrgentCount > 0 && <span className="tab-pill danger">{openUrgentCount}</span>}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'plan'}
+                  className={`planner-tab-btn ${activeTab === 'plan' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('plan')}
+                >
+                  <span>🔮 Proposal</span>
+                </button>
+              </div>
+
+              {/* View layout mode toggle */}
+              <div className="view-mode-toggle">
+                <button
+                  type="button"
+                  className={`mode-btn ${viewMode === 'tabs' ? 'active' : ''}`}
+                  onClick={() => setViewMode('tabs')}
+                  title="Focused tab view (Routific style)"
+                >
+                  Tab View
+                </button>
+                <button
+                  type="button"
+                  className={`mode-btn ${viewMode === 'all' ? 'active' : ''}`}
+                  onClick={() => setViewMode('all')}
+                  title="Stack all sections vertically"
+                >
+                  Show All
+                </button>
+              </div>
             </div>
-            <div id="urgent-form-section">
-            <UrgentForm
-              customers={coords}
-              openUrgent={openUrgent}
-              busy={busy}
-              onCreate={(id, note) => guard(async () => { await createUrgent(auth.token, id, note); await loadAll() })}
-            />
+
+            {/* Tab Contents */}
+            <div className="planner-tab-content">
+              {(viewMode === 'all' || activeTab === 'routes') && (
+                <div id="published-routes-section" className="tab-section-block">
+                  <PublishedRoutes
+                    routes={routes}
+                    drivers={drivers}
+                    busy={busy}
+                    selectedCustomerId={selectedCustomerId}
+                    onSelectCustomer={setSelectedCustomerId}
+                    onAssign={(id, name) => guard(async () => { await assignRoute(auth.token, id, name); await loadAll() })}
+                    onPublish={() => guard(async () => { await publishPlan(auth.token, seconds); await loadAll() })}
+                  />
+                </div>
+              )}
+
+              {(viewMode === 'all' || activeTab === 'risk') && (
+                <div id="risk-list-section" className="tab-section-block">
+                  <RiskList
+                    riskTable={plan.risk_table}
+                    selectedCustomerId={selectedCustomerId}
+                    onSelectCustomer={setSelectedCustomerId}
+                  />
+                </div>
+              )}
+
+              {(viewMode === 'all' || activeTab === 'urgent') && (
+                <div id="urgent-form-section" className="tab-section-block">
+                  <UrgentForm
+                    customers={coords}
+                    openUrgent={openUrgent}
+                    busy={busy}
+                    selectedCustomerId={selectedCustomerId}
+                    onSelectCustomer={setSelectedCustomerId}
+                    onCreate={(id, note) => guard(async () => { await createUrgent(auth.token, id, note); await loadAll() })}
+                  />
+                </div>
+              )}
+
+              {(viewMode === 'all' || activeTab === 'plan') && (
+                <div id="proposal-preview-section" className="tab-section-block">
+                  <PlanPanel
+                    plan={plan}
+                    published={routes.length > 0}
+                    selectedCustomerId={selectedCustomerId}
+                    onSelectCustomer={setSelectedCustomerId}
+                  />
+                </div>
+              )}
             </div>
-            <div id="risk-list-section">
-            <RiskList
-              riskTable={plan.risk_table}
-              selectedCustomerId={selectedCustomerId}
-              onSelectCustomer={setSelectedCustomerId}
-            />
-            </div>
-            <PlanPanel
-              plan={plan}
-              published={routes.length > 0}
-              selectedCustomerId={selectedCustomerId}
-              onSelectCustomer={setSelectedCustomerId}
-            />
           </aside>
 
-          {/* Right Column: Large map on the right */}
+          {/* Right Column: High-performance interactive Routific Map */}
           <div className="planner-map-wrapper">
             <PlanMap
               plan={plan}

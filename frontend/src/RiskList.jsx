@@ -8,6 +8,7 @@ export default function RiskList({
   onSelectCustomer = null,
 }) {
   const [bandFilter, setBandFilter] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState('risk')
   const [sortAsc, setSortAsc] = useState(false)
 
@@ -37,7 +38,13 @@ export default function RiskList({
       }
     }
 
-    // 2. Sort: Urgent rows always on top unless sorting specifically, then by sortKey
+    // 2. Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      list = list.filter((r) => (r.name || '').toLowerCase().includes(q) || String(r.customer_id).includes(q))
+    }
+
+    // 3. Sort: Urgent rows always on top unless sorting specifically, then by sortKey
     list.sort((a, b) => {
       // Urgent rows stay on top
       if (a.urgent && !b.urgent) return -1
@@ -64,7 +71,7 @@ export default function RiskList({
     })
 
     return list
-  }, [riskTable, bandFilter, sortKey, sortAsc])
+  }, [riskTable, bandFilter, searchQuery, sortKey, sortAsc])
 
   const handleSort = (key) => {
     if (sortKey === key) {
@@ -84,14 +91,25 @@ export default function RiskList({
     <section className="risk-list-section">
       <div className="risk-list-header">
         <div className="risk-title-row">
-          <h3>Customer Risk List</h3>
+          <h3>Customer Depletion &amp; Risk</h3>
           <span className="muted" style={{ fontSize: 12 }}>
             {processedRows.length} of {riskTable.length} customers
           </span>
         </div>
-        <p className="muted" style={{ fontSize: 12, margin: '2px 0 8px' }}>
-          Predictive depletion window &amp; run-out risk. Urgent customers are highlighted in red.
+        <p className="muted" style={{ fontSize: 12, margin: '2px 0 10px' }}>
+          Predictive depletion window &amp; 48-hour run-out risk. Click any row to locate on map.
         </p>
+
+        {/* Quick Search */}
+        <div className="risk-search-bar">
+          <input
+            type="search"
+            className="risk-search-input"
+            placeholder="🔍 Search at-risk customer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
 
         {/* Filter Pills by Band */}
         <div className="band-filter-pills" role="tablist" aria-label="Filter customers by risk band">
@@ -132,7 +150,7 @@ export default function RiskList({
                 Customer {renderSortIndicator('name')}
               </th>
               <th onClick={() => handleSort('risk')} className="col-band" style={{ cursor: 'pointer' }}>
-                Band &amp; Risk {renderSortIndicator('risk')}
+                Risk &amp; Band {renderSortIndicator('risk')}
               </th>
               <th onClick={() => handleSort('days_since_delivery')} className="col-days" style={{ cursor: 'pointer' }}>
                 Days Ago {renderSortIndicator('days_since_delivery')}
@@ -148,8 +166,8 @@ export default function RiskList({
           <tbody>
             {processedRows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="empty-cell muted">
-                  No customers found matching filter &quot;{bandFilter}&quot;.
+                <td colSpan={5} className="empty-cell muted" style={{ textAlign: 'center', padding: '24px 12px' }}>
+                  No customers found matching &quot;{searchQuery || bandFilter}&quot;.
                 </td>
               </tr>
             ) : (
