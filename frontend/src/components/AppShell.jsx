@@ -29,21 +29,26 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
 
   const navGroups = getNavForRole(auth?.role || 'owner')
 
+  const isItemActive = (itemId, currentRoute) => {
+    if (itemId === currentRoute) return true
+    if (itemId === 'sales' && (currentRoute === 'sales' || currentRoute.startsWith('billing/sale'))) return true
+    if (itemId === 'purchases' && (currentRoute === 'purchases' || currentRoute.startsWith('stock/purchases'))) return true
+    if (itemId === 'customers' && currentRoute.startsWith('customers')) return true
+    if (itemId === 'cylinders/recovery' && currentRoute === 'cylinders/recovery') return true
+    if (itemId === 'cylinders' && (currentRoute === 'cylinders' || currentRoute === 'cylinders/held')) return true
+    if (itemId === 'billing' && currentRoute.startsWith('billing') && currentRoute !== 'billing/payments' && currentRoute !== 'billing/loans' && currentRoute !== 'billing/sale') return true
+    if (itemId === 'ledger' && (currentRoute.startsWith('ledger') || currentRoute === 'billing/payments' || currentRoute === 'billing/loans' || currentRoute === 'payments' || currentRoute === 'loans')) return true
+    if (itemId === 'stock' && currentRoute === 'stock') return true
+    if (itemId === 'expenses' && currentRoute.startsWith('expenses')) return true
+    if (itemId === 'reports' && currentRoute.startsWith('reports')) return true
+    if (itemId === 'evaluation' && currentRoute.startsWith('evaluation')) return true
+    return false
+  }
+
   // Find label for current route
   let currentTitle = 'Dashboard'
   for (const group of navGroups) {
-    const item = group.items.find(
-      (i) =>
-        i.id === activeRoute ||
-        (i.id === 'sales' && (activeRoute === 'sales' || activeRoute.startsWith('billing/sale'))) ||
-        (i.id === 'purchases' && (activeRoute === 'purchases' || activeRoute.startsWith('stock/purchases'))) ||
-        (i.id === 'customers' && activeRoute.startsWith('customers')) ||
-        (i.id === 'cylinders' && activeRoute.startsWith('cylinders')) ||
-        (i.id === 'billing' && activeRoute.startsWith('billing')) ||
-        (i.id === 'ledger' && activeRoute.startsWith('ledger')) ||
-        (i.id === 'stock' && activeRoute.startsWith('stock')) ||
-        (i.id === 'expenses' && activeRoute.startsWith('expenses'))
-    )
+    const item = group.items.find((i) => isItemActive(i.id, activeRoute))
     if (item) {
       currentTitle = item.label
       break
@@ -77,16 +82,7 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
               <div className="nav-group-title">{group.title}</div>
               <div className="nav-group-items">
                 {group.items.map((item) => {
-                  const isActive =
-                    activeRoute === item.id ||
-                    (item.id === 'sales' && (activeRoute === 'sales' || activeRoute.startsWith('billing/sale'))) ||
-                    (item.id === 'purchases' && (activeRoute === 'purchases' || activeRoute.startsWith('stock/purchases'))) ||
-                    (item.id === 'customers' && activeRoute.startsWith('customers')) ||
-                    (item.id === 'cylinders' && activeRoute.startsWith('cylinders')) ||
-                    (item.id === 'billing' && activeRoute.startsWith('billing')) ||
-                    (item.id === 'ledger' && activeRoute.startsWith('ledger')) ||
-                    (item.id === 'stock' && activeRoute.startsWith('stock')) ||
-                    (item.id === 'expenses' && activeRoute.startsWith('expenses'))
+                  const isActive = isItemActive(item.id, activeRoute)
                   return (
                     <button
                       key={item.id}

@@ -12,6 +12,40 @@ function FitToPoints({ points }) {
   return null
 }
 
+function MapInvalidator() {
+  const map = useMap()
+  useEffect(() => {
+    const invalidate = () => {
+      try {
+        map.invalidateSize()
+      } catch {}
+    }
+    invalidate()
+    const t1 = setTimeout(invalidate, 100)
+    const t2 = setTimeout(invalidate, 400)
+    const t3 = setTimeout(invalidate, 1000)
+    window.addEventListener('resize', invalidate)
+
+    const container = map.getContainer ? map.getContainer() : null
+    let ro = null
+    if (container && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        invalidate()
+      })
+      ro.observe(container)
+    }
+
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+      window.removeEventListener('resize', invalidate)
+      if (ro) ro.disconnect()
+    }
+  }, [map])
+  return null
+}
+
 function FlyToSelected({ selectedCustomerId, coords }) {
   const map = useMap()
   useEffect(() => {
@@ -109,7 +143,14 @@ export default function PlanMap({
 
   return (
     <div className="routific-map-container">
-      <MapContainer center={depot} zoom={12} className="map" scrollWheelZoom={true}>
+      <MapContainer
+        center={depot}
+        zoom={12}
+        className="map"
+        scrollWheelZoom={true}
+        style={{ width: '100%', height: '100%', minHeight: '100%' }}
+      >
+        <MapInvalidator />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAuditEvents, getSettings, updateSettings, verifyAudit } from '../../api'
 import Modal from '../../components/Modal'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import './admin.css'
 
@@ -21,6 +22,14 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
   const [search, setSearch] = useState('')
   const [actorFilter, setActorFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [search, actorFilter, typeFilter])
 
   // Selected event modal
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -435,6 +444,7 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
           <p className="muted">Try adjusting your search criteria or actor filter.</p>
         </div>
       ) : (
+        <>
         <div className="admin-card" style={{ padding: 0, overflowX: 'auto' }}>
           <table className="admin-table">
             <thead>
@@ -449,7 +459,7 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
               </tr>
             </thead>
             <tbody>
-              {filteredEvents.map((e) => {
+              {filteredEvents.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((e) => {
                 const eventType = e.event_type || e.type || 'EVENT'
                 const whenDate = new Date(e.ts || e.created_at || Date.now())
                 const hashShort = e.hash ? `${e.hash.slice(0, 8)}...${e.hash.slice(-4)}` : 'N/A'
@@ -570,6 +580,14 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredEvents.length / PAGE_SIZE)}
+          totalItems={filteredEvents.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+        </>
       )}
 
       {/* Event Details Modal */}

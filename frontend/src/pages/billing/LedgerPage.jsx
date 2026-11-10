@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getCustomers, getLedger } from '../../api'
 import EmptyState from '../../components/EmptyState'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import { exportToCsv } from '../../lib/csv'
 import './billing.css'
@@ -19,6 +20,14 @@ export default function LedgerPage({ auth, onNavigate, initialCustomerId = null,
   )
   const [selectedType, setSelectedType] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [selectedCustomerId, selectedType, searchQuery])
 
   // Modal
   const [correctionModalOpen, setCorrectionModalOpen] = useState(false)
@@ -266,6 +275,7 @@ export default function LedgerPage({ auth, onNavigate, initialCustomerId = null,
           description="No ledger transactions match the selected filters."
         />
       ) : (
+        <>
         <div className="datatable-desktop">
           <table className="datatable">
             <thead>
@@ -283,7 +293,7 @@ export default function LedgerPage({ auth, onNavigate, initialCustomerId = null,
               </tr>
             </thead>
             <tbody>
-              {filteredEntries.map((e) => (
+              {filteredEntries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((e) => (
                 <tr key={e.id}>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{e.id}</td>
 
@@ -368,6 +378,14 @@ export default function LedgerPage({ auth, onNavigate, initialCustomerId = null,
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredEntries.length / PAGE_SIZE)}
+          totalItems={filteredEntries.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+        </>
       )}
 
       {/* Correction Modal */}

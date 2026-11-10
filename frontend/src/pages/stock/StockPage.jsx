@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getStockMovements, getStockSettings, getStockSummary } from '../../api'
 import EmptyState from '../../components/EmptyState'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import StockSettingsModal from './StockSettingsModal'
 import './stock.css'
@@ -14,6 +15,8 @@ export default function StockPage({ auth, onNavigate, onExpired }) {
   const [error, setError] = useState('')
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
 
   const loadStockData = async () => {
     try {
@@ -286,6 +289,7 @@ export default function StockPage({ auth, onNavigate, onExpired }) {
             description="Stock movements will automatically appear here as purchases and deliveries occur."
           />
         ) : (
+          <>
           <div className="datatable-desktop">
             <table className="datatable">
               <thead>
@@ -301,7 +305,7 @@ export default function StockPage({ auth, onNavigate, onExpired }) {
                 </tr>
               </thead>
               <tbody>
-                {movements.slice(0, 25).map((m) => (
+                {movements.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((m) => (
                   <tr key={m.id}>
                     <td>
                       <span className="code-badge" style={{ fontSize: 11 }}>
@@ -349,6 +353,14 @@ export default function StockPage({ auth, onNavigate, onExpired }) {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={page}
+            totalPages={Math.ceil(movements.length / PAGE_SIZE)}
+            totalItems={movements.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+          </>
         )}
       </div>
 

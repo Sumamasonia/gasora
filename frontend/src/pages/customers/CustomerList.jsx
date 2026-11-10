@@ -392,6 +392,7 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive, onE
           columns={columns}
           data={filteredCustomers}
           searchable={false}
+          pageSize={5}
           onRowClick={(row) => onNavigate(`customers/${row.id}`)}
           rowClassName={(row) => (row.is_active === false ? 'row-inactive' : '')}
           emptyTitle="No customers match your criteria"

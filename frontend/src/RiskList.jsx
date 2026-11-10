@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BAND_COLOR } from './colors'
+import Pagination from './components/Pagination'
 import { Badge, UrgentTag } from './ui'
 
 export default function RiskList({
@@ -11,6 +12,14 @@ export default function RiskList({
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState('risk')
   const [sortAsc, setSortAsc] = useState(false)
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [bandFilter, searchQuery])
 
   // Compute counts for filter pills
   const counts = useMemo(() => {
@@ -171,7 +180,7 @@ export default function RiskList({
                 </td>
               </tr>
             ) : (
-              processedRows.map((row) => {
+              processedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((row) => {
                 const isSelected = selectedCustomerId !== null && Number(row.customer_id) === Number(selectedCustomerId)
                 const isUrgent = Boolean(row.urgent)
 
@@ -236,6 +245,13 @@ export default function RiskList({
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={page}
+        totalPages={Math.ceil(processedRows.length / PAGE_SIZE)}
+        totalItems={processedRows.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </section>
   )
 }

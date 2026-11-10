@@ -635,6 +635,7 @@ export default function EmptyRecovery({ auth, onNavigate }) {
               columns={candidateColumns}
               data={filteredCandidates}
               searchable={false}
+              pageSize={5}
               emptyTitle="No swap candidates found"
               emptyDescription={
                 selectedBucket
@@ -664,6 +665,7 @@ export default function EmptyRecovery({ auth, onNavigate }) {
               columns={customerColumns}
               data={filteredCustomers}
               searchable={false}
+              pageSize={5}
               emptyTitle="No customer data"
               emptyDescription="No customers holding delivered cylinders matching current filters."
             />

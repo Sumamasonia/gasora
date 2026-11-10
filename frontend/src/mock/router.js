@@ -124,19 +124,28 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
     return handleCreateMyRequest(token, body)
   }
 
+  // Customer cylinders
+  const customerCylindersMatch = normalizedPath.match(/^\/customers\/([^\/]+)\/cylinders$/)
+  if (customerCylindersMatch) {
+    const customerId = customerCylindersMatch[1]
+    if (method === 'GET') {
+      return handleGetCustomerCylinders(token, customerId)
+    }
+  }
+
   // Customer ledger
-  const customerLedgerMatch = normalizedPath.match(/^\/customers\/(\d+)\/ledger$/)
+  const customerLedgerMatch = normalizedPath.match(/^\/customers\/([^\/]+)\/ledger$/)
   if (customerLedgerMatch) {
-    const customerId = parseInt(customerLedgerMatch[1], 10)
+    const customerId = customerLedgerMatch[1]
     if (method === 'GET') {
       return handleGetCustomerLedger(token, customerId)
     }
   }
 
   // Customer deliveries
-  const customerDeliveriesMatch = normalizedPath.match(/^\/customers\/(\d+)\/deliveries$/)
+  const customerDeliveriesMatch = normalizedPath.match(/^\/customers\/([^\/]+)\/deliveries$/)
   if (customerDeliveriesMatch) {
-    const customerId = parseInt(customerDeliveriesMatch[1], 10)
+    const customerId = customerDeliveriesMatch[1]
     if (method === 'GET') {
       return handleGetCustomerDeliveries(token, customerId)
     }
@@ -153,9 +162,9 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   }
 
   // Customer item endpoints
-  const customerIdMatch = normalizedPath.match(/^\/customers\/(\d+)$/)
+  const customerIdMatch = normalizedPath.match(/^\/customers\/([^\/]+)$/)
   if (customerIdMatch) {
-    const customerId = parseInt(customerIdMatch[1], 10)
+    const customerId = customerIdMatch[1]
     if (method === 'GET') {
       return handleGetCustomer(token, customerId)
     }

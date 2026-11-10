@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getBills, getCustomers } from '../../api'
 import EmptyState from '../../components/EmptyState'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 import CreateBillModal from './CreateBillModal'
@@ -16,6 +17,14 @@ export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPay
   const [selectedMonth, setSelectedMonth] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchCustomer, setSearchCustomer] = useState('')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [selectedMonth, selectedStatus, searchCustomer])
 
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -217,6 +226,7 @@ export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPay
           }
         />
       ) : (
+        <>
         <div className="datatable-desktop">
           <table className="datatable">
             <thead>
@@ -233,7 +243,7 @@ export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPay
               </tr>
             </thead>
             <tbody>
-              {filteredBills.map((bill) => {
+              {filteredBills.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((bill) => {
                 const isOverdue =
                   bill.status !== 'paid' &&
                   bill.due_date &&
@@ -356,6 +366,14 @@ export default function BillsList({ auth, onNavigate, onViewInvoice, onRecordPay
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredBills.length / PAGE_SIZE)}
+          totalItems={filteredBills.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+        </>
       )}
 
       {/* Create Bill Modal */}

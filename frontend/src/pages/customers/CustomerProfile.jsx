@@ -21,11 +21,18 @@ import FormField from '../../components/FormField'
 import KpiTile from '../../components/KpiTile'
 import Modal from '../../components/Modal'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import { useToast } from '../../components/Toast'
 import CustomerDeactivateModal from './CustomerDeactivateModal'
 import CustomerModal from './CustomerModal'
 import './customers.css'
+
+const formatDate = (val, options = { year: 'numeric', month: 'short', day: 'numeric' }) => {
+  if (!val) return '—'
+  const d = new Date(val)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-PK', options)
+}
 
 export default function CustomerProfile({ auth, customerId, onNavigate, onExpired }) {
   const { showToast } = useToast()
@@ -40,6 +47,12 @@ export default function CustomerProfile({ auth, customerId, onNavigate, onExpire
 
   // Tabs: 'deliveries' | 'cylinders' | 'ledger'
   const [activeTab, setActiveTab] = useState('deliveries')
+
+  // Pagination (5 items per page)
+  const PAGE_SIZE = 5
+  const [delivPage, setDelivPage] = useState(0)
+  const [cylPage, setCylPage] = useState(0)
+  const [ledgerPage, setLedgerPage] = useState(0)
 
   // Modals
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -451,50 +464,55 @@ export default function CustomerProfile({ auth, customerId, onNavigate, onExpire
               description="Deliveries completed for this customer will appear here with dates, driver notes, and swap counts."
             />
           ) : (
-            <div className="datatable-desktop">
-              <table className="datatable">
-                <thead>
-                  <tr>
-                    <th>Date & Time</th>
-                    <th>Route / Vehicle</th>
-                    <th>Driver</th>
-                    <th>Delivered</th>
-                    <th>Collected</th>
-                    <th>Interval</th>
-                    <th>Status</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deliveries.map((del) => (
-                    <tr key={del.id}>
-                      <td style={{ fontWeight: 500 }}>
-                        {new Date(del.delivered_at).toLocaleDateString('en-PK', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </td>
-                      <td>Route #{del.route_id} ({del.vehicle_no})</td>
-                      <td>{del.driver_name}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--color-success)' }}>
-                        +{del.cylinders_delivered} ({del.cylinder_type})
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>
-                        -{del.cylinders_collected} empty
-                      </td>
-                      <td>{del.interval_days ? `${del.interval_days} days` : '—'}</td>
-                      <td>
-                        <span className="badge-active" style={{ fontSize: 11 }}>
-                          ✓ {del.status}
-                        </span>
-                      </td>
-                      <td className="muted">{del.notes || '—'}</td>
+            <>
+              <div className="datatable-desktop">
+                <table className="datatable">
+                  <thead>
+                    <tr>
+                      <th>Date & Time</th>
+                      <th>Route / Vehicle</th>
+                      <th>Driver</th>
+                      <th>Delivered</th>
+                      <th>Collected</th>
+                      <th>Interval</th>
+                      <th>Status</th>
+                      <th>Notes</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {deliveries.slice(delivPage * PAGE_SIZE, (delivPage + 1) * PAGE_SIZE).map((del) => (
+                      <tr key={del.id}>
+                        <td style={{ fontWeight: 500 }}>
+                          {formatDate(del.delivered_at)}
+                        </td>
+                        <td>Route #{del.route_id} ({del.vehicle_no})</td>
+                        <td>{del.driver_name}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--color-success)' }}>
+                          +{del.cylinders_delivered} ({del.cylinder_type})
+                        </td>
+                        <td style={{ color: 'var(--text-muted)' }}>
+                          -{del.cylinders_collected} empty
+                        </td>
+                        <td>{del.interval_days ? `${del.interval_days} days` : '—'}</td>
+                        <td>
+                          <span className="badge-active" style={{ fontSize: 11 }}>
+                            ✓ {del.status || 'delivered'}
+                          </span>
+                        </td>
+                        <td className="muted">{del.notes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                currentPage={delivPage}
+                totalPages={Math.ceil(deliveries.length / PAGE_SIZE)}
+                totalItems={deliveries.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setDelivPage}
+              />
+            </>
           )}
         </div>
       )}
@@ -513,50 +531,53 @@ export default function CustomerProfile({ auth, customerId, onNavigate, onExpire
               description="No physical cylinders are currently registered to this customer account."
             />
           ) : (
-            <div className="datatable-desktop">
-              <table className="datatable">
-                <thead>
-                  <tr>
-                    <th>Serial Number</th>
-                    <th>Cylinder Type</th>
-                    <th>Delivered Date</th>
-                    <th>Days Held</th>
-                    <th>Tare Weight</th>
-                    <th>Last Safety Check</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cylinders.map((cyl) => (
-                    <tr key={cyl.id}>
-                      <td>
-                        <span className="code-badge">{cyl.serial_number}</span>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{cyl.cylinder_type}</td>
-                      <td>
-                        {new Date(cyl.delivered_at).toLocaleDateString('en-PK', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </td>
-                      <td>{cyl.days_held} days</td>
-                      <td>{cyl.tare_weight_kg} kg</td>
-                      <td>
-                        {cyl.last_inspected
-                          ? new Date(cyl.last_inspected).toLocaleDateString('en-PK')
-                          : 'Valid'}
-                      </td>
-                      <td>
-                        <span className="badge-active" style={{ fontSize: 11 }}>
-                          ● With Customer
-                        </span>
-                      </td>
+            <>
+              <div className="datatable-desktop">
+                <table className="datatable">
+                  <thead>
+                    <tr>
+                      <th>Serial Number</th>
+                      <th>Cylinder Type</th>
+                      <th>Delivered Date</th>
+                      <th>Days Held</th>
+                      <th>Tare Weight</th>
+                      <th>Last Safety Check</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {cylinders.slice(cylPage * PAGE_SIZE, (cylPage + 1) * PAGE_SIZE).map((cyl) => (
+                      <tr key={cyl.id}>
+                        <td>
+                          <span className="code-badge">{cyl.serial_number || cyl.serial_no || `GAS-CYL-${cyl.id}`}</span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{cyl.cylinder_type || customer.cylinder_type}</td>
+                        <td>
+                          {formatDate(cyl.delivered_at || cyl.created_at)}
+                        </td>
+                        <td>{cyl.days_held !== undefined ? `${cyl.days_held} days` : 'Active'}</td>
+                        <td>{cyl.tare_weight_kg ? `${cyl.tare_weight_kg} kg` : (cyl.cylinder_type === '45.4 kg' ? '44.2 kg' : '13.2 kg')}</td>
+                        <td>
+                          {cyl.last_inspected ? formatDate(cyl.last_inspected) : 'Valid'}
+                        </td>
+                        <td>
+                          <span className="badge-active" style={{ fontSize: 11 }}>
+                            ● With Customer
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                currentPage={cylPage}
+                totalPages={Math.ceil(cylinders.length / PAGE_SIZE)}
+                totalItems={cylinders.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setCylPage}
+              />
+            </>
           )}
         </div>
       )}
@@ -577,57 +598,62 @@ export default function CustomerProfile({ auth, customerId, onNavigate, onExpire
               description="Billing invoices, security deposit receipts, and payments will be displayed here."
             />
           ) : (
-            <div className="datatable-desktop">
-              <table className="datatable">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Transaction Type</th>
-                    <th>Description</th>
-                    <th style={{ textAlign: 'right' }}>Debit (PKR)</th>
-                    <th style={{ textAlign: 'right' }}>Credit (PKR)</th>
-                    <th style={{ textAlign: 'right' }}>Balance (PKR)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledger.map((entry) => (
-                    <tr key={entry.id}>
-                      <td>
-                        {new Date(entry.created_at).toLocaleDateString('en-PK', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </td>
-                      <td>
-                        <span
-                          className={
-                            entry.entry_type === 'payment'
-                              ? 'badge-active'
-                              : entry.entry_type === 'deposit'
-                              ? 'badge-domestic'
-                              : 'badge-commercial'
-                          }
-                          style={{ fontSize: 11 }}
-                        >
-                          {entry.entry_type.toUpperCase()}
-                        </span>
-                      </td>
-                      <td>{entry.description}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: entry.debit ? 'var(--color-danger)' : undefined }}>
-                        {entry.debit ? entry.debit.toLocaleString() : '—'}
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: entry.credit ? 'var(--color-success)' : undefined }}>
-                        {entry.credit ? entry.credit.toLocaleString() : '—'}
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                        {entry.balance.toLocaleString()}
-                      </td>
+            <>
+              <div className="datatable-desktop">
+                <table className="datatable">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Transaction Type</th>
+                      <th>Description</th>
+                      <th style={{ textAlign: 'right' }}>Debit (PKR)</th>
+                      <th style={{ textAlign: 'right' }}>Credit (PKR)</th>
+                      <th style={{ textAlign: 'right' }}>Balance (PKR)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {ledger.slice(ledgerPage * PAGE_SIZE, (ledgerPage + 1) * PAGE_SIZE).map((entry) => (
+                      <tr key={entry.id}>
+                        <td>
+                          {formatDate(entry.created_at)}
+                        </td>
+                        <td>
+                          <span
+                            className={
+                              entry.entry_type === 'payment'
+                                ? 'badge-active'
+                                : entry.entry_type === 'deposit'
+                                ? 'badge-domestic'
+                                : 'badge-commercial'
+                            }
+                            style={{ fontSize: 11 }}
+                          >
+                            {(entry.entry_type || 'entry').toUpperCase()}
+                          </span>
+                        </td>
+                        <td>{entry.description}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, color: entry.debit ? 'var(--color-danger)' : undefined }}>
+                          {entry.debit ? entry.debit.toLocaleString() : '—'}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, color: entry.credit ? 'var(--color-success)' : undefined }}>
+                          {entry.credit ? entry.credit.toLocaleString() : '—'}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                          {(entry.balance || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                currentPage={ledgerPage}
+                totalPages={Math.ceil(ledger.length / PAGE_SIZE)}
+                totalItems={ledger.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setLedgerPage}
+              />
+            </>
           )}
         </div>
       )}

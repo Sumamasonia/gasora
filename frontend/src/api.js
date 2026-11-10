@@ -66,7 +66,7 @@ export const updateCustomer = (token, id, data) =>
 export const deactivateCustomer = (token, id) =>
   request(`/customers/${id}`, { token, method: 'DELETE' })
 export const getCustomerCylinders = (token, customerId) =>
-  request(`/cylinders?customer_id=${customerId}`, { token })
+  request(`/customers/${customerId}/cylinders`, { token })
 export const getCustomerLedger = (token, customerId) =>
   request(`/customers/${customerId}/ledger`, { token })
 export const getCustomerDeliveries = (token, customerId) =>

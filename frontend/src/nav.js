@@ -1,26 +1,34 @@
 // Navigation definitions and role-based visibility
 export const NAV_GROUPS = [
   {
-    id: 'plan',
-    title: 'Plan',
+    id: 'overview',
+    title: 'Overview',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['owner', 'manager', 'ceo'] },
+    ],
+  },
+  {
+    id: 'dispatch-ops',
+    title: 'Dispatch & Fleet',
     items: [
       { id: 'dispatch', label: 'Dispatch & Routes', icon: '🗺️', roles: ['owner', 'manager'] },
       { id: 'demand', label: 'Demand & Risk', icon: '📈', roles: ['owner', 'manager'] },
+      { id: 'urgent', label: 'Urgent Requests', icon: '🚨', roles: ['owner', 'manager', 'customer'] },
+      { id: 'deliveries', label: 'Route Deliveries', icon: '🚚', roles: ['owner', 'manager', 'driver'] },
     ],
   },
   {
-    id: 'operate',
-    title: 'Operate',
+    id: 'customers-assets',
+    title: 'Customers & Assets',
     items: [
       { id: 'customers', label: 'Customers', icon: '👥', roles: ['owner', 'manager'] },
       { id: 'cylinders', label: 'Cylinder Register', icon: '🛢️', roles: ['owner', 'manager'] },
-      { id: 'deliveries', label: 'Deliveries', icon: '🚚', roles: ['owner', 'manager', 'driver'] },
-      { id: 'urgent', label: 'Urgent Requests', icon: '🚨', roles: ['owner', 'manager', 'customer'] },
+      { id: 'cylinders/recovery', label: 'Empty Recovery', icon: '🔄', roles: ['owner', 'manager'] },
     ],
   },
   {
-    id: 'money',
-    title: 'Money',
+    id: 'finance-inventory',
+    title: 'Finance & Stock',
     items: [
       { id: 'billing', label: 'Billing & Invoices', icon: '🧾', roles: ['owner', 'manager', 'customer'] },
       { id: 'ledger', label: 'Payments & Ledger', icon: '💳', roles: ['owner', 'manager', 'customer'] },
@@ -29,22 +37,21 @@ export const NAV_GROUPS = [
     ],
   },
   {
-    id: 'insights',
-    title: 'Insights',
+    id: 'analytics-reports',
+    title: 'Intelligence & Reports',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['owner', 'manager', 'ceo'] },
-      { id: 'reports', label: 'Reports & Export', icon: '📋', roles: ['owner', 'manager', 'ceo'] },
+      { id: 'reports', label: 'Business Reports', icon: '📋', roles: ['owner', 'manager', 'ceo'] },
       { id: 'evaluation', label: 'Route Evaluation', icon: '🔬', roles: ['owner', 'ceo'] },
     ],
   },
   {
-    id: 'admin',
-    title: 'Admin',
+    id: 'admin-tools',
+    title: 'Administration',
     items: [
-      { id: 'users', label: 'Users & Access', icon: '🔐', roles: ['owner'] },
-      { id: 'settings', label: 'Settings', icon: '⚙️', roles: ['owner', 'manager'] },
-      { id: 'audit', label: 'System Health & Audit', icon: '🛡️', roles: ['owner', 'ceo'] },
-      { id: 'assistant', label: 'AI Assistant (Demo)', icon: '🤖', roles: ['owner', 'manager', 'ceo'] },
+      { id: 'users', label: 'Users & Access', icon: '👤', roles: ['owner'] },
+      { id: 'audit', label: 'Tamper-Evident Audit', icon: '🛡️', roles: ['owner', 'ceo'] },
+      { id: 'settings', label: 'System Settings', icon: '⚙️', roles: ['owner', 'manager'] },
+      { id: 'assistant', label: 'AI Assistant', icon: '🤖', roles: ['owner', 'manager', 'ceo'] },
       { id: 'utilities', label: 'Notes & Tools', icon: '📝', roles: ['owner', 'manager', 'ceo'] },
     ],
   },
@@ -56,8 +63,15 @@ export function getNavForRole(role) {
   if (role === 'manager') {
     return [
       {
+        id: 'overview',
+        title: 'Overview',
+        items: [
+          { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['manager'] },
+        ],
+      },
+      {
         id: 'manager-ops',
-        title: 'Manager Operations',
+        title: 'Operations',
         items: [
           { id: 'sales', label: 'Sales Entry', icon: '🧾', roles: ['manager'] },
           { id: 'purchases', label: 'Purchases (Verify)', icon: '📦', roles: ['manager'] },

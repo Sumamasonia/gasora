@@ -661,24 +661,39 @@ input:disabled, select:disabled {
   width: 100%;
 }
 
+/* Leaflet Full Width & Height Rule */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  background: #e2e8f0;
+}
+
 /* Map Wrapper */
 .planner-map-wrapper {
   flex: 1;
   min-width: 0;
   height: 100%;
+  min-height: 100%;
   position: relative;
   background: #e5e7eb;
+  display: flex;
 }
 
 .routific-map-container {
   width: 100%;
   height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex: 1;
   position: relative;
 }
 
 .routific-map-container .map {
   width: 100% !important;
   height: 100% !important;
+  min-height: 100% !important;
+  flex: 1;
 }
 
 /* Custom Routific Numbered Map Pins */

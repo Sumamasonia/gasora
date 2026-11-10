@@ -12,6 +12,7 @@ import {
 import { getExpenses, getFuelEstimate } from '../../api'
 import EmptyState from '../../components/EmptyState'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import AddExpenseModal from './AddExpenseModal'
 import './expenses.css'
@@ -37,6 +38,14 @@ export default function ExpensesPage({ auth, onNavigate, onExpired }) {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedMonth, setSelectedMonth] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [selectedCategory, selectedMonth, searchQuery])
 
   // Modal
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -423,6 +432,7 @@ export default function ExpensesPage({ auth, onNavigate, onExpired }) {
           }
         />
       ) : (
+        <>
         <div className="datatable-desktop">
           <table className="datatable">
             <thead>
@@ -436,7 +446,7 @@ export default function ExpensesPage({ auth, onNavigate, onExpired }) {
               </tr>
             </thead>
             <tbody>
-              {filteredExpenses.map((exp) => (
+              {filteredExpenses.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((exp) => (
                 <tr key={exp.id}>
                   <td style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
                     {exp.date}
@@ -474,6 +484,14 @@ export default function ExpensesPage({ auth, onNavigate, onExpired }) {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredExpenses.length / PAGE_SIZE)}
+          totalItems={filteredExpenses.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+        </>
       )}
 
       {/* Add Expense Modal */}

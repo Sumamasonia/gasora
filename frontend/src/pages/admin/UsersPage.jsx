@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError, createUser, getUsers, updateUser } from '../../api'
 import Modal from '../../components/Modal'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import { getDefaultPermissions, SYSTEM_MODULES } from '../../lib/permissions'
 import './admin.css'
@@ -15,6 +16,14 @@ export default function UsersPage({ auth, onNavigate, onExpired }) {
   // Filters
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [search, roleFilter])
 
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -326,6 +335,7 @@ export default function UsersPage({ auth, onNavigate, onExpired }) {
             <Spinner size="lg" message="Loading users & access list..." />
           </div>
         ) : (
+          <>
           <table className="admin-table">
             <thead>
               <tr>
@@ -345,7 +355,7 @@ export default function UsersPage({ auth, onNavigate, onExpired }) {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => {
+                filteredUsers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((u) => {
                   const isActive = u.is_active !== false
                   return (
                     <tr key={u.id}>
@@ -415,6 +425,14 @@ export default function UsersPage({ auth, onNavigate, onExpired }) {
               )}
             </tbody>
           </table>
+          <Pagination
+            currentPage={page}
+            totalPages={Math.ceil(filteredUsers.length / PAGE_SIZE)}
+            totalItems={filteredUsers.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+          </>
         )}
       </div>
 

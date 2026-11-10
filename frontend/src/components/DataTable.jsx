@@ -12,7 +12,7 @@ export default function DataTable({
   onRowClick,
   rowClassName,
   pagination = true,
-  pageSize: initialPageSize = 12,
+  pageSize: initialPageSize = 5,
 }) {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState(null)

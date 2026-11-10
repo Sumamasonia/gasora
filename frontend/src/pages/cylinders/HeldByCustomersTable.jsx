@@ -317,6 +317,7 @@ export default function HeldByCustomersTable({
         columns={columns}
         data={filteredList}
         searchable={false}
+        pageSize={5}
         onRowClick={(row) => onNavigate && onNavigate(`customers/${row.customer_id}`)}
         emptyTitle="No customers currently hold cylinders"
         emptyDescription="All delivered cylinders have been returned to the depot or none match your search."

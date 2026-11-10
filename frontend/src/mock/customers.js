@@ -3,6 +3,19 @@ import { requireAuth } from './auth.js'
 import { computeCustomerLedgerWithBalances } from './billing.js'
 import { getDb, nextId, recordEvent, saveDb } from './db.js'
 
+// Helper to robustly find customer by ID (number, string, or code)
+function findCustomer(customers, id) {
+  if (id === null || id === undefined || !customers) return null
+  const strId = String(id).trim()
+  const numId = Number(strId)
+  return customers.find(
+    (c) =>
+      (!isNaN(numId) && c.id === numId) ||
+      String(c.id) === strId ||
+      (c.code && c.code.toLowerCase() === strId.toLowerCase())
+  )
+}
+
 // Handle GET /customers (returns all customers with is_active)
 export function handleGetCustomers(token) {
   requireAuth(token, ['owner', 'manager'])
@@ -14,7 +27,7 @@ export function handleGetCustomers(token) {
 export function handleGetCustomer(token, id) {
   requireAuth(token, ['owner', 'manager'])
   const db = getDb()
-  const customer = (db.customers || []).find((c) => c.id === Number(id))
+  const customer = findCustomer(db.customers, id)
   if (!customer) {
     throw new ApiError(404, 'Customer not found')
   }
@@ -67,7 +80,7 @@ export function handleUpdateCustomer(token, id, body) {
   }
 
   const db = getDb()
-  const customer = (db.customers || []).find((c) => c.id === Number(id))
+  const customer = findCustomer(db.customers, id)
   if (!customer) {
     throw new ApiError(404, 'Customer not found')
   }
@@ -124,7 +137,7 @@ export function handleUpdateCustomer(token, id, body) {
 export function handleDeleteCustomer(token, id) {
   const user = requireAuth(token, ['owner'])
   const db = getDb()
-  const customer = (db.customers || []).find((c) => c.id === Number(id))
+  const customer = findCustomer(db.customers, id)
   if (!customer) {
     throw new ApiError(404, 'Customer not found')
   }
@@ -147,18 +160,40 @@ export function handleDeleteCustomer(token, id) {
 export function handleGetCustomerCylinders(token, customerId) {
   requireAuth(token)
   const db = getDb()
-  const customer = (db.customers || []).find((c) => c.id === Number(customerId))
+  const customer = findCustomer(db.customers, customerId)
   if (!customer) throw new ApiError(404, 'Customer not found')
+
+  const realHeld = (db.cylinders || []).filter(
+    (c) => c.customer_id === customer.id || String(c.customer_id) === String(customer.id)
+  )
+
+  if (realHeld.length > 0) {
+    return realHeld.map((cyl, i) => ({
+      id: cyl.id,
+      serial_number: cyl.serial_no || `GAS-CYL-${cyl.id}`,
+      serial_no: cyl.serial_no || `GAS-CYL-${cyl.id}`,
+      customer_id: customer.id,
+      customer_name: customer.name,
+      cylinder_type: cyl.cylinder_type || customer.cylinder_type,
+      status: 'with_customer',
+      delivered_at: cyl.created_at || new Date(Date.now() - (i * 3 + 2) * 86400000).toISOString(),
+      days_held: Math.max(1, Math.floor((Date.now() - new Date(cyl.created_at || Date.now()).getTime()) / 86400000)),
+      tare_weight_kg: cyl.cylinder_type === '45.4 kg' ? 44.2 : cyl.cylinder_type === '15 kg' ? 16.5 : 13.2,
+      last_inspected: '2025-11-15T00:00:00Z',
+    }))
+  }
 
   const count = Math.max(1, customer.demand || 1)
   const cylinders = []
   for (let i = 1; i <= count; i++) {
+    const sNo = `GAS-${(customer.cylinder_type || '11.8 kg').replace(/[^0-9]/g, '') || '11'}-${String(customer.id).padStart(3, '0')}${i}`
     cylinders.push({
-      id: Number(customerId) * 100 + i,
-      serial_number: `GAS-${customer.cylinder_type.replace(/[^0-9]/g, '') || '11'}-${String(customerId).padStart(3, '0')}${i}`,
-      customer_id: Number(customerId),
+      id: customer.id * 100 + i,
+      serial_number: sNo,
+      serial_no: sNo,
+      customer_id: customer.id,
       customer_name: customer.name,
-      cylinder_type: customer.cylinder_type,
+      cylinder_type: customer.cylinder_type || '11.8 kg',
       status: 'with_customer',
       delivered_at: new Date(Date.now() - (i * 3 + 2) * 86400000).toISOString(),
       days_held: i * 3 + 2,
@@ -173,10 +208,10 @@ export function handleGetCustomerCylinders(token, customerId) {
 export function handleGetCustomerLedger(token, customerId) {
   requireAuth(token)
   const db = getDb()
-  const customer = (db.customers || []).find((c) => c.id === Number(customerId))
+  const customer = findCustomer(db.customers, customerId)
   if (!customer) throw new ApiError(404, 'Customer not found')
 
-  const entries = computeCustomerLedgerWithBalances(customerId)
+  const entries = computeCustomerLedgerWithBalances(customer.id)
   if (entries.length > 0) {
     return entries
   }
@@ -184,7 +219,7 @@ export function handleGetCustomerLedger(token, customerId) {
   return [
     {
       id: 1,
-      customer_id: Number(customerId),
+      customer_id: customer.id,
       entry_type: 'deposit',
       description: `Security deposit held for ${customer.cylinder_type} cylinders`,
       debit: 0,
@@ -199,14 +234,14 @@ export function handleGetCustomerLedger(token, customerId) {
 export function handleGetCustomerDeliveries(token, customerId) {
   requireAuth(token)
   const db = getDb()
-  const customer = (db.customers || []).find((c) => c.id === Number(customerId))
+  const customer = findCustomer(db.customers, customerId)
   if (!customer) throw new ApiError(404, 'Customer not found')
 
   const qty = customer.demand || 1
   return [
     {
-      id: Number(customerId) * 10 + 1,
-      customer_id: Number(customerId),
+      id: customer.id * 10 + 1,
+      customer_id: customer.id,
       route_id: 101,
       driver_name: 'Muhammad Tariq',
       vehicle_no: 'FD-8921',

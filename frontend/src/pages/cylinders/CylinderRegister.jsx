@@ -433,6 +433,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, r
             columns={columns}
             data={filteredCylinders}
             searchable={false}
+            pageSize={5}
             onRowClick={handleSelectCylinder}
             emptyTitle="No cylinders match your filter criteria"
             emptyDescription="Try clearing your search query or adjusting your filters."

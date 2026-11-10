@@ -3,6 +3,7 @@ import { getBills, getCustomers, getLedger, getPayments, recordPayment } from '.
 import EmptyState from '../../components/EmptyState'
 import NotReady from '../../components/NotReady'
 import Modal from '../../components/Modal'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 
@@ -16,6 +17,14 @@ export default function PaymentsPage({ auth, onNavigate, initialBill = null, onE
   // Filter
   const [searchQuery, setSearchQuery] = useState('')
   const [methodFilter, setMethodFilter] = useState('all')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [searchQuery, methodFilter])
 
   // Record Payment Modal State
   const [modalOpen, setModalOpen] = useState(Boolean(initialBill))
@@ -336,6 +345,7 @@ export default function PaymentsPage({ auth, onNavigate, initialBill = null, onE
           }
         />
       ) : (
+        <>
         <div className="datatable-desktop">
           <table className="datatable">
             <thead>
@@ -352,7 +362,7 @@ export default function PaymentsPage({ auth, onNavigate, initialBill = null, onE
               </tr>
             </thead>
             <tbody>
-              {filteredPayments.map((p) => (
+              {filteredPayments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((p) => (
                 <tr key={p.id}>
                   <td>
                     <span className="code-badge" style={{ fontWeight: 700 }}>
@@ -423,6 +433,14 @@ export default function PaymentsPage({ auth, onNavigate, initialBill = null, onE
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredPayments.length / PAGE_SIZE)}
+          totalItems={filteredPayments.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+        </>
       )}
 
       {/* Record Payment Modal */}

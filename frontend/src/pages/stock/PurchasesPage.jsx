@@ -3,6 +3,7 @@ import { getPurchases, updatePurchase, verifyPurchase } from '../../api'
 import EmptyState from '../../components/EmptyState'
 import NotReady from '../../components/NotReady'
 import Modal from '../../components/Modal'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import AddPurchaseModal from './AddPurchaseModal'
 import './stock.css'
@@ -17,6 +18,14 @@ export default function PurchasesPage({ auth, onNavigate, onExpired }) {
   const [typeFilter, setTypeFilter] = useState('all')
   const [verifiedFilter, setVerifiedFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [searchQuery, typeFilter, verifiedFilter, monthFilter])
 
   // Modals
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -272,6 +281,7 @@ export default function PurchasesPage({ auth, onNavigate, onExpired }) {
           }
         />
       ) : (
+        <>
         <div className="datatable-desktop">
           <table className="datatable">
             <thead>
@@ -288,7 +298,7 @@ export default function PurchasesPage({ auth, onNavigate, onExpired }) {
               </tr>
             </thead>
             <tbody>
-              {filteredPurchases.map((p) => (
+              {filteredPurchases.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((p) => (
                 <tr key={p.id}>
                   <td>
                     <span className="code-badge" style={{ fontWeight: 700 }}>
@@ -365,6 +375,14 @@ export default function PurchasesPage({ auth, onNavigate, onExpired }) {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredPurchases.length / PAGE_SIZE)}
+          totalItems={filteredPurchases.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+        </>
       )}
 
       {/* Add Purchase Modal */}

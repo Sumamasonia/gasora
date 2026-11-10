@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getLoans } from '../../api'
 import EmptyState from '../../components/EmptyState'
 import NotReady from '../../components/NotReady'
+import Pagination from '../../components/Pagination'
 import Spinner from '../../components/Spinner'
 import './billing.css'
 import CustomerStatementModal from './CustomerStatementModal'
@@ -16,6 +17,14 @@ export default function LoansPage({ auth, onNavigate, onRecordPayment, onExpired
   const [typeFilter, setTypeFilter] = useState('all')
   const [ageingFilter, setAgeingFilter] = useState('all')
   const [areaFilter, setAreaFilter] = useState('all')
+
+  // Pagination (5 items per page)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 5
+
+  useEffect(() => {
+    setPage(0)
+  }, [searchQuery, typeFilter, ageingFilter, areaFilter])
 
   // Selected customer for balance statement modal
   const [statementCustomerId, setStatementCustomerId] = useState(null)
@@ -212,6 +221,7 @@ export default function LoansPage({ auth, onNavigate, onRecordPayment, onExpired
           description="All customers matching your filter criteria are fully settled or in credit."
         />
       ) : (
+        <>
         <div className="datatable-desktop">
           <table className="datatable">
             <thead>
@@ -228,7 +238,7 @@ export default function LoansPage({ auth, onNavigate, onRecordPayment, onExpired
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((c) => {
+              {filteredCustomers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c) => {
                 const cleanPhone = (c.phone || '').replace(/[^0-9]/g, '')
                 const waPhone = cleanPhone.startsWith('0') ? `92${cleanPhone.slice(1)}` : cleanPhone
 
@@ -346,6 +356,14 @@ export default function LoansPage({ auth, onNavigate, onRecordPayment, onExpired
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(filteredCustomers.length / PAGE_SIZE)}
+          totalItems={filteredCustomers.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+        </>
       )}
 
       {/* Customer Balance Statement Modal */}
