@@ -53,34 +53,38 @@ function LoginForm({ onLogin, error, busy }) {
       <div className="login-header">
         <div className="login-logo" aria-hidden="true">🔥</div>
         <h1>Gasora</h1>
-        <p className="muted">LPG Distribution & Delivery Intelligence</p>
+        <p className="login-subtitle">LPG Distribution &amp; Delivery Intelligence</p>
       </div>
 
-      <div className="card">
+      <div className="login-card">
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label>
-            Username
+          <div className="login-form-field">
+            <label htmlFor="login-username">Username</label>
             <input
+              id="login-username"
               type="text"
+              placeholder="e.g. owner, manager1, driver1"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoFocus
               required
             />
-          </label>
+          </div>
 
-          <label>
-            Password
+          <div className="login-form-field">
+            <label htmlFor="login-password">Password</label>
             <input
+              id="login-password"
               type="password"
+              placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-          </label>
+          </div>
 
-          <button type="submit" disabled={busy}>
-            {busy ? 'Signing in...' : 'Sign in'}
+          <button type="submit" className="login-submit-btn" disabled={busy}>
+            {busy ? 'Signing in...' : 'Sign in to Gasora'}
           </button>
         </form>
 
@@ -90,7 +94,7 @@ function LoginForm({ onLogin, error, busy }) {
       {USE_MOCK && (
         <div className="demo-accounts-card">
           <div className="demo-accounts-header">
-            <span className="demo-badge">⚡ Demo Accounts</span>
+            <span className="demo-badge-wrap">⚡ Quick Demo Profiles</span>
             <span className="muted" style={{ fontSize: 12 }}>Click to autofill</span>
           </div>
           <div className="demo-accounts-grid">
@@ -104,7 +108,10 @@ function LoginForm({ onLogin, error, busy }) {
                   setPassword(acc.password)
                 }}
               >
-                <span className="demo-account-role">{acc.role}</span>
+                <span className="demo-account-role">
+                  <span>{acc.role === 'Owner' ? '👑' : acc.role === 'Driver' ? '🚚' : acc.role === 'Manager' ? '📋' : acc.role === 'Customer' ? '🏠' : '💼'}</span>
+                  <span>{acc.role}</span>
+                </span>
                 <span className="demo-account-cred">{acc.username} / {acc.password}</span>
               </button>
             ))}

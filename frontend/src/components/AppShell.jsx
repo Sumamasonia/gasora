@@ -32,7 +32,18 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
   // Find label for current route
   let currentTitle = 'Dashboard'
   for (const group of navGroups) {
-    const item = group.items.find((i) => i.id === activeRoute || (i.id === 'sales' && (activeRoute === 'sales' || activeRoute.startsWith('billing/sale'))) || (i.id === 'purchases' && (activeRoute === 'purchases' || activeRoute.startsWith('stock/purchases'))) || (i.id === 'customers' && activeRoute.startsWith('customers')) || (i.id === 'cylinders' && activeRoute.startsWith('cylinders')) || (i.id === 'billing' && activeRoute.startsWith('billing')) || (i.id === 'ledger' && activeRoute.startsWith('ledger')) || (i.id === 'stock' && activeRoute.startsWith('stock')) || (i.id === 'expenses' && activeRoute.startsWith('expenses')))
+    const item = group.items.find(
+      (i) =>
+        i.id === activeRoute ||
+        (i.id === 'sales' && (activeRoute === 'sales' || activeRoute.startsWith('billing/sale'))) ||
+        (i.id === 'purchases' && (activeRoute === 'purchases' || activeRoute.startsWith('stock/purchases'))) ||
+        (i.id === 'customers' && activeRoute.startsWith('customers')) ||
+        (i.id === 'cylinders' && activeRoute.startsWith('cylinders')) ||
+        (i.id === 'billing' && activeRoute.startsWith('billing')) ||
+        (i.id === 'ledger' && activeRoute.startsWith('ledger')) ||
+        (i.id === 'stock' && activeRoute.startsWith('stock')) ||
+        (i.id === 'expenses' && activeRoute.startsWith('expenses'))
+    )
     if (item) {
       currentTitle = item.label
       break
@@ -53,8 +64,11 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
       {/* Left Sidebar */}
       <aside className={`shell-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-brand">
-          <span className="brand-icon">🔥</span>
-          <span className="brand-title">Gasora Dispatch</span>
+          <div className="brand-icon-box" aria-hidden="true">🔥</div>
+          <div className="brand-text-col">
+            <span className="brand-title">Gasora</span>
+            <span className="brand-subtitle">LPG Intelligence</span>
+          </div>
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
@@ -63,7 +77,16 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
               <div className="nav-group-title">{group.title}</div>
               <div className="nav-group-items">
                 {group.items.map((item) => {
-                  const isActive = activeRoute === item.id || (item.id === 'sales' && (activeRoute === 'sales' || activeRoute.startsWith('billing/sale'))) || (item.id === 'purchases' && (activeRoute === 'purchases' || activeRoute.startsWith('stock/purchases'))) || (item.id === 'customers' && activeRoute.startsWith('customers')) || (item.id === 'cylinders' && activeRoute.startsWith('cylinders')) || (item.id === 'billing' && activeRoute.startsWith('billing')) || (item.id === 'ledger' && activeRoute.startsWith('ledger')) || (item.id === 'stock' && activeRoute.startsWith('stock')) || (item.id === 'expenses' && activeRoute.startsWith('expenses'))
+                  const isActive =
+                    activeRoute === item.id ||
+                    (item.id === 'sales' && (activeRoute === 'sales' || activeRoute.startsWith('billing/sale'))) ||
+                    (item.id === 'purchases' && (activeRoute === 'purchases' || activeRoute.startsWith('stock/purchases'))) ||
+                    (item.id === 'customers' && activeRoute.startsWith('customers')) ||
+                    (item.id === 'cylinders' && activeRoute.startsWith('cylinders')) ||
+                    (item.id === 'billing' && activeRoute.startsWith('billing')) ||
+                    (item.id === 'ledger' && activeRoute.startsWith('ledger')) ||
+                    (item.id === 'stock' && activeRoute.startsWith('stock')) ||
+                    (item.id === 'expenses' && activeRoute.startsWith('expenses'))
                   return (
                     <button
                       key={item.id}
@@ -110,13 +133,21 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
             >
               ☰
             </button>
-            <h1 className="page-title">{currentTitle}</h1>
+            <div className="breadcrumbs">
+              <span className="breadcrumb-root">Gasora</span>
+              <span className="breadcrumb-sep">/</span>
+              <h1 className="page-title">{currentTitle}</h1>
+            </div>
           </div>
 
           <div className="top-bar-right">
-            {USE_MOCK && (
+            {USE_MOCK ? (
               <span className="demo-badge" title="Running against client-side mock database">
-                ⚡ Demo data
+                ⚡ Demo Mode
+              </span>
+            ) : (
+              <span className="live-api-badge" title="Connected to FastAPI backend">
+                🟢 Live Engine
               </span>
             )}
 
@@ -132,12 +163,18 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
             </button>
 
             <div className="user-menu">
-              <span className="muted" style={{ fontWeight: 500 }}>{auth?.username}</span>
-              <span className="user-role-badge">{auth?.role}</span>
+              <div className="user-avatar" title={auth?.username || 'User'}>
+                {auth?.username ? auth.username.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="user-info-text">
+                <span className="user-name">{auth?.username}</span>
+                <span className="user-role-badge">{auth?.role}</span>
+              </div>
               <button
                 type="button"
                 className="signout-btn"
                 onClick={onSignOut}
+                title="Sign out of Gasora"
               >
                 Sign out
               </button>

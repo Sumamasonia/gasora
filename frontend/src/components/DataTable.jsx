@@ -11,10 +11,14 @@ export default function DataTable({
   emptyDescription = 'There are no items to display right now.',
   onRowClick,
   rowClassName,
+  pagination = true,
+  pageSize: initialPageSize = 12,
 }) {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState(null)
   const [sortAsc, setSortAsc] = useState(true)
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(initialPageSize)
 
   // Filter rows based on query
   const filtered = useMemo(() => {
@@ -42,6 +46,19 @@ export default function DataTable({
     })
   }, [filtered, sortKey, sortAsc])
 
+  // Reset page when search or data length changes
+  useEffect(() => {
+    setPage(0)
+  }, [query, data.length])
+
+  // Paginated slice
+  const totalPages = Math.ceil(sorted.length / pageSize) || 1
+  const paginatedRows = useMemo(() => {
+    if (!pagination) return sorted
+    const start = page * pageSize
+    return sorted.slice(start, start + pageSize)
+  }, [sorted, pagination, page, pageSize])
+
   const handleSort = (key) => {
     if (sortKey === key) {
       setSortAsc(!sortAsc)
@@ -51,21 +68,29 @@ export default function DataTable({
     }
   }
 
+  const startIdx = sorted.length === 0 ? 0 : page * pageSize + 1
+  const endIdx = Math.min((page + 1) * pageSize, sorted.length)
+
   return (
     <div className="datatable-wrap">
       {searchable && (
         <div className="datatable-toolbar">
-          <input
-            type="search"
-            className="datatable-search"
-            placeholder={searchPlaceholder}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Filter rows"
-          />
-          <span className="datatable-count muted">
-            Showing {sorted.length} of {data.length}
-          </span>
+          <div className="datatable-search-wrapper">
+            <span className="search-icon" aria-hidden="true">🔍</span>
+            <input
+              type="search"
+              className="datatable-search"
+              placeholder={searchPlaceholder}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Filter rows"
+            />
+          </div>
+          <div className="datatable-toolbar-meta">
+            <span className="datatable-count muted">
+              Showing <strong>{sorted.length}</strong> of {data.length} records
+            </span>
+          </div>
         </div>
       )}
 
@@ -73,7 +98,7 @@ export default function DataTable({
         <EmptyState
           title={query ? 'No matching results' : emptyTitle}
           description={query ? `No records matched "${query}". Try clearing the search.` : emptyDescription}
-          action={query && <button className="secondary" onClick={() => setQuery('')}>Clear filter</button>}
+          action={query && <button type="button" className="secondary" onClick={() => setQuery('')}>Clear filter</button>}
         />
       ) : (
         <>
@@ -106,7 +131,7 @@ export default function DataTable({
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row) => {
+                {paginatedRows.map((row) => {
                   const extraClass = rowClassName ? rowClassName(row) : ''
                   return (
                     <tr
@@ -128,7 +153,7 @@ export default function DataTable({
 
           {/* Mobile Card Stack (< 720px) */}
           <div className="datatable-mobile">
-            {sorted.map((row) => {
+            {paginatedRows.map((row) => {
               const extraClass = rowClassName ? rowClassName(row) : ''
               return (
                 <div
@@ -148,6 +173,55 @@ export default function DataTable({
               )
             })}
           </div>
+
+          {/* Pagination Bar */}
+          {pagination && totalPages > 1 && (
+            <div className="datatable-pagination">
+              <span className="pagination-info muted">
+                Showing {startIdx}–{endIdx} of {sorted.length}
+              </span>
+              <div className="pagination-controls">
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => setPage((p) => Math.max(p - 1, 0))}
+                  disabled={page === 0}
+                  aria-label="Previous page"
+                >
+                  &larr; Prev
+                </button>
+                <div className="pagination-pages">
+                  {Array.from({ length: totalPages }, (_, i) => i)
+                    .filter((p) => p === 0 || p === totalPages - 1 || Math.abs(p - page) <= 1)
+                    .map((p, idx, arr) => {
+                      const prev = arr[idx - 1]
+                      const showEllipsis = prev !== undefined && p - prev > 1
+                      return (
+                        <span key={p} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          {showEllipsis && <span className="pagination-ellipsis">&hellip;</span>}
+                          <button
+                            type="button"
+                            className={`pagination-page-btn ${page === p ? 'active' : ''}`}
+                            onClick={() => setPage(p)}
+                          >
+                            {p + 1}
+                          </button>
+                        </span>
+                      )
+                    })}
+                </div>
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => setPage((p) => Math.min(p + 1, totalPages - 1))}
+                  disabled={page >= totalPages - 1}
+                  aria-label="Next page"
+                >
+                  Next &rarr;
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

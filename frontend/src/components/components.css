@@ -129,9 +129,41 @@
   flex-wrap: wrap;
 }
 
-.datatable-search {
+.datatable-search-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 4px 12px;
   max-width: 320px;
   width: 100%;
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.datatable-search-wrapper:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+}
+
+.datatable-search-wrapper .search-icon {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.datatable-search {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 13px;
+  box-shadow: none !important;
+}
+
+.datatable-count {
+  font-size: 12px;
 }
 
 .datatable-desktop {
@@ -147,17 +179,23 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .datatable th {
-  background: var(--bg-subtle);
+  background: #f8fafc;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-subtle);
   white-space: nowrap;
   user-select: none;
+}
+[data-theme='dark'] .datatable th {
+  background: #0f172a;
 }
 
 .datatable th.sortable {
@@ -179,18 +217,110 @@
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
+  vertical-align: middle;
 }
 
 .datatable tbody tr:last-child td {
   border-bottom: none;
 }
 
+.datatable tbody tr {
+  transition: background-color 0.1s ease;
+}
+
 .datatable tbody tr:hover {
-  background: var(--bg-subtle);
+  background: #f8fafc;
+}
+[data-theme='dark'] .datatable tbody tr:hover {
+  background: #1e293b;
 }
 
 .clickable-row {
   cursor: pointer;
+}
+
+/* Pagination Bar */
+.datatable-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pagination-btn {
+  padding: 4px 10px;
+  min-height: 28px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+.pagination-btn:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  transform: none;
+}
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pagination-page-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+.pagination-page-btn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  transform: none;
+}
+.pagination-page-btn.active {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.pagination-ellipsis {
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 /* Mobile Stacked Cards (< 720px) */

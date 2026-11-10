@@ -1,9 +1,9 @@
 import { ApiError } from '../api.js'
-import { getDefaultPermissions } from '../lib/permissions.js'
+import { getDefaultPermissions, SYSTEM_MODULES } from '../lib/permissions.js'
 import { requireAuth } from './auth.js'
 import { getDb, nextId, recordEvent, saveDb } from './db.js'
 
-export { getDefaultPermissions }
+export { getDefaultPermissions, SYSTEM_MODULES }
 
 // Handle GET /users
 export function handleGetUsers(token) {
