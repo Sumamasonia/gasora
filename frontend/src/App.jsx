@@ -186,8 +186,8 @@ export default function App() {
       activeRoute={route}
       onNavigate={navigate}
     >
-      {route === 'dispatch' ? (
-        <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} />
+      {route === 'dispatch' || route === 'demand' || route === 'deliveries' || route === 'urgent' ? (
+        <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} initialSection={route} />
       ) : route === 'customers' ? (
         <CustomerList auth={auth} onNavigate={navigate} onExpired={expired} />
       ) : route.startsWith('customers/') ? (

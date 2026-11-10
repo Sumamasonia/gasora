@@ -87,7 +87,7 @@ function PlanPanel({ plan, published, selectedCustomerId, onSelectCustomer }) {
   )
 }
 
-export default function OwnerView({ auth, onSignOut, onExpired }) {
+export default function OwnerView({ auth, onSignOut, onExpired, initialSection = 'dispatch' }) {
   const [plan, setPlan] = useState(null)
   const [coords, setCoords] = useState({})
   const [routes, setRoutes] = useState([])
@@ -127,6 +127,22 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
   }, [auth.token, seconds])
 
   useEffect(() => { guard(loadAll) }, [guard, loadAll])
+
+  useEffect(() => {
+    if (!initialSection || initialSection === 'dispatch') return
+    const idMap = {
+      demand: 'risk-list-section',
+      urgent: 'urgent-form-section',
+      deliveries: 'published-routes-section',
+    }
+    const targetId = idMap[initialSection]
+    if (targetId) {
+      setTimeout(() => {
+        const el = document.getElementById(targetId)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 150)
+    }
+  }, [initialSection])
 
   // Live progress polling: while routes are published, poll GET /routes every 15s (stop when tab hidden)
   useEffect(() => {
@@ -210,6 +226,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
         <main className="planner-layout">
           {/* Left Column: Route and Stop list on the left */}
           <aside className="panel planner-sidebar">
+            <div id="published-routes-section">
             <PublishedRoutes
               routes={routes}
               drivers={drivers}
@@ -219,17 +236,22 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
               onAssign={(id, name) => guard(async () => { await assignRoute(auth.token, id, name); await loadAll() })}
               onPublish={() => guard(async () => { await publishPlan(auth.token, seconds); await loadAll() })}
             />
+            </div>
+            <div id="urgent-form-section">
             <UrgentForm
               customers={coords}
               openUrgent={openUrgent}
               busy={busy}
               onCreate={(id, note) => guard(async () => { await createUrgent(auth.token, id, note); await loadAll() })}
             />
+            </div>
+            <div id="risk-list-section">
             <RiskList
               riskTable={plan.risk_table}
               selectedCustomerId={selectedCustomerId}
               onSelectCustomer={setSelectedCustomerId}
             />
+            </div>
             <PlanPanel
               plan={plan}
               published={routes.length > 0}
