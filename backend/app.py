@@ -116,6 +116,8 @@ class DeliveryIn(BaseModel):
     customer_id: int
     cylinders: int = Field(default=1, ge=1, le=10)
     empties_collected: Optional[int] = Field(default=None, ge=0, le=20)   # default: as many as delivered
+    serials_delivered: Optional[list[str]] = Field(default=None, max_length=20)    # all or none
+    serials_collected: Optional[list[str]] = Field(default=None, max_length=20)
     delivered_on: Optional[date] = None          # default: today
 
 
@@ -146,6 +148,8 @@ class AssignIn(BaseModel):
 class DeliverIn(BaseModel):
     cylinders: Optional[int] = Field(default=None, ge=1, le=10)
     empties_collected: Optional[int] = Field(default=None, ge=0, le=20)
+    serials_delivered: Optional[list[str]] = Field(default=None, max_length=20)    # all or none
+    serials_collected: Optional[list[str]] = Field(default=None, max_length=20)
 
 
 class AdjustEmptiesIn(BaseModel):
@@ -230,6 +234,22 @@ def create_customer(body: CustomerIn, request: Request, session: Session = Depen
     session.flush()
     eventlog.append(request.app.state.events, me.username, "customer.created",
                     {"customer_id": c.id, "name": c.name})
+    session.commit()
+    return c
+
+
+@router.put("/customers/{customer_id}", response_model=CustomerOut)
+def update_customer(customer_id: int, body: CustomerIn, request: Request, session: Session = Depends(get_session),
+                    me: User = Depends(require("owner"))):
+    c = session.get(Customer, customer_id)
+    if c is None:
+        raise HTTPException(404, "customer not found")
+    changed = {k: v for k, v in body.model_dump().items() if getattr(c, k) != v}
+    for k, v in changed.items():
+        setattr(c, k, v)
+    # only the names of the changed fields go into the log, not the personal details themselves
+    eventlog.append(request.app.state.events, me.username, "customer.updated",
+                    {"customer_id": c.id, "changed": sorted(changed)})
     session.commit()
     return c
 
@@ -319,9 +339,12 @@ def create_delivery(body: DeliveryIn, request: Request, session: Session = Depen
         raise HTTPException(400, "delivery date is in the future")
     try:
         d = services.record_delivery(session, request.app.state.events, me.username,
-                                     body.customer_id, day, body.cylinders, body.empties_collected)
-    except LookupError:
-        raise HTTPException(404, "customer not found")
+                                     body.customer_id, day, body.cylinders, body.empties_collected,
+                                     body.serials_delivered, body.serials_collected)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(409, str(e))
     session.commit()
     return d
 
@@ -345,6 +368,11 @@ def plan_today(request: Request, day: Optional[date] = None, seconds: float = Qu
 def paths(body: PathsIn, request: Request, session: Session = Depends(get_session),
           me: User = Depends(require("owner", "driver"))):
     return {"paths": services.route_paths(session, request.app.state.router, body.routes)}
+
+
+@router.get("/audit/events")
+def audit_events(request: Request, limit: int = Query(50, ge=1, le=500), me: User = Depends(require("owner"))):
+    return eventlog.recent(request.app.state.events, limit)
 
 
 @router.get("/audit/verify")
@@ -411,10 +439,11 @@ def my_routes(session: Session = Depends(get_session), me: User = Depends(requir
     return services.routes_view(session, date.today(), driver_id=me.id)
 
 
-def _stop_action(stop_id, action, request, session, me, cylinders=None, reason=None, empties_collected=None):
+def _stop_action(stop_id, action, request, session, me, cylinders=None, reason=None, empties_collected=None,
+                 serials_delivered=None, serials_collected=None):
     try:
         services.complete_stop(session, request.app.state.events, me, stop_id, action, cylinders, reason,
-                               empties_collected)
+                               empties_collected, serials_delivered, serials_collected)
     except LookupError as e:
         raise HTTPException(404, str(e))
     except PermissionError as e:
@@ -447,7 +476,8 @@ def empties_adjust(body: AdjustEmptiesIn, request: Request, session: Session = D
 def deliver_stop(stop_id: int, body: DeliverIn, request: Request, session: Session = Depends(get_session),
                  me: User = Depends(require("owner", "driver"))):
     return _stop_action(stop_id, "deliver", request, session, me, cylinders=body.cylinders,
-                        empties_collected=body.empties_collected)
+                        empties_collected=body.empties_collected, serials_delivered=body.serials_delivered,
+                        serials_collected=body.serials_collected)
 
 
 @router.post("/route-stops/{stop_id}/skip")

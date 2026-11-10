@@ -4,6 +4,7 @@
   python -m backend.manage create-driver NAME     ask for a password, make a driver account
   python -m backend.manage seed-demo              fill an empty database with fake customers
   python -m backend.manage warm-roads             compute road times for all customers (once)
+  python -m backend.manage tamper-demo            show how the event log detects changes (for demonstrations)
 """
 import sys
 from datetime import date, timedelta
@@ -65,6 +66,38 @@ def seed_demo(app, n=60, seed=1):
     print("Demo logins: owner /", DEMO_OWNER[1], "  driver1 /", DEMO_DRIVER[1])
 
 
+def tamper_demo():
+    """A live demonstration of the event log's tamper detection on a throw-away in-memory log."""
+    def fresh():
+        conn = eventlog.connect(":memory:")
+        for i, (who, what) in enumerate([("owner", "customer.created"), ("driver1", "delivery.recorded"),
+                                         ("driver1", "empties.recorded"), ("owner", "route.assigned"),
+                                         ("driver1", "delivery.recorded")], start=1):
+            eventlog.append(conn, who, what, {"step": i, "cylinders": i}, ts=f"2026-01-0{i}T10:00:00+00:00")
+        return conn
+
+    print("A. Changing an old event")
+    conn = fresh()
+    print("  1. Five events were written. Check:", eventlog.verify(conn)[1])
+    try:
+        conn.execute("UPDATE events SET actor = 'someone' WHERE id = 2")
+    except Exception as e:
+        print("  2. Normal code cannot change an event:", e)
+    conn.execute("DROP TRIGGER events_no_update")
+    conn.execute("UPDATE events SET payload = '{\"cylinders\":99,\"step\":3}' WHERE id = 3")
+    print("  3. Someone with database access removes the guard and changes event 3.")
+    print("  4. Check:", eventlog.verify(conn)[1])
+
+    print("B. Removing the newest event")
+    conn = fresh()
+    anchor = eventlog.head(conn)                      # a copy of the newest hash, kept somewhere else
+    conn.execute("DROP TRIGGER events_no_delete")
+    conn.execute("DELETE FROM events WHERE id = 5")
+    print("  1. The newest event is removed. The chain alone still passes:", eventlog.verify(conn)[1])
+    print("  2. With the stored copy of the newest hash:", eventlog.verify(conn, anchor=anchor)[1])
+    print("The log is tamper-evident, not tamper-proof: keep the newest hash somewhere else.")
+
+
 def warm_roads(app):
     import time
     from backend.models import Customer
@@ -82,13 +115,15 @@ def warm_roads(app):
 
 
 if __name__ == "__main__":
-    app = create_app()
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    app = create_app() if cmd != "tamper-demo" else None
     if cmd in ("create-owner", "create-driver") and len(sys.argv) == 3:
         create_user(app, sys.argv[2], getpass("Password (min 8 characters): "), cmd.split("-")[1])
     elif cmd == "seed-demo":
         seed_demo(app)
     elif cmd == "warm-roads":
         warm_roads(app)
+    elif cmd == "tamper-demo":
+        tamper_demo()
     else:
         print(__doc__)

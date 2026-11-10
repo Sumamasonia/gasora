@@ -14,20 +14,22 @@ def travel_minutes(a, b):
 
 
 def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
-         urgent_late_cost=0, critical_late_cost=0, late_risks=None):
+         urgent_late_cost=0, critical_late_cost=0, late_risks=None, n_vehicles=None):
     """Returns (routes, visited) or None. routes = list of (stop list, minutes).
     tm = ready road-time matrix in minutes (index 0 = depot). If None, straight-line is used.
     seconds = solver time limit (default from config).
     urgent_late_cost / critical_late_cost = extra cost per minute of arrival time at urgent or Critical
     customers. It pulls them towards the start of their route. 0 (default) = no pull.
-    late_risks = the run-out risks used to decide who is Critical for that pull (default: risks)."""
+    late_risks = the run-out risks used to decide who is Critical for that pull (default: risks).
+    n_vehicles = number of vehicles (default from config); the API asks for one more when urgent requests do not fit."""
     depot = {"id": 0, "x": 0.0, "y": 0.0, "demand": 0}
     nodes = [depot] + customers
     n = len(nodes)
     if tm is None:
         tm = [[travel_minutes(nodes[i], nodes[j]) for j in range(n)] for i in range(n)]
 
-    manager = pywrapcp.RoutingIndexManager(n, N_VEHICLES, 0)
+    nv = n_vehicles or N_VEHICLES
+    manager = pywrapcp.RoutingIndexManager(n, nv, 0)
     routing = pywrapcp.RoutingModel(manager)
 
     def time_cb(i, j):
@@ -40,7 +42,7 @@ def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
     def demand_cb(i):
         return nodes[manager.IndexToNode(i)]["demand"]
     d_idx = routing.RegisterUnaryTransitCallback(demand_cb)
-    routing.AddDimensionWithVehicleCapacity(d_idx, 0, [CAPACITY] * N_VEHICLES, True, "Load")
+    routing.AddDimensionWithVehicleCapacity(d_idx, 0, [CAPACITY] * nv, True, "Load")
 
     time_dim = routing.GetDimensionOrDie("Time")
     for k, c in enumerate(customers, start=1):
@@ -63,7 +65,7 @@ def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
     if sol is None:
         return None
     routes, visited = [], set()
-    for v in range(N_VEHICLES):
+    for v in range(nv):
         idx, route, mins = routing.Start(v), [], 0
         while not routing.IsEnd(idx):
             node = manager.IndexToNode(idx)

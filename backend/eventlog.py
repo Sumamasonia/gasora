@@ -83,6 +83,15 @@ def head(conn):
     return row[0] if row else GENESIS
 
 
+def recent(conn, limit=50):
+    """The newest events, newest first (for the audit page). The payload is parsed; hashes are shortened."""
+    with _LOCK:
+        rows = conn.execute("SELECT id, ts, actor, event_type, payload, hash FROM events ORDER BY id DESC LIMIT ?",
+                            (limit,)).fetchall()
+    return [{"id": i, "ts": ts, "actor": a, "event_type": t, "payload": json.loads(p), "hash": h[:12]}
+            for i, ts, a, t, p, h in rows]
+
+
 def verify(conn, anchor=None):
     """Check the whole chain. Returns (ok, message).
     If anchor is given, the newest hash must equal it (this catches removed newest events)."""

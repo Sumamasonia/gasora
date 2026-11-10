@@ -1,7 +1,7 @@
 """Facts stored with every result: which code, which settings, which machine.
 
-code_hash() fingerprints the code itself (not the git history), so results made with different code are never
-combined, even when the changes are not committed yet.
+code_hash() fingerprints the code the evaluation depends on (not the git history, and not the web application),
+so results made with different code are never combined, even when the changes are not committed yet.
 """
 import hashlib
 import os
@@ -12,12 +12,13 @@ from datetime import datetime, timezone
 
 import config
 
-CODE_DIRS = ["backend", "evaluation", "planner", "predictor", "simulator"]
+CODE_DIRS = ["evaluation", "planner", "predictor", "simulator"]
+CODE_FILES = ["config.py", "backend/settings.py"]      # the web application itself does not change evaluation results
 
 
 def code_hash():
     h = hashlib.md5()
-    files = ["config.py"] if os.path.exists("config.py") else []
+    files = [f for f in CODE_FILES if os.path.exists(f)]
     for d in CODE_DIRS:
         for root, dirs, names in os.walk(d):
             dirs[:] = sorted(x for x in dirs if x != "__pycache__")

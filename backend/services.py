@@ -6,22 +6,53 @@ import numpy as np
 from sqlalchemy import select
 
 from backend import eventlog
-from backend.models import Customer, Delivery, EmptiesLedger, Route, RouteStop, UrgentRequest, User
+from backend import cylinders as cylinder_service
+from backend.models import Customer, Cylinder, Delivery, EmptiesLedger, Route, RouteStop, UrgentRequest, User
 from backend.settings import (DEPOT_LAT, DEPOT_LON, EMPTY_AGEING_TIERS, EMPTY_OVERDUE_DAYS,
                               LATE_COST_CRITICAL, LATE_COST_URGENT)
 from evaluation.policies import CANDIDATE_RISK
-from planner.routing import plan
+from config import CAPACITY, N_VEHICLES, SERVICE_MIN
+from planner.greedy import nearest_neighbour_routes
+from planner.routing import plan, travel_minutes
 from predictor.risk import band, refill_window, run_out_risk
 
 DEFAULT_POOLED = (20.0, 4.0)      # mean and spread of days between refills, used when no data (placeholder)
 
 
 # ---------- deliveries and urgent requests ----------
-def record_delivery(session, events, actor, customer_id, delivered_on, cylinders, empties_collected=None):
+def _serial_moves(session, customer_id, n_delivered, n_collected, serials_delivered, serials_collected):
+    """Check optional serial numbers before anything is saved. Returns [(cylinder id, new state)].
+    Serials are all-or-nothing: either every cylinder of the delivery has one, or none is given."""
+    moves = []
+    for serials, expected, wanted, label in ((serials_delivered, n_delivered, "Filled", "delivered"),
+                                              (serials_collected, n_collected, "Delivered", "collected")):
+        if serials is None:
+            continue
+        clean = [str(s).strip().upper() for s in serials]
+        if len(clean) != expected or len(set(clean)) != len(clean):
+            raise ValueError(f"enter all {expected} serial numbers of the {label} cylinders (no repeats), or none")
+        for serial in clean:
+            cyl = session.scalar(select(Cylinder).where(Cylinder.serial_no == serial))
+            if cyl is None:
+                raise LookupError(f"cylinder {serial} is not in the register")
+            if cyl.state != wanted:
+                raise ValueError(f"cylinder {serial} is {cyl.state}, expected {wanted}")
+            if wanted == "Delivered" and cyl.customer_id != customer_id:
+                raise ValueError(f"cylinder {serial} is not held by this customer")
+            moves.append((cyl.id, "Delivered" if wanted == "Filled" else "Recovered"))
+    return moves
+
+
+def record_delivery(session, events, actor, customer_id, delivered_on, cylinders, empties_collected=None,
+                    serials_delivered=None, serials_collected=None):
     """Save a delivery, note the empties collected (default: one for each cylinder delivered, a plain swap),
-    close open urgent requests of that customer, write events. Caller commits."""
+    close open urgent requests of that customer, write events. Caller commits.
+    Optional serial numbers move the cylinders in the register automatically (Filled to Delivered, Delivered to
+    Recovered); invalid serials stop the whole delivery before anything is saved."""
     if session.get(Customer, customer_id) is None:
         raise LookupError("customer not found")
+    n_collected = cylinders if empties_collected is None else empties_collected
+    moves = _serial_moves(session, customer_id, cylinders, n_collected, serials_delivered, serials_collected)
     d = Delivery(customer_id=customer_id, delivered_on=delivered_on, cylinders=cylinders, driver=actor)
     session.add(d)
     session.flush()                                            # gives d.id
@@ -40,6 +71,9 @@ def record_delivery(session, events, actor, customer_id, delivered_on, cylinders
             UrgentRequest.customer_id == customer_id, UrgentRequest.status == "open")):
         u.status = "done"
         eventlog.append(events, actor, "urgent.closed", {"urgent_id": u.id, "delivery_id": d.id})
+    for cyl_id, to_state in moves:
+        cylinder_service.transition_cylinder(session, events, actor, cyl_id, to_state,
+                                             customer_id=customer_id, delivery_id=d.id)
     return d
 
 
@@ -134,6 +168,25 @@ def adjust_empties(session, events, actor, customer_id, delta, note, since=None)
 
 
 # ---------- the plan ----------
+def _greedy_result(candidates, tm):
+    """Last-resort plan when OR-Tools finds none: nearest neighbour. Same shape as plan()'s result."""
+    m = len(candidates)
+    if tm is None:
+        nodes = [{"x": 0.0, "y": 0.0}] + candidates
+        tm = [[travel_minutes(a, b) for b in nodes] for a in nodes]
+    demand = {k: candidates[k - 1]["demand"] for k in range(1, m + 1)}
+    routes = nearest_neighbour_routes(list(range(1, m + 1)), tm, demand)
+    out = []
+    for r in routes:
+        here, minutes = 0, 0
+        for k in r:
+            minutes += tm[here][k] + SERVICE_MIN
+            here = k
+        out.append((r, minutes + (tm[here][0] if r else 0)))
+    return out, {k for r in routes for k in r}
+
+
+
 def _xy_km(lat, lon):
     x = (lon - DEPOT_LON) * 111.32 * math.cos(math.radians(DEPOT_LAT))
     y = (lat - DEPOT_LAT) * 110.57
@@ -189,7 +242,7 @@ def build_plan(session, today, seconds=2.0, router=None):
         r["weight"] = max(r["risk"], emp.get(r["id"], NO_EMPTIES)["swap_weight"] or 0.0)   # what the planner sees
 
     candidates = [r for r in rows if r["urgent"] or r["swap"] or r["risk"] >= CANDIDATE_RISK]
-    routes_out, visited, warnings = [], set(), []
+    routes_out, visited, warnings, fallback = [], set(), [], None
     road = router is not None and router.mode == "road"
     if candidates:
         tm = km_matrix = None
@@ -199,10 +252,33 @@ def build_plan(session, today, seconds=2.0, router=None):
             if m["far"]:
                 warnings.append("%d place(s) are more than 1 km from the downloaded road map, "
                                 "so their road times are approximate." % len(m["far"]))
-        result = plan(candidates, [r["weight"] for r in candidates],
-                      urgent_ids={r["id"] for r in candidates if r["urgent"]}, seconds=seconds, tm=tm,
-                      urgent_late_cost=LATE_COST_URGENT, critical_late_cost=LATE_COST_CRITICAL,
-                      late_risks=[r["risk"] for r in candidates])
+        urgent_set = {r["id"] for r in candidates if r["urgent"]}
+
+        def solve(vehicles):
+            return plan(candidates, [r["weight"] for r in candidates], urgent_ids=urgent_set, seconds=seconds,
+                        tm=tm, urgent_late_cost=LATE_COST_URGENT, critical_late_cost=LATE_COST_CRITICAL,
+                        late_risks=[r["risk"] for r in candidates], n_vehicles=vehicles)
+
+        def urgent_missed(res):
+            if res is None:
+                return True
+            seen = {candidates[j - 1]["id"] for j in res[1]}
+            return any(i not in seen for i in urgent_set)
+
+        result = solve(None)
+        if urgent_missed(result):                          # fallbacks: one more vehicle, then nearest neighbour
+            retry = solve(N_VEHICLES + 1)
+            if retry is not None and not urgent_missed(retry):
+                result, fallback = retry, "extra_vehicle"
+                warnings.append("The urgent requests did not fit in %d vehicles: a plan with %d vehicles is shown."
+                                % (N_VEHICLES, N_VEHICLES + 1))
+            elif result is None:
+                result, fallback = _greedy_result(candidates, tm), "greedy"
+                warnings.append("The solver found no plan: a simple nearest-neighbour plan is shown.")
+        if result is not None and urgent_missed(result):
+            seen = {candidates[j - 1]["id"] for j in result[1]}
+            warnings.append("Urgent request(s) could not be served by the available vehicles: "
+                            + ", ".join(r["name"] for r in candidates if r["urgent"] and r["id"] not in seen))
         if result is not None:
             routes, visited_local = result
             visited = {candidates[k - 1]["id"] for k in visited_local}
@@ -228,6 +304,7 @@ def build_plan(session, today, seconds=2.0, router=None):
         "date": today.isoformat(),
         "depot": {"lat": DEPOT_LAT, "lon": DEPOT_LON},
         "routing": "road" if road else "straight",
+        "fallback": fallback,
         "warnings": warnings,
         "settings_note": "%s travel times; candidates are customers with risk >= %.2f, plus urgent requests and swap candidates (empties held %d+ days)"
                          % ("road" if road else "straight-line", CANDIDATE_RISK, EMPTY_OVERDUE_DAYS),
@@ -295,6 +372,9 @@ def routes_view(session, day, driver_id=None):
                  for s, c in rows]
         out.append({"route_id": r.id, "day": r.day.isoformat(), "vehicle": r.vehicle, "minutes": r.minutes,
                     "driver": driver.username if driver else None, "stops": stops,
+                    "manifest": {"stops": len(stops), "full_cylinders": sum(s["cylinders"] for s in stops),
+                                 "empties_expected": sum(s["cylinders"] + s["empties_held"] for s in stops),
+                                 "capacity": CAPACITY},
                     "delivered": sum(s["status"] == "delivered" for s in stops),
                     "skipped": sum(s["status"] == "skipped" for s in stops), "total": len(stops)})
     return out
@@ -311,7 +391,8 @@ def assign_route(session, events, actor, route_id, username):
     eventlog.append(events, actor, "route.assigned", {"route_id": route.id, "driver": driver.username})
 
 
-def complete_stop(session, events, user, stop_id, action, cylinders=None, reason=None, empties_collected=None):
+def complete_stop(session, events, user, stop_id, action, cylinders=None, reason=None, empties_collected=None,
+                  serials_delivered=None, serials_collected=None):
     """A driver (or the owner) marks a stop as delivered or skipped. Caller commits."""
     stop = session.get(RouteStop, stop_id)
     if stop is None:
@@ -326,7 +407,7 @@ def complete_stop(session, events, user, stop_id, action, cylinders=None, reason
     if action == "deliver":
         cust = session.get(Customer, stop.customer_id)
         d = record_delivery(session, events, user.username, cust.id, date.today(), cylinders or cust.demand,
-                            empties_collected)
+                            empties_collected, serials_delivered, serials_collected)
         stop.status, stop.delivery_id = "delivered", d.id
     else:
         stop.status, stop.reason = "skipped", reason
