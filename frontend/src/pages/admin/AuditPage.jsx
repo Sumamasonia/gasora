@@ -281,8 +281,8 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
           {/* Tamper Switch Controls */}
           <div
             style={{
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 8,
               padding: '10px 14px',
               display: 'flex',
@@ -291,10 +291,10 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
             }}
           >
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
                 Demo Tampering Simulator
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 {tamperSimulated
                   ? 'Row #3 corrupted (simulating manual DB alteration)'
                   : 'Chain pristine (all SHA-256 links intact)'}

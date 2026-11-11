@@ -4,6 +4,7 @@ import AppShell from './components/AppShell'
 import ComingSoon from './components/ComingSoon'
 import ErrorBoundary from './components/ErrorBoundary'
 import { USE_MOCK } from './config'
+import { useTheme } from './lib/theme'
 import DriverView from './DriverView'
 import CustomerApp from './pages/customer/CustomerApp'
 import CeoView from './pages/ceo/CeoView'
@@ -43,6 +44,7 @@ const DEMO_LOGINS = [
 function LoginForm({ onLogin, error, busy }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const { effectiveTheme, toggleTheme } = useTheme()
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -51,6 +53,19 @@ function LoginForm({ onLogin, error, busy }) {
 
   return (
     <div className="login">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', maxWidth: 440, marginBottom: 10 }}>
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${effectiveTheme === 'light' ? 'dark' : 'light'} mode`}
+          title={`Switch to ${effectiveTheme === 'light' ? 'dark' : 'light'} mode`}
+        >
+          <span>{effectiveTheme === 'light' ? '🌙' : '☀️'}</span>
+          <span>{effectiveTheme === 'light' ? 'Dark' : 'Light'}</span>
+        </button>
+      </div>
+
       <div className="login-header">
         <div className="login-logo" aria-hidden="true">🔥</div>
         <h1>Gasora</h1>
@@ -124,6 +139,7 @@ function LoginForm({ onLogin, error, busy }) {
 }
 
 export default function App() {
+  useTheme()
   const [auth, setAuth] = useState(() => {
     try {
       const saved = sessionStorage.getItem('gasora-auth') || localStorage.getItem('gasora-auth')

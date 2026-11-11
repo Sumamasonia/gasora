@@ -1,31 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { USE_MOCK } from '../config'
+import { useTheme } from '../lib/theme'
 import { getNavForRole } from '../nav'
 
 export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, children }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [theme, setTheme] = useState(() => {
-    try {
-      return localStorage.getItem('gasora-theme') || 'light'
-    } catch {
-      return 'light'
-    }
-  })
-
-  // Sync theme attribute with document root
-  useEffect(() => {
-    try {
-      document.documentElement.setAttribute('data-theme', theme)
-      localStorage.setItem('gasora-theme', theme)
-    } catch (err) {
-      console.warn('Could not save theme preference:', err)
-    }
-  }, [theme])
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
-  }
+  const { theme, effectiveTheme, toggleTheme } = useTheme()
 
   const navGroups = getNavForRole(auth?.role || 'owner')
 
@@ -151,11 +132,11 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
               type="button"
               className="theme-toggle-btn"
               onClick={toggleTheme}
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              aria-label={`Switch to ${effectiveTheme === 'light' ? 'dark' : 'light'} mode`}
+              title={`Switch to ${effectiveTheme === 'light' ? 'dark' : 'light'} mode`}
             >
-              <span className="theme-icon">{theme === 'light' ? '🌙' : '☀️'}</span>
-              <span className="theme-text">{theme === 'light' ? ' Dark' : ' Light'}</span>
+              <span className="theme-icon">{effectiveTheme === 'light' ? '🌙' : '☀️'}</span>
+              <span className="theme-text">{effectiveTheme === 'light' ? ' Dark' : ' Light'}</span>
             </button>
 
             <div className="user-menu">

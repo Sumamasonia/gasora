@@ -9,6 +9,7 @@ import {
 import Modal from '../../components/Modal'
 import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
+import { useTheme } from '../../lib/theme'
 import './admin.css'
 
 export default function SettingsPage({ auth, onNavigate, onExpired }) {
@@ -24,7 +25,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
   const [overdueDays, setOverdueDays] = useState(15)
   const [alertDays, setAlertDays] = useState(5)
   const [lowStockLevel, setLowStockLevel] = useState(25)
-  const [theme, setTheme] = useState('light')
+  const { theme, setTheme: setAppTheme, effectiveTheme } = useTheme()
   const [simulateTamper, setSimulateTamper] = useState(false)
 
   // Modals & File Upload
@@ -49,7 +50,9 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
         setOverdueDays(data.overdue_days !== undefined ? data.overdue_days : 15)
         setAlertDays(data.alert_days !== undefined ? data.alert_days : 5)
         setLowStockLevel(data.low_stock_level !== undefined ? data.low_stock_level : 25)
-        setTheme(data.theme || 'light')
+        if (data.theme && !localStorage.getItem('gasora-theme')) {
+          setAppTheme(data.theme)
+        }
         setSimulateTamper(Boolean(data.simulate_tampered_audit))
       }
     } catch (err) {
@@ -295,13 +298,13 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
           {/* Main Settings Form */}
           <form onSubmit={handleSaveSettings} className="admin-card" style={{ padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
+            <h3 className="settings-section-heading">
               🏢 Business Profile & Operations
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 16 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
+                <label className="settings-label">
                   Business Name
                 </label>
                 <input
@@ -315,7 +318,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
+                <label className="settings-label">
                   Base Currency
                 </label>
                 <select
@@ -332,7 +335,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
+              <label className="settings-label">
                 Depot & Business Address
               </label>
               <input
@@ -344,13 +347,13 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
               />
             </div>
 
-            <h3 style={{ margin: '24px 0 16px 0', fontSize: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
+            <h3 className="settings-section-heading">
               📊 Billing, Alerts & Stock Thresholds
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 20 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
+                <label className="settings-label">
                   Overdue Threshold (Days)
                 </label>
                 <input
@@ -367,7 +370,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
+                <label className="settings-label">
                   Alert Warning (Days)
                 </label>
                 <input
@@ -384,7 +387,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
+                <label className="settings-label">
                   Low Stock Threshold (Cylinders)
                 </label>
                 <input
@@ -401,58 +404,46 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
               </div>
             </div>
 
-            <h3 style={{ margin: '24px 0 16px 0', fontSize: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
+            <h3 className="settings-section-heading">
               🎨 Theme & Appearance
             </h3>
 
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
-              {['light', 'dark', 'system'].map((th) => (
+            <div className="settings-theme-grid">
+              {[
+                { id: 'light', label: 'Light Mode', icon: '☀️', desc: 'Clean white aesthetic with crisp contrast' },
+                { id: 'dark', label: 'Dark Mode', icon: '🌙', desc: 'Deep slate navy with reduced eye strain' },
+                { id: 'system', label: 'System Preference', icon: '💻', desc: 'Syncs automatically with your OS settings' },
+              ].map((th) => (
                 <label
-                  key={th}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 16px',
-                    border: `2px solid ${theme === th ? '#2563eb' : '#e2e8f0'}`,
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    background: theme === th ? '#eff6ff' : '#fff',
-                    fontWeight: theme === th ? 700 : 500,
-                  }}
+                  key={th.id}
+                  className={`settings-theme-card ${theme === th.id ? 'active' : ''}`}
                 >
                   <input
                     type="radio"
                     name="theme"
-                    value={th}
-                    checked={theme === th}
-                    onChange={() => setTheme(th)}
+                    value={th.id}
+                    checked={theme === th.id}
+                    onChange={() => setAppTheme(th.id)}
                   />
-                  <span>
-                    {th === 'light' ? '☀️ Light Mode' : th === 'dark' ? '🌙 Dark Mode' : '💻 System Preference'}
-                  </span>
+                  <div className="theme-card-content">
+                    <div className="theme-card-header">
+                      <span className="theme-card-icon">{th.icon}</span>
+                      <span className="theme-card-title">{th.label}</span>
+                    </div>
+                    <div className="theme-card-desc">{th.desc}</div>
+                  </div>
+                  {theme === th.id && <span className="theme-check-badge">✓ Active</span>}
                 </label>
               ))}
             </div>
 
-            <h3 style={{ margin: '24px 0 16px 0', fontSize: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
+            <h3 className="settings-section-heading">
               🛡️ Audit & Security Demo Switch
             </h3>
 
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                padding: 14,
-                marginBottom: 24,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
+            <div className="settings-switch-box">
               <div style={{ paddingRight: 16 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
                   Simulate Tampered Event Log
                 </div>
                 <div className="muted" style={{ fontSize: 12 }}>
@@ -480,14 +471,14 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
           {/* Disaster Recovery & Demo Management */}
           {auth?.role === 'owner' && (
             <div className="admin-card" style={{ padding: 20 }}>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
+              <h3 className="settings-section-heading">
                 💾 Backup, Restore & Data Reset
               </h3>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, background: '#f8fafc' }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>⬇️</div>
-                  <h4 style={{ margin: '0 0 6px 0' }}>Export Database Backup</h4>
+                <div className="settings-action-card">
+                  <div style={{ fontSize: 24, marginBottom: 4 }}>⬇️</div>
+                  <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)' }}>Export Database Backup</h4>
                   <p className="muted" style={{ fontSize: 12, margin: '0 0 12px 0' }}>
                     Download a full JSON snapshot of customers, cylinders, billing records, ledger entries, and audit logs.
                   </p>
@@ -502,9 +493,9 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
                   </button>
                 </div>
 
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, background: '#f8fafc' }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>⬆️</div>
-                  <h4 style={{ margin: '0 0 6px 0' }}>Restore from JSON File</h4>
+                <div className="settings-action-card">
+                  <div style={{ fontSize: 24, marginBottom: 4 }}>⬆️</div>
+                  <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)' }}>Restore from JSON File</h4>
                   <p className="muted" style={{ fontSize: 12, margin: '0 0 12px 0' }}>
                     Upload and validate an existing JSON backup. Confirms collection counts before applying changes.
                   </p>
@@ -518,9 +509,9 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
                   </button>
                 </div>
 
-                <div style={{ border: '1px solid #fee2e2', borderRadius: 8, padding: 16, background: '#fef2f2' }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>⚠️</div>
-                  <h4 style={{ margin: '0 0 6px 0', color: '#991b1b' }}>Reset Demo Database</h4>
+                <div className="settings-danger-card">
+                  <div style={{ fontSize: 24, marginBottom: 4 }}>⚠️</div>
+                  <h4 style={{ margin: '0 0 6px 0', color: 'var(--color-danger)' }}>Reset Demo Database</h4>
                   <p className="muted" style={{ fontSize: 12, margin: '0 0 12px 0' }}>
                     Clears working state from localStorage and restores original demo accounts, customers, and seed numbers.
                   </p>
@@ -565,17 +556,18 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
               ⚠️ Warning: Restoring from this backup will overwrite your current working database collections.
             </div>
 
-            <p style={{ margin: 0, fontSize: 13, color: '#334155' }}>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
               The selected backup file passed schema validation. The following collections will be loaded into system memory:
             </p>
 
             <div
               style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 13,
+                color: 'var(--text-primary)',
               }}
             >
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -584,7 +576,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
                 <div><strong>Users / Staff:</strong> {restoreModalData.usersCount} accounts</div>
                 <div><strong>Invoices:</strong> {restoreModalData.billsCount} bills</div>
               </div>
-              <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
                 Exported At: {restoreModalData.exportedAt}
               </div>
             </div>

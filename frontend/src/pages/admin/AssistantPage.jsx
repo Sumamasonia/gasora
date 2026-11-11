@@ -143,8 +143,8 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
       {/* Demo Mode Notice Banner */}
       <div
         style={{
-          background: '#eff6ff',
-          border: '1px solid #bfdbfe',
+          background: 'rgba(2, 132, 199, 0.1)',
+          border: '1px solid rgba(2, 132, 199, 0.3)',
           borderRadius: 8,
           padding: '10px 14px',
           marginBottom: 16,
@@ -154,7 +154,7 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
         }}
       >
         <div style={{ fontSize: 20 }}>💡</div>
-        <div style={{ flex: 1, fontSize: 12, color: '#1e40af' }}>
+        <div style={{ flex: 1, fontSize: 12, color: 'var(--color-primary)' }}>
           <strong>DEMO AI ASSISTANT:</strong> Answers are synthesized locally using rule-based natural language processing over your live mock database. No external LLM or API key is required.
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
           marginBottom: 16,
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', alignSelf: 'center' }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', alignSelf: 'center' }}>
           Suggested:
         </span>
         {QUICK_PROMPTS.map((p) => (
@@ -182,9 +182,9 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
               padding: '4px 10px',
               fontSize: 12,
               borderRadius: 9999,
-              background: '#f8fafc',
-              borderColor: '#cbd5e1',
-              color: '#334155',
+              background: 'var(--bg-subtle)',
+              borderColor: 'var(--border-subtle)',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
             }}
           >
@@ -213,7 +213,7 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
             display: 'flex',
             flexDirection: 'column',
             gap: 14,
-            background: '#fafafa',
+            background: 'var(--bg-subtle)',
           }}
         >
           {messages.map((m) => {
@@ -234,7 +234,7 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
                       width: 32,
                       height: 32,
                       borderRadius: '50%',
-                      background: '#2563eb',
+                      background: 'var(--color-primary)',
                       color: '#fff',
                       display: 'flex',
                       alignItems: 'center',
@@ -250,14 +250,14 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
                 <div
                   style={{
                     maxWidth: '75%',
-                    background: isUser ? '#2563eb' : '#ffffff',
-                    color: isUser ? '#ffffff' : '#0f172a',
+                    background: isUser ? 'var(--color-primary)' : 'var(--bg-card)',
+                    color: isUser ? '#ffffff' : 'var(--text-primary)',
                     padding: '12px 16px',
                     borderRadius: 12,
                     borderTopRightRadius: isUser ? 2 : 12,
                     borderTopLeftRadius: !isUser ? 2 : 12,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                    border: isUser ? 'none' : '1px solid #e2e8f0',
+                    boxShadow: 'var(--shadow-sm)',
+                    border: isUser ? 'none' : '1px solid var(--border-subtle)',
                     fontSize: 13,
                     lineHeight: 1.5,
                   }}
@@ -268,7 +268,7 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
                   <div
                     style={{
                       fontSize: 10,
-                      color: isUser ? 'rgba(255,255,255,0.7)' : '#94a3b8',
+                      color: isUser ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)',
                       textAlign: 'right',
                       marginTop: 4,
                     }}
@@ -283,7 +283,7 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
                       width: 32,
                       height: 32,
                       borderRadius: '50%',
-                      background: '#0f172a',
+                      background: 'var(--sidebar-bg)',
                       color: '#fff',
                       display: 'flex',
                       alignItems: 'center',
@@ -307,7 +307,7 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
                   width: 32,
                   height: 32,
                   borderRadius: '50%',
-                  background: '#2563eb',
+                  background: 'var(--color-primary)',
                   color: '#fff',
                   display: 'flex',
                   alignItems: 'center',
@@ -319,17 +319,17 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
               </div>
               <div
                 style={{
-                  background: '#ffffff',
+                  background: 'var(--bg-card)',
                   padding: '10px 14px',
                   borderRadius: 12,
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
                 }}
               >
                 <Spinner />
-                <span style={{ fontSize: 12, color: '#64748b' }}>Analyzing database...</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Analyzing database...</span>
               </div>
             </div>
           )}
@@ -345,8 +345,8 @@ export default function AssistantPage({ auth, onNavigate, onExpired }) {
           }}
           style={{
             padding: 12,
-            background: '#ffffff',
-            borderTop: '1px solid #e2e8f0',
+            background: 'var(--bg-card)',
+            borderTop: '1px solid var(--border-subtle)',
             display: 'flex',
             gap: 10,
             alignItems: 'center',

@@ -12,6 +12,7 @@ import {
 import { ApiError, getDashboardSummary } from '../../api'
 import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
+import { useTheme } from '../../lib/theme'
 import './ceo.css'
 
 export default function CeoView({ auth, onSignOut, onExpired }) {
@@ -19,26 +20,7 @@ export default function CeoView({ auth, onSignOut, onExpired }) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-
-  // Theme support
-  const [theme, setTheme] = useState(() => {
-    try {
-      return localStorage.getItem('gasora-theme') || 'light'
-    } catch {
-      return 'light'
-    }
-  })
-
-  useEffect(() => {
-    try {
-      document.documentElement.setAttribute('data-theme', theme)
-      localStorage.setItem('gasora-theme', theme)
-    } catch (err) {
-      console.warn('Could not save theme:', err)
-    }
-  }, [theme])
-
-  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
+  const { theme, effectiveTheme, toggleTheme } = useTheme()
 
   const loadSummary = useCallback(async (isRefresh = false) => {
     try {

@@ -357,6 +357,23 @@
   width: fit-content;
 }
 
+[data-theme='dark'] .user-role-badge {
+  color: #38bdf8;
+  background: rgba(2, 132, 199, 0.25);
+}
+
+[data-theme='dark'] .demo-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+[data-theme='dark'] .live-api-badge {
+  background: rgba(22, 163, 74, 0.2);
+  color: #4ade80;
+  border-color: rgba(22, 163, 74, 0.4);
+}
+
 .signout-btn {
   background: transparent;
   color: var(--text-muted);

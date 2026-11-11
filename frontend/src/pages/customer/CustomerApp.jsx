@@ -10,6 +10,7 @@ import {
 } from '../../api'
 import NotReady from '../../components/NotReady'
 import Spinner from '../../components/Spinner'
+import { useTheme } from '../../lib/theme'
 import DeliveryStatusPage from './DeliveryStatusPage'
 import './customer.css'
 
@@ -34,24 +35,7 @@ export default function CustomerApp({ auth, onSignOut, onExpired }) {
   const [selectedInvoice, setSelectedInvoice] = useState(null)
 
   // Theme preference
-  const [theme, setTheme] = useState(() => {
-    try {
-      return localStorage.getItem('gasora-theme') || 'light'
-    } catch {
-      return 'light'
-    }
-  })
-
-  useEffect(() => {
-    try {
-      document.documentElement.setAttribute('data-theme', theme)
-      localStorage.setItem('gasora-theme', theme)
-    } catch (err) {
-      console.warn('Could not save theme:', err)
-    }
-  }, [theme])
-
-  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
+  const { theme, effectiveTheme, toggleTheme } = useTheme()
 
   // Load customer profile, balance, next delivery, orders, and bills
   const loadData = useCallback(async () => {
