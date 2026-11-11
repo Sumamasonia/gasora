@@ -51,6 +51,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, r
   const [selectedCylinderId, setSelectedCylinderId] = useState(null)
 
   const loadData = useCallback(async () => {
+    if (!auth?.token) return
     setLoading(true)
     setError(null)
     try {
@@ -67,7 +68,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, r
     } finally {
       setLoading(false)
     }
-  }, [auth.token])
+  }, [auth?.token])
 
   useEffect(() => {
     loadData()
@@ -97,7 +98,7 @@ export default function CylinderRegister({ auth, onNavigate, onSelectCylinder, r
       // Search by serial_no
       if (search.trim()) {
         const q = search.trim().toUpperCase()
-        if (!c.serial_no.toUpperCase().includes(q)) return false
+        if (!c.serial_no || !c.serial_no.toUpperCase().includes(q)) return false
       }
 
       // Filter by state

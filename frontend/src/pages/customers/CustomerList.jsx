@@ -26,6 +26,7 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive, onE
   const [areaFilter, setAreaFilter] = useState('all')
 
   const fetchCustomers = useCallback(async () => {
+    if (!auth?.token) return
     setLoading(true)
     setError(null)
     try {
@@ -36,7 +37,7 @@ export default function CustomerList({ auth, onNavigate, onOpenToggleActive, onE
     } finally {
       setLoading(false)
     }
-  }, [auth.token])
+  }, [auth?.token])
 
   useEffect(() => {
     fetchCustomers()

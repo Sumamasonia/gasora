@@ -378,11 +378,20 @@
 
 /* Content Area */
 .shell-content {
-  flex: 1;
+  flex: 1 1 auto;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  min-width: 0 !important;
   overflow-y: auto;
   min-height: 0;
   position: relative;
   background: var(--bg-page);
+}
+
+.shell-content > * {
+  width: 100%;
+  min-width: 0;
 }
 
 /* Coming Soon Screen */

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { login, setOnUnauthorized } from './api'
 import AppShell from './components/AppShell'
 import ComingSoon from './components/ComingSoon'
+import ErrorBoundary from './components/ErrorBoundary'
 import { USE_MOCK } from './config'
 import DriverView from './DriverView'
 import CustomerApp from './pages/customer/CustomerApp'
@@ -123,7 +124,14 @@ function LoginForm({ onLogin, error, busy }) {
 }
 
 export default function App() {
-  const [auth, setAuth] = useState(null) // { token, role, username }; kept in memory only
+  const [auth, setAuth] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('gasora-auth') || localStorage.getItem('gasora-auth')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [route, navigate] = useHashRoute('dispatch')
@@ -149,7 +157,12 @@ export default function App() {
     setError('')
     try {
       const r = await login(username, password)
-      setAuth({ token: r.access_token, role: r.role, username })
+      const userAuth = { token: r.access_token, role: r.role, username }
+      setAuth(userAuth)
+      try {
+        sessionStorage.setItem('gasora-auth', JSON.stringify(userAuth))
+        localStorage.setItem('gasora-auth', JSON.stringify(userAuth))
+      } catch {}
     } catch (e) {
       setError(e.message)
     } finally {
@@ -157,9 +170,19 @@ export default function App() {
     }
   }
 
-  const signOut = () => setAuth(null)
+  const signOut = () => {
+    setAuth(null)
+    try {
+      sessionStorage.removeItem('gasora-auth')
+      localStorage.removeItem('gasora-auth')
+    } catch {}
+  }
   const expired = useCallback(() => {
     setAuth(null)
+    try {
+      sessionStorage.removeItem('gasora-auth')
+      localStorage.removeItem('gasora-auth')
+    } catch {}
     setError('Your session ended. Please sign in again.')
   }, [])
 
@@ -193,73 +216,75 @@ export default function App() {
       activeRoute={route}
       onNavigate={navigate}
     >
-      {route === 'dispatch' || route === 'demand' || route === 'deliveries' || route === 'urgent' ? (
-        <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} initialSection={route} />
-      ) : route === 'customers' ? (
-        <CustomerList auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route.startsWith('customers/') ? (
-        <CustomerProfile
-          auth={auth}
-          onExpired={expired}
-          customerId={route.split('/')[1]}
-          onNavigate={navigate}
-        />
-      ) : route === 'cylinders' || route.startsWith('cylinders') ? (
-        <CylinderRegister auth={auth} onNavigate={navigate} onExpired={expired} route={route} />
-      ) : route === 'billing' ? (
-        <BillsList
-          auth={auth}
-          onExpired={expired}
-          onNavigate={navigate}
-          onViewInvoice={(id) => navigate(`billing/invoice/${id}`)}
-          onRecordPayment={(bill) => navigate('billing/payments')}
-        />
-      ) : route === 'billing/sale' || route === 'sales' ? (
-        <RecordSalePage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route.startsWith('billing/invoice/') ? (
-        <InvoiceView
-          auth={auth}
-          onExpired={expired}
-          invoiceId={route.split('/')[2]}
-          onNavigate={navigate}
-          onRecordPayment={(bill) => navigate('billing/payments')}
-        />
-      ) : route === 'billing/payments' || route === 'payments' ? (
-        <PaymentsPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'billing/loans' || route === 'loans' ? (
-        <LoansPage
-          auth={auth}
-          onExpired={expired}
-          onNavigate={navigate}
-          onRecordPayment={(bill) => navigate('billing/payments')}
-        />
-      ) : route === 'ledger' || route.startsWith('ledger') ? (
-        <LedgerPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'stock' ? (
-        <StockPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'stock/purchases' || route === 'purchases' ? (
-        <PurchasesPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'expenses' || route.startsWith('expenses') ? (
-        <ExpensesPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'dashboard' || route === 'insights/dashboard' ? (
-        <DashboardPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'reports' || route === 'insights/reports' || route.startsWith('reports') ? (
-        <ReportsPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'evaluation' || route === 'insights/evaluation' || route.startsWith('evaluation') ? (
-        <EvaluationPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'users' || route === 'admin/users' ? (
-        <UsersPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'audit' || route === 'admin/audit' ? (
-        <AuditPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'settings' || route === 'admin/settings' ? (
-        <SettingsPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'assistant' || route === 'admin/assistant' ? (
-        <AssistantPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : route === 'utilities' || route === 'admin/utilities' ? (
-        <UtilitiesPage auth={auth} onNavigate={navigate} onExpired={expired} />
-      ) : (
-        <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
-      )}
+      <ErrorBoundary key={route}>
+        {route === 'dispatch' || route === 'demand' || route === 'deliveries' || route === 'urgent' ? (
+          <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} initialSection={route} />
+        ) : route === 'customers' ? (
+          <CustomerList auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route.startsWith('customers/') ? (
+          <CustomerProfile
+            auth={auth}
+            onExpired={expired}
+            customerId={route.split('/')[1]}
+            onNavigate={navigate}
+          />
+        ) : route === 'cylinders' || route.startsWith('cylinders') ? (
+          <CylinderRegister auth={auth} onNavigate={navigate} onExpired={expired} route={route} />
+        ) : route === 'billing' ? (
+          <BillsList
+            auth={auth}
+            onExpired={expired}
+            onNavigate={navigate}
+            onViewInvoice={(id) => navigate(`billing/invoice/${id}`)}
+            onRecordPayment={(bill) => navigate('billing/payments')}
+          />
+        ) : route === 'billing/sale' || route === 'sales' ? (
+          <RecordSalePage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route.startsWith('billing/invoice/') ? (
+          <InvoiceView
+            auth={auth}
+            onExpired={expired}
+            invoiceId={route.split('/')[2]}
+            onNavigate={navigate}
+            onRecordPayment={(bill) => navigate('billing/payments')}
+          />
+        ) : route === 'billing/payments' || route === 'payments' ? (
+          <PaymentsPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'billing/loans' || route === 'loans' ? (
+          <LoansPage
+            auth={auth}
+            onExpired={expired}
+            onNavigate={navigate}
+            onRecordPayment={(bill) => navigate('billing/payments')}
+          />
+        ) : route === 'ledger' || route.startsWith('ledger') ? (
+          <LedgerPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'stock' ? (
+          <StockPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'stock/purchases' || route === 'purchases' ? (
+          <PurchasesPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'expenses' || route.startsWith('expenses') ? (
+          <ExpensesPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'dashboard' || route === 'insights/dashboard' ? (
+          <DashboardPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'reports' || route === 'insights/reports' || route.startsWith('reports') ? (
+          <ReportsPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'evaluation' || route === 'insights/evaluation' || route.startsWith('evaluation') ? (
+          <EvaluationPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'users' || route === 'admin/users' ? (
+          <UsersPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'audit' || route === 'admin/audit' ? (
+          <AuditPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'settings' || route === 'admin/settings' ? (
+          <SettingsPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'assistant' || route === 'admin/assistant' ? (
+          <AssistantPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : route === 'utilities' || route === 'admin/utilities' ? (
+          <UtilitiesPage auth={auth} onNavigate={navigate} onExpired={expired} />
+        ) : (
+          <ComingSoon title={route.charAt(0).toUpperCase() + route.slice(1).replace('-', ' ')} />
+        )}
+      </ErrorBoundary>
     </AppShell>
   )
 }

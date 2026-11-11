@@ -44,10 +44,10 @@ export default function HeldByCustomersTable({
     if (!q) return heldList
     return heldList.filter((item) => {
       return (
-        item.name.toLowerCase().includes(q) ||
-        item.code.toLowerCase().includes(q) ||
-        item.area.toLowerCase().includes(q) ||
-        item.phone.toLowerCase().includes(q)
+        (item.name && item.name.toLowerCase().includes(q)) ||
+        (item.code && item.code.toLowerCase().includes(q)) ||
+        (item.area && item.area.toLowerCase().includes(q)) ||
+        (item.phone && item.phone.toLowerCase().includes(q))
       )
     })
   }, [heldList, search])

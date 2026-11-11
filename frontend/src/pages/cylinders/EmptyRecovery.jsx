@@ -101,10 +101,10 @@ export default function EmptyRecovery({ auth, onNavigate }) {
       if (search.trim()) {
         const q = search.trim().toLowerCase()
         return (
-          item.serial_no.toLowerCase().includes(q) ||
-          item.customer_name.toLowerCase().includes(q) ||
-          item.customer_code.toLowerCase().includes(q) ||
-          item.customer_area.toLowerCase().includes(q)
+          (item.serial_no && item.serial_no.toLowerCase().includes(q)) ||
+          (item.customer_name && item.customer_name.toLowerCase().includes(q)) ||
+          (item.customer_code && item.customer_code.toLowerCase().includes(q)) ||
+          (item.customer_area && item.customer_area.toLowerCase().includes(q))
         )
       }
       return true
@@ -116,15 +116,15 @@ export default function EmptyRecovery({ auth, onNavigate }) {
     if (!data?.customers) return []
     return data.customers.filter((c) => {
       if (selectedBucket) {
-        const hasBucket = c.cylinders.some((cyl) => cyl.bucket === selectedBucket)
+        const hasBucket = c.cylinders && c.cylinders.some((cyl) => cyl.bucket === selectedBucket)
         if (!hasBucket) return false
       }
       if (search.trim()) {
         const q = search.trim().toLowerCase()
         return (
-          c.name.toLowerCase().includes(q) ||
-          c.code.toLowerCase().includes(q) ||
-          c.area.toLowerCase().includes(q)
+          (c.name && c.name.toLowerCase().includes(q)) ||
+          (c.code && c.code.toLowerCase().includes(q)) ||
+          (c.area && c.area.toLowerCase().includes(q))
         )
       }
       return true

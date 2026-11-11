@@ -344,8 +344,11 @@ input:disabled, select:disabled {
 
 /* Planner Two-Column Layout (Routific-style: List on Left, Map on Right) */
 .planner-container {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  width: 100% !important;
+  min-width: 0 !important;
   height: 100%;
   min-height: calc(100vh - 60px);
   overflow: hidden;
@@ -528,12 +531,13 @@ input:disabled, select:disabled {
 
 /* Main Layout */
 .planner-layout {
-  flex: 1;
+  flex: 1 1 0%;
   display: flex;
   flex-direction: row;
   min-height: 0;
-  width: 100%;
-  height: calc(100vh - 128px);
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100%;
   overflow: hidden;
   position: relative;
 }
@@ -675,8 +679,9 @@ input:disabled, select:disabled {
 .planner-map-wrapper {
   flex: 1 1 0%;
   min-width: 0;
-  height: 100%;
-  min-height: 100%;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
   position: relative;
   background: #e5e7eb;
   display: flex;
@@ -943,7 +948,7 @@ input:disabled, select:disabled {
 
 header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border-subtle); }
 header label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
-main { flex: 1; display: flex; min-height: 0; }
+main:not(.shell-content) { flex: 1; display: flex; min-height: 0; }
 .map { flex: 1; min-width: 0; height: 100%; }
 .panel { width: 380px; overflow-y: auto; padding: 16px; background: var(--bg-panel); border-left: 1px solid var(--border-subtle); }
 .panel h2 { margin: 0 0 6px; font-size: 18px; }
