@@ -44,7 +44,7 @@ export default function LedgerPage({ auth, onNavigate, initialCustomerId = null,
       setCustomers(custList)
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -268,7 +268,7 @@ export default function LedgerPage({ auth, onNavigate, initialCustomerId = null,
           <Spinner size="lg" message="Loading append-only financial ledger..." />
         </div>
       ) : error ? (
-        <div className="error banner">⚠️ {error}</div>
+        <div className="error banner">⚠️ {typeof error === 'string' ? error : error?.message || 'Error loading ledger'}</div>
       ) : filteredEntries.length === 0 ? (
         <EmptyState
           title="No Ledger Records Found"

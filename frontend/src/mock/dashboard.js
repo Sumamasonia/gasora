@@ -1,3 +1,4 @@
+import { ApiError } from '../api.js'
 import { requireAuth } from './auth.js'
 import { computeCustomerBalance, handleGetLoans } from './billing.js'
 import { getDb } from './db.js'
@@ -644,6 +645,14 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
   const toDate = queryParams.get('to_date')
   const search = (queryParams.get('search') || '').toLowerCase().trim()
 
+  const typeAliases = {
+    daily: 'sales',
+    monthly: 'sales',
+    cylinders: 'stock',
+    recovery: 'empties_ageing',
+  }
+  const effectiveType = typeAliases[reportType] || reportType
+
   const isInDateRange = (dateStr) => {
     if (!dateStr) return true
     const d = dateStr.slice(0, 10)
@@ -653,7 +662,7 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
   }
 
   // 1. SALES REPORT
-  if (reportType === 'sales') {
+  if (effectiveType === 'sales') {
     const bills = db.bills || []
     let rows = bills.map((b) => {
       const firstItem = (b.items && b.items[0]) || {}
@@ -710,7 +719,7 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
   }
 
   // 2. EXPENSES REPORT
-  if (reportType === 'expenses') {
+  if (effectiveType === 'expenses') {
     const expenses = db.expenses || []
     let rows = expenses.map((e) => ({
       id: e.id,
@@ -754,7 +763,7 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
   }
 
   // 3. LOANS & RECEIVABLES REPORT
-  if (reportType === 'loans') {
+  if (effectiveType === 'loans') {
     const loansReport = handleGetLoans(token, new URLSearchParams('include_all=true'))
     let rows = (loansReport.customers || []).map((c) => ({
       customer_id: c.customer_id,
@@ -795,7 +804,7 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
   }
 
   // 4. STOCK & INVENTORY REPORT
-  if (reportType === 'stock') {
+  if (effectiveType === 'stock') {
     const cylinders = db.cylinders || []
     const settings = db.settings || {}
     const thresholds = settings.low_stock_thresholds || DEFAULT_THRESHOLDS
@@ -846,7 +855,7 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
   }
 
   // 5. DELIVERIES REPORT
-  if (reportType === 'deliveries') {
+  if (effectiveType === 'deliveries') {
     const deliveriesList = db.deliveries || []
     const customers = db.customers || []
 
@@ -931,7 +940,7 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
   }
 
   // 6. EMPTIES AGEING REPORT
-  if (reportType === 'empties_ageing' || reportType === 'recovery') {
+  if (effectiveType === 'empties_ageing' || effectiveType === 'recovery') {
     const cylinders = db.cylinders || []
     const customers = db.customers || []
     const history = db.cylinder_history || []
@@ -1000,6 +1009,12 @@ export function handleGetReport(token, reportType, queryParams = new URLSearchPa
     }
   }
 
-  throw new ApiError(400, `Unknown report type: ${reportType}`)
+  // Graceful fallback for any custom or unrecognized report type
+  return {
+    type: effectiveType,
+    title: `${String(effectiveType).charAt(0).toUpperCase() + String(effectiveType).slice(1)} Report`,
+    rows: [],
+    summary: {},
+  }
 }
 

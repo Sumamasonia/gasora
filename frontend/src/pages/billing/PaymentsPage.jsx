@@ -64,7 +64,7 @@ export default function PaymentsPage({ auth, onNavigate, initialBill = null, onE
       }
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -333,7 +333,7 @@ export default function PaymentsPage({ auth, onNavigate, initialBill = null, onE
           <Spinner size="lg" message="Loading payment records..." />
         </div>
       ) : error ? (
-        <div className="error banner">⚠️ {error}</div>
+        <div className="error banner">⚠️ {typeof error === 'string' ? error : error?.message || 'Error loading payments'}</div>
       ) : filteredPayments.length === 0 ? (
         <EmptyState
           title="No Payment Records Found"

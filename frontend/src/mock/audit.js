@@ -1,5 +1,6 @@
 // Hash-chained audit event log verification and mock endpoints
 // Matches backend/eventlog.py SHA-256 hash chaining algorithm
+import { parseToken } from './auth.js'
 
 export const GENESIS_HASH = '0'.repeat(64)
 
@@ -224,7 +225,8 @@ export function generateSeedEvents() {
 
 // Handler: GET /audit/events or GET /events
 export function handleGetAuditEvents(token, db) {
-  const user = db.users?.find((u) => u.token === token)
+  const payload = parseToken(token)
+  const user = payload ? (db.users?.find((u) => u.username === payload.sub) || payload) : null
   if (!user || (user.role !== 'owner' && user.role !== 'ceo')) {
     return { status: 403, data: { detail: 'Only owner and CEO can view the activity audit log' } }
   }
@@ -242,7 +244,8 @@ export function handleGetAuditEvents(token, db) {
 
 // Handler: GET /audit/verify
 export function handleVerifyAudit(token, db) {
-  const user = db.users?.find((u) => u.token === token)
+  const payload = parseToken(token)
+  const user = payload ? (db.users?.find((u) => u.username === payload.sub) || payload) : null
   if (!user || (user.role !== 'owner' && user.role !== 'ceo')) {
     return { status: 403, data: { detail: 'Only owner can verify audit chain integrity' } }
   }

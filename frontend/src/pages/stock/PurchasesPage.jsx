@@ -46,10 +46,10 @@ export default function PurchasesPage({ auth, onNavigate, onExpired }) {
     try {
       setLoading(true)
       const data = await getPurchases(auth.token)
-      setPurchases(data)
+      setPurchases(data || [])
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -269,7 +269,7 @@ export default function PurchasesPage({ auth, onNavigate, onExpired }) {
           <Spinner size="lg" message="Loading wholesale purchase records..." />
         </div>
       ) : error ? (
-        <div className="error banner">⚠️ {error}</div>
+        <div className="error banner">⚠️ {typeof error === 'string' ? error : error?.message || 'Error loading purchases'}</div>
       ) : filteredPurchases.length === 0 ? (
         <EmptyState
           title="No Purchases Found"

@@ -17,13 +17,11 @@ function MapInvalidator() {
   useEffect(() => {
     const invalidate = () => {
       try {
-        map.invalidateSize()
+        map.invalidateSize(true)
       } catch {}
     }
     invalidate()
-    const t1 = setTimeout(invalidate, 100)
-    const t2 = setTimeout(invalidate, 400)
-    const t3 = setTimeout(invalidate, 1000)
+    const timers = [50, 150, 300, 600, 1000, 2000].map((ms) => setTimeout(invalidate, ms))
     window.addEventListener('resize', invalidate)
 
     const container = map.getContainer ? map.getContainer() : null
@@ -36,9 +34,7 @@ function MapInvalidator() {
     }
 
     return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
+      timers.forEach(clearTimeout)
       window.removeEventListener('resize', invalidate)
       if (ro) ro.disconnect()
     }
@@ -142,13 +138,13 @@ export default function PlanMap({
   const depotIcon = useMemo(() => createDepotMarker(), [])
 
   return (
-    <div className="routific-map-container">
+    <div className="routific-map-container" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
       <MapContainer
         center={depot}
         zoom={12}
         className="map"
         scrollWheelZoom={true}
-        style={{ width: '100%', height: '100%', minHeight: '100%' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
       >
         <MapInvalidator />
         <TileLayer

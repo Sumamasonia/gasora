@@ -314,7 +314,7 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   }
 
   // Debt ageing & Loans endpoint
-  if (normalizedPath === '/billing/loans' || normalizedPath === '/billing/ageing') {
+  if (normalizedPath === '/billing/loans' || normalizedPath === '/billing/ageing' || normalizedPath === '/loans') {
     if (method === 'GET') {
       return handleGetLoans(token, queryParams)
     }
@@ -395,11 +395,11 @@ export async function mockRequest(path, { token, method = 'GET', body } = {}) {
   }
 
   // Stock Settings endpoints
-  if (normalizedPath === '/settings/stock') {
+  if (normalizedPath === '/settings/stock' || normalizedPath === '/stock/settings') {
     if (method === 'GET') {
       return handleGetStockSettings(token)
     }
-    if (method === 'PUT') {
+    if (method === 'PUT' || method === 'PATCH') {
       return handleUpdateStockSettings(token, body)
     }
   }

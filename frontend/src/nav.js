@@ -13,17 +13,15 @@ export const NAV_GROUPS = [
     items: [
       { id: 'dispatch', label: 'Dispatch & Routes', icon: '🗺️', roles: ['owner', 'manager'] },
       { id: 'demand', label: 'Demand & Risk', icon: '📈', roles: ['owner', 'manager'] },
-      { id: 'urgent', label: 'Urgent Requests', icon: '🚨', roles: ['owner', 'manager', 'customer'] },
       { id: 'deliveries', label: 'Route Deliveries', icon: '🚚', roles: ['owner', 'manager', 'driver'] },
     ],
   },
   {
     id: 'customers-assets',
-    title: 'Customers & Assets',
+    title: 'Customers & Cylinders',
     items: [
       { id: 'customers', label: 'Customers', icon: '👥', roles: ['owner', 'manager'] },
       { id: 'cylinders', label: 'Cylinder Register', icon: '🛢️', roles: ['owner', 'manager'] },
-      { id: 'cylinders/recovery', label: 'Empty Recovery', icon: '🔄', roles: ['owner', 'manager'] },
     ],
   },
   {
@@ -37,22 +35,14 @@ export const NAV_GROUPS = [
     ],
   },
   {
-    id: 'analytics-reports',
-    title: 'Intelligence & Reports',
+    id: 'admin-reports',
+    title: 'Reports & Admin',
     items: [
       { id: 'reports', label: 'Business Reports', icon: '📋', roles: ['owner', 'manager', 'ceo'] },
       { id: 'evaluation', label: 'Route Evaluation', icon: '🔬', roles: ['owner', 'ceo'] },
-    ],
-  },
-  {
-    id: 'admin-tools',
-    title: 'Administration',
-    items: [
       { id: 'users', label: 'Users & Access', icon: '👤', roles: ['owner'] },
-      { id: 'audit', label: 'Tamper-Evident Audit', icon: '🛡️', roles: ['owner', 'ceo'] },
+      { id: 'audit', label: 'System Audit Log', icon: '🛡️', roles: ['owner', 'ceo'] },
       { id: 'settings', label: 'System Settings', icon: '⚙️', roles: ['owner', 'manager'] },
-      { id: 'assistant', label: 'AI Assistant', icon: '🤖', roles: ['owner', 'manager', 'ceo'] },
-      { id: 'utilities', label: 'Notes & Tools', icon: '📝', roles: ['owner', 'manager', 'ceo'] },
     ],
   },
 ]

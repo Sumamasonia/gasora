@@ -27,11 +27,11 @@ export default function StockPage({ auth, onNavigate, onExpired }) {
         getStockSettings(auth.token),
       ])
       setSummary(sumData)
-      setMovements(movData)
-      setThresholds(setData.low_stock_thresholds || {})
+      setMovements(movData || [])
+      setThresholds(setData?.low_stock_thresholds || {})
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }

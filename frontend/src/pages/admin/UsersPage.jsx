@@ -53,7 +53,7 @@ export default function UsersPage({ auth, onNavigate, onExpired }) {
       setUsers(list || [])
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -271,7 +271,7 @@ export default function UsersPage({ auth, onNavigate, onExpired }) {
             fontSize: 13,
           }}
         >
-          ⚠️ {error}
+          ⚠️ {typeof error === 'string' ? error : error?.message || 'Error loading users'}
         </div>
       )}
 

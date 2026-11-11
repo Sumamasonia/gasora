@@ -54,7 +54,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
       }
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -282,7 +282,7 @@ export default function SettingsPage({ auth, onNavigate, onExpired }) {
             border: '1px solid',
           }}
         >
-          {error}
+          {typeof error === 'string' ? error : error?.message || 'Error loading settings'}
         </div>
       )}
 

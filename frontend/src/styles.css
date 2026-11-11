@@ -532,6 +532,7 @@ input:disabled, select:disabled {
   display: flex;
   flex-direction: row;
   min-height: 0;
+  width: 100%;
   height: calc(100vh - 128px);
   overflow: hidden;
   position: relative;
@@ -539,9 +540,10 @@ input:disabled, select:disabled {
 
 /* Left Sidebar (Routific style) */
 .planner-sidebar {
-  width: 460px;
-  min-width: 400px;
-  max-width: 500px;
+  width: 360px;
+  min-width: 320px;
+  max-width: 380px;
+  flex: 0 0 360px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -671,29 +673,33 @@ input:disabled, select:disabled {
 
 /* Map Wrapper */
 .planner-map-wrapper {
-  flex: 1;
+  flex: 1 1 0%;
   min-width: 0;
   height: 100%;
   min-height: 100%;
   position: relative;
   background: #e5e7eb;
   display: flex;
+  overflow: hidden;
 }
 
 .routific-map-container {
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  display: flex;
-  flex: 1;
-  position: relative;
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  overflow: hidden;
 }
 
-.routific-map-container .map {
+.routific-map-container .map,
+.routific-map-container .leaflet-container {
+  position: absolute !important;
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   min-height: 100% !important;
-  flex: 1;
+  background: #e2e8f0;
 }
 
 /* Custom Routific Numbered Map Pins */

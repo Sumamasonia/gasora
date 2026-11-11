@@ -36,7 +36,7 @@ export default function LoansPage({ auth, onNavigate, onRecordPayment, onExpired
       setData(res)
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -214,7 +214,7 @@ export default function LoansPage({ auth, onNavigate, onRecordPayment, onExpired
           <Spinner size="lg" message="Analyzing customer credit balances & debt ageing..." />
         </div>
       ) : error ? (
-        <div className="error banner">⚠️ {error}</div>
+        <div className="error banner">⚠️ {typeof error === 'string' ? error : error?.message || 'Error loading loan analysis'}</div>
       ) : filteredCustomers.length === 0 ? (
         <EmptyState
           title="No Outstanding Debt Found"

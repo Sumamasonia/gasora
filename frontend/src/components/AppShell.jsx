@@ -31,11 +31,11 @@ export default function AppShell({ auth, onSignOut, activeRoute, onNavigate, chi
 
   const isItemActive = (itemId, currentRoute) => {
     if (itemId === currentRoute) return true
+    if (itemId === 'dispatch' && (currentRoute === 'dispatch' || currentRoute === 'urgent')) return true
     if (itemId === 'sales' && (currentRoute === 'sales' || currentRoute.startsWith('billing/sale'))) return true
     if (itemId === 'purchases' && (currentRoute === 'purchases' || currentRoute.startsWith('stock/purchases'))) return true
     if (itemId === 'customers' && currentRoute.startsWith('customers')) return true
-    if (itemId === 'cylinders/recovery' && currentRoute === 'cylinders/recovery') return true
-    if (itemId === 'cylinders' && (currentRoute === 'cylinders' || currentRoute === 'cylinders/held')) return true
+    if (itemId === 'cylinders' && (currentRoute === 'cylinders' || currentRoute === 'cylinders/held' || currentRoute === 'cylinders/recovery')) return true
     if (itemId === 'billing' && currentRoute.startsWith('billing') && currentRoute !== 'billing/payments' && currentRoute !== 'billing/loans' && currentRoute !== 'billing/sale') return true
     if (itemId === 'ledger' && (currentRoute.startsWith('ledger') || currentRoute === 'billing/payments' || currentRoute === 'billing/loans' || currentRoute === 'payments' || currentRoute === 'loans')) return true
     if (itemId === 'stock' && currentRoute === 'stock') return true

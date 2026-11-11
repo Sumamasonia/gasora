@@ -57,11 +57,11 @@ export default function ExpensesPage({ auth, onNavigate, onExpired }) {
         getExpenses(auth.token),
         getFuelEstimate(auth.token),
       ])
-      setData(expData)
+      setData(expData || { expenses: [], category_totals: {}, monthly_totals: {}, daily_totals: {} })
       setFuelEst(fuelData)
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -420,7 +420,7 @@ export default function ExpensesPage({ auth, onNavigate, onExpired }) {
           <Spinner size="lg" message="Loading operating expenses..." />
         </div>
       ) : error ? (
-        <div className="error banner">⚠️ {error}</div>
+        <div className="error banner">⚠️ {typeof error === 'string' ? error : error?.message || 'Error loading expenses'}</div>
       ) : filteredExpenses.length === 0 ? (
         <EmptyState
           title="No Expenses Found"

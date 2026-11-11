@@ -50,7 +50,7 @@ export default function RecordSalePage({ auth, onNavigate, initialCustomerId = n
         }
       } catch (err) {
         if (err && err.status === 401) { onExpired?.(); return; }
-        if (active) setError(err)
+        if (active) setError(err?.message || String(err))
       } finally {
         if (active) setLoadingCustomers(false)
       }
@@ -303,7 +303,7 @@ export default function RecordSalePage({ auth, onNavigate, initialCustomerId = n
           <form onSubmit={handleSubmit} className="billing-form-card">
             {error && (
               <div className="error banner" style={{ margin: 0 }}>
-                ⚠️ {error}
+                ⚠️ {typeof error === 'string' ? error : error?.message || 'Error occurred'}
               </div>
             )}
 

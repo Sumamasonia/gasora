@@ -47,7 +47,7 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
       setTamperSimulated(Boolean(settings?.simulate_tampered_audit))
     } catch (err) {
       if (err && err.status === 401) { onExpired?.(); return; }
-      setError(err)
+      setError(err?.message || String(err))
     } finally {
       setLoading(false)
     }
@@ -227,7 +227,7 @@ export default function AuditPage({ auth, onNavigate, onExpired }) {
             border: '1px solid',
           }}
         >
-          {error}
+          {typeof error === 'string' ? error : error?.message || 'Error loading audit events'}
         </div>
       )}
 

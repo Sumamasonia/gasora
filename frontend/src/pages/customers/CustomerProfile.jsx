@@ -211,7 +211,19 @@ export default function CustomerProfile({ auth, customerId, onNavigate, onExpire
     )
   }
 
-  if (!customer) return null
+  if (!customer) {
+    return (
+      <EmptyState
+        title="Customer Not Found"
+        description={`No customer account exists with identifier #${customerId}.`}
+        action={
+          <button type="button" onClick={() => onNavigate('customers')}>
+            Return to Customers Directory
+          </button>
+        }
+      />
+    )
+  }
 
   return (
     <div className="customer-profile">
