@@ -4,7 +4,7 @@ Stages and seeds:  dev 1-10 (tuning),  check 11-20,  confirm 21-40 (once, after 
 Arms:  R0 (rule, all gaps), R1 (rule, exact records), R2 (rule, censored fit, supplementary),
        G (Gasora, censored fit), A (Gasora selection, nearest neighbour), P1 (reactive, reference).
 
-Run:  python -m evaluation.study --stage dev [--fit-m 6 --floor 1 --early-pull]
+Run:  python -m evaluation.study --stage dev [--fit-m 6 --floor 1 --early-pull]   (default: M = all, floor 1, no pull)
 In the confirm and spare stages the variant comes from docs/freeze.json and the flags are ignored.
 Results are saved after every seed; run the same command again to continue.
 """
@@ -22,7 +22,7 @@ from evaluation.world import build_static
 from predictor import risk
 
 LEADS = [2, 4, 6, 8, 10, 12]
-CUTOFFS = [0.03, 0.05, 0.10, 0.15, 0.20, 0.30]
+CUTOFFS = [0.01, 0.02, 0.03, 0.05, 0.10, 0.15, 0.20, 0.30]      # protocol v1.2 section 5: 0.01 and 0.02 are new
 REFERENCE_LEAD = 6          # prediction quality is reported at these settings
 REFERENCE_CUTOFF = 0.10
 
@@ -62,7 +62,7 @@ def main(stage, source="road", n=200, days=60, warmup=30, variant=None, seeds=No
     freeze = guard.check_seeds(seeds)
     if stage in ("confirm", "spare"):
         variant = freeze["variant"]                      # the frozen variant; flags are ignored
-    variant = variant or {"fit_m": 4, "fit_floor": 1.0, "early_pull": False}
+    variant = variant or {"fit_m": None, "fit_floor": 1.0, "early_pull": False}      # default M = all (protocol v1.2)
     apply_variant(variant)
     print(f"Stage {stage}, seeds {seeds[0]} to {seeds[-1]}, {n} customers, {source} distances, {warmup} warm-up + "
           f"{days} counted days. Variant: {variant}")
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     ap.add_argument("--stage", choices=list(guard.STAGES), required=True)
     ap.add_argument("--source", choices=["straight", "road"], default="road")
     ap.add_argument("--n", type=int, default=200)
-    ap.add_argument("--fit-m", type=int, default=4, help="records used by the censored fit; 0 = all")
+    ap.add_argument("--fit-m", type=int, default=0, help="records used by the censored fit; 0 = all (default)")
     ap.add_argument("--floor", type=float, default=1.0)
     ap.add_argument("--early-pull", action="store_true")
     a = ap.parse_args()

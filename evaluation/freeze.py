@@ -47,7 +47,7 @@ def main(fit_m, floor, early_pull):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fit-m", type=int, default=4, help="records used by the censored fit; 0 = all")
+    ap.add_argument("--fit-m", type=int, default=0, help="records used by the censored fit; 0 = all (default)")
     ap.add_argument("--floor", type=float, default=1.0)
     ap.add_argument("--early-pull", action="store_true")
     a = ap.parse_args()

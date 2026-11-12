@@ -1,6 +1,7 @@
-# Evaluation protocol, version 1.1
+# Evaluation protocol, version 1.2
 
-Version 1 was written on 2026-11-07. Version 1.1 amends it before any confirmation run (see the change log).
+Version 1 was written on 2026-11-07. Version 1.1 amended it before any confirmation run. Version 1.2 (2026-11-11)
+amends it again, after the development runs on seeds 1 to 10 and before any confirmation run (see the change log).
 Status: **not yet frozen** (the freeze happens in step 6 of section 12).
 
 This document fixes how the delivery policies will be compared, before the confirmation runs are made. Commit it
@@ -35,6 +36,20 @@ delivers almost every day, and that with the memory length `M = 4` most predicti
 The primary comparison below (cost at a fixed service level) was chosen **after** seeing the exploratory results.
 This is why seeds 21 to 40 are reserved for confirmation. The clean-information results stay in the report as the
 "clean information" arm and are labelled exploratory.
+
+**Development runs for version 1.2.** After version 1.1 was committed, the main arm was run on seeds 1 to 10 with
+three memory lengths (`M = 4`, `M = 6` and `M = all`; variants 1 to 3 in `docs/variant_log.md`). They showed:
+
+- With the cut-off grid of version 1.1, the Gasora curve does not reach the primary level of 15 run-outs in any
+  of the three variants for most seeds (with `M = all`, 2 of 10 seeds; its lowest cut-off, 0.03, gives a mean of
+  16.6 run-outs). The primary comparison therefore cannot be computed with that grid.
+- `M = all` is the best of the three on forecast error, Brier skill and refill window coverage.
+- The curve of the rule arm R0 is not monotone (a longer alert lead can give more run-outs), so a level can be
+  crossed more than once.
+
+The changes in section 5 (grid), section 6.1 (reading a curve) and section 9.1 (choice among the three variants)
+were written **after** seeing these results. They concern coverage and how curves are read, not the comparison
+itself, and no confirmation seed (21 to 40) has been run. The reader should still know that they came after.
 
 ## 3. Simulation setting (fixed)
 
@@ -86,19 +101,27 @@ routing. It is **not part of the pass rule** in section 6.
 
 **Censored fit.** A normal distribution fitted by maximum likelihood to the customer's most recent `M` records:
 exact records contribute the density, "at least this long" records the survival probability. Spread floor 1 day.
-Pooled estimate on cold start. Defaults: `M = 4`, floor 1 day, no early-arrival pull. **G and R2 always use the same
-fit settings.**
+Pooled estimate on cold start. Defaults: `M = all`, floor 1 day, no early-arrival pull (`M = all` replaces the
+default `M = 4` of version 1.1, see section 9.1). **G and R2 always use the same fit settings.**
 
-**Grids (fixed).** Rule alert leads: 2, 4, 6, 8, 10, 12 days (R0, R1 and R2). Gasora risk cut-offs: 0.03, 0.05, 0.10,
-0.15, 0.20, 0.30. Before the freeze, leads may be extended (14, 16) if a reported level is not covered (section 6).
+**Grids (fixed).**
+
+- Rule alert leads (R0, R1 and R2): 2, 4, 6, 8, 10, 12 days. Before the freeze, leads may be extended (14, 16) if a
+  reported level is not covered (section 6).
+- Gasora risk cut-offs (G and A): **0.01, 0.02**, 0.03, 0.05, 0.10, 0.15, 0.20, 0.30. The two lowest values are new
+  in version 1.2 (see section 2). G and A always use the same grid.
+- One further extension of the Gasora grid downward (for example 0.005) is allowed in a version 1.3, but only if,
+  on seeds 1 to 10 with the version 1.2 grid, the curve of G still does not reach level 15 on more than 2 of the 10
+  seeds. Version 1.3 must be committed and tagged before the check stage. No other change of the grids is allowed,
+  and none after the freeze.
 
 ## 6. Primary and secondary comparisons
 
-Each policy with a grid produces, for each seed, a curve of (run-outs, cost). "Cost at level L" means the cost read
-by straight-line interpolation between the two settings that bracket L on that seed's curve. A level is **covered**
-for a policy and seed if it has settings with run-outs above and below L. Seeds where a policy does not cover L are
-dropped and counted. If more than 20% of seeds are dropped, the level is reported as **not covered** and no
-comparison is made.
+Each policy with a grid produces, for each seed, a curve of (run-outs, cost) points, one point per setting. "Cost at
+level L" is read from this curve as set out in section 6.1. A level is **covered** for a policy and seed if the
+curve has a setting with run-outs above L and a setting with run-outs below L (or a setting with exactly L). Seeds
+where a policy does not cover L are dropped and counted. If more than 20% of seeds are dropped for any policy in
+the comparison, the level is reported as **not covered** and no comparison is made.
 
 **Primary service level:** 15 run-outs per 100 customer-months.
 **Secondary levels:** 25 and 40, and 10 only if the curves of G and of both rule arms (R0 and R1) cover it.
@@ -117,6 +140,23 @@ The overall grade of the primary claim is the weaker of the two grades (against 
 **Secondary comparisons (descriptive, with intervals, no claims beyond the evidence):** G against R2; all
 comparisons at levels 25, 40 and 10; G against A (the effect of routing); comparison at equal numbers of deliveries;
 results by customer type. P1 is shown for reference.
+
+### 6.1 Reading cost at a level from a curve
+
+The same rule applies to every arm and every measure.
+
+1. Order the settings of the arm by their grid value (leads or cut-offs, from the first to the last).
+2. Take every pair of settings that are next to each other in this order and whose run-outs lie on opposite sides
+   of L. Each such pair gives one cost, by straight-line interpolation between its two points. A single setting with
+   exactly L run-outs gives its own cost.
+3. If there is one such cost, that is the cost at level L. If there are several (the curve is not monotone and
+   crosses L more than once), the **lowest** cost is used. Kilometres and vehicle hours are each read this way on
+   their own.
+4. The number of seeds in which a curve crossed L more than once is reported for each arm.
+
+Reason: a rule that is not monotone could otherwise be judged at a crossing that is unfavourable to it for a
+reason that has nothing to do with Gasora. Taking the lowest cost is the more demanding reading for Gasora when a
+comparison arm is non-monotone, and it is applied the same way when G is non-monotone.
 
 ## 7. Measures
 
@@ -159,6 +199,22 @@ At most **12 combinations** may be tried in total. Each one is written in `docs/
 and the result, whether or not it is kept. The kept variant is chosen by the primary measure on seeds 1 to 10, and
 must pass the check on seeds 11 to 20.
 
+The development checks on seeds 1 and 2 mentioned in section 2 were made before the log existed and are not counted
+in the 12.
+
+### 9.1 Choice among variants 1 to 3
+
+Variants 1 to 3 (`M = 4`, `M = 6`, `M = all`, all with the censored fit, floor 1 day, no early-arrival pull) were run
+with the cut-off grid of version 1.1. On that grid the primary measure could not be computed for any of them, so
+the rule above ("chosen by the primary measure") cannot be applied to them.
+
+Decision, made after seeing the results: `M = all` is carried forward as variant 4 (with the extended grid of
+section 5). `M = 4` and `M = 6` are not carried forward, because `M = all` was better on forecast error, Brier
+skill and refill window coverage, was the only variant for which level 25 could be evaluated (on all 10 seeds), and
+at level 40 it was not clearly worse than R1 in kilometres, while `M = 4` and `M = 6` were worse (by about 108 and
+48 km). This is a choice on secondary measures and is reported as such. The
+primary measure decides any further variant (floor, early-arrival pull) tried after variant 4.
+
 ## 10. Arm D and other secondary arms (run on seeds 21 to 40 after the freeze, labelled secondary)
 
 **Arm D (more realistic calling).** A customer who runs out calls on the same day with probability `p_call` = 0.7
@@ -194,12 +250,14 @@ without changing the main result.
 
 ## 12. Order of work
 
-1. Write and commit this protocol. Tag it `protocol-v1.1`.
+1. Write and commit this protocol. Tag it `protocol-v1.2`.
 2. Build the main arm: the information model, the censored fit, the arms R0, R1, R2, G, A and P1, vehicle hours, the
-   cost-curve analysis with a coverage table, the seed guard, and the result metadata.
+   cost-curve analysis with a coverage table, the seed guard, and the result metadata. For version 1.2: extend the
+   Gasora grid in the code and make the curve analysis follow section 6.1.
 3. Build arm D and the extra measures (Brier score, calibration, oracle bound, skewed durations). Arm D is built after
    the main arm works.
-4. Run seeds 1 to 10 and tune within section 9. Check on seeds 11 to 20.
+4. Run seeds 1 to 10 and tune within section 9 (variant 4 first: `M = all` with the extended grid). Check on seeds
+   11 to 20.
 5. Repeat the freeze checks: no uncommitted changes, `docs/variant_log.md` complete.
 6. Freeze: record the commit in `docs/freeze.json`, tag `eval-freeze-v1`, repeat one seed twice.
 7. Run seeds 21 to 40 once: the main comparison, the secondary arms, the empties study.
@@ -227,3 +285,15 @@ timer-based solver.
   tick, third record type, realistic P1, wrong and missing ticks) added as a secondary arm that can be dropped;
   primary comparison is now Gasora against R0 and R1 (the weaker grade counts), and R2 is a supplementary arm; level 10
   added as conditional; the development checks on seeds 1 and 2 are recorded in section 2.
+- v1.2 (2026-11-11), written after the development runs on seeds 1 to 10 and before any run on seeds 11 to 20 or
+  21 to 40. All three changes were decided after seeing the development results (section 2):
+  (1) the Gasora and ablation cut-off grid is extended downward with 0.01 and 0.02, because with the version 1.1 grid
+  the curve of G did not reach the primary level 15 on most seeds; one further extension is allowed only under the
+  condition in section 5;
+  (2) section 6.1 is added: how cost at a level is read from a curve that may cross the level more than once (the
+  lowest cost is used, for every arm), and the coverage test is stated for each policy in the comparison;
+  (3) section 9.1 is added: `M = all` is carried forward as variant 4, chosen on secondary measures because the
+  primary measure could not be computed for variants 1 to 3; the default fit setting in section 5 changes from
+  `M = 4` to `M = all`.
+  The measures, the primary level, the decision rule, the seeds, the simulation setting and the other arms are
+  unchanged.

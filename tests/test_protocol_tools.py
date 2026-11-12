@@ -19,6 +19,42 @@ def test_cost_is_read_between_the_two_settings_around_the_level():
     assert curves.cost_at_level(pts, 31, "total_km") is None           # above the curve: not covered
 
 
+def test_a_curve_that_crosses_the_level_twice_is_read_at_the_lowest_cost():
+    # the shape of R0 in the development runs: run-outs fall, then rise again (grid order: leads 6, 8, 10, 12)
+    pts = [point(16.1, 4215), point(7.8, 5599), point(12.7, 4822), point(26.1, 4421)]
+    first = 4215 + (5599 - 4215) * (16.1 - 15) / (16.1 - 7.8)
+    second = 4822 + (4421 - 4822) * (15 - 12.7) / (26.1 - 12.7)
+    assert curves.n_crossings(pts, 15) == 2
+    assert curves.cost_at_level(pts, 15, "total_km") == pytest.approx(min(first, second))
+    assert curves.cost_at_level(pts, 15, "total_km") == pytest.approx(first)
+    assert curves.n_crossings(pts, 5) == 0 and curves.cost_at_level(pts, 5, "total_km") is None
+
+
+def test_a_setting_exactly_at_the_level_is_one_crossing_with_its_own_cost():
+    pts = [point(30, 100), point(15, 140), point(5, 300)]
+    assert curves.n_crossings(pts, 15) == 1
+    assert curves.cost_at_level(pts, 15, "total_km") == 140
+
+
+def test_descriptive_measures_are_read_at_the_crossing_with_the_lowest_kilometres():
+    a, b, c = point(20, 100), point(10, 300), point(20, 200)          # crosses 15 between a and b, and between b and c
+    for p, v in zip((a, b, c), (1.0, 5.0, 9.0)):
+        p["deliveries_steady"] = v
+    assert curves.cost_at_level([a, b, c], 15, "deliveries_steady", choose_by="total_km") == pytest.approx(3.0)
+
+
+def test_arm_points_follow_the_grid_order_not_the_order_of_the_file():
+    rec = {"arms": {"G": {"0.1": point(30, 3), "0.01": point(10, 1), "0.02": point(20, 2)}}}
+    assert [p["total_km"] for p in curves.arm_points(rec, "G")] == [1, 2, 3]
+    rec = {"arms": {"R0": {"10": point(1, 10), "2": point(2, 2), "4": point(3, 4)}}}
+    assert [p["total_km"] for p in curves.arm_points(rec, "R0")] == [2, 4, 10]
+
+
+def test_the_gasora_grid_is_the_one_in_protocol_v1_2_and_the_default_fit_uses_all_records():
+    assert study.CUTOFFS == [0.01, 0.02, 0.03, 0.05, 0.10, 0.15, 0.20, 0.30]
+    assert study.LEADS == [2, 4, 6, 8, 10, 12]
+
+
 def make_recs(n_seeds, g_shift_km, g_shift_hours, only_levels_above=0):
     """Rule arms R0 and R1 cost 3000 km and 150 hours at 15 run-outs; G is shifted by the given amounts."""
     rng = np.random.default_rng(0)
