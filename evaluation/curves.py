@@ -1,8 +1,10 @@
 """Cost at a fixed service level (docs/PROTOCOL.md section 6).
 
 Each policy with a grid of settings gives, for every seed, a curve of (run-outs per 100 customer-months, cost).
-"Cost at level L" is read by straight-line interpolation between the two settings that bracket L on that
-seed's curve. A level is covered for a policy and seed only if the curve has settings above and below L.
+Section 6.1 (protocol v1.2): the settings are taken in grid order; every pair of neighbouring settings whose
+run-outs lie on opposite sides of L gives one crossing, by straight-line interpolation (a single setting with
+exactly L run-outs is a crossing of its own). With several crossings the lowest cost is used, for every arm and
+every measure. A level is covered for a policy and seed only if the curve crosses L at least once.
 """
 import numpy as np
 
@@ -15,17 +17,45 @@ RULE_ARMS = ["R0", "R1"]                     # the primary comparison
 COVER_AT_LEAST = 0.8                         # share of seeds that must cover a level
 
 
-def cost_at_level(points, level, key):
-    """points: list of metric dicts of one policy and seed (one per setting). None if the level is not covered."""
-    pts = sorted((p["runouts_per_100cm"], p[key]) for p in points)
-    for (r0, c0), (r1, c1) in zip(pts, pts[1:]):
-        if r0 <= level <= r1:
-            return c0 if r1 == r0 else c0 + (c1 - c0) * (level - r0) / (r1 - r0)
-    return None
+def crossings(points, level, key, choose_by=None):
+    """All crossings of `level` (protocol section 6.1) as (value of choose_by, value of key) pairs.
+
+    points: metric dicts of one policy and seed, one per setting, in grid order. choose_by defaults to key; it
+    only matters for descriptive measures (run-outs by customer type), which are read at the crossing that has
+    the lowest kilometres.
+    """
+    choose_by = choose_by or key
+    out = [(p[choose_by], p[key]) for p in points if p["runouts_per_100cm"] == level]
+    for a, b in zip(points, points[1:]):
+        r0, r1 = a["runouts_per_100cm"], b["runouts_per_100cm"]
+        if (r0 - level) * (r1 - level) < 0:
+            t = (level - r0) / (r1 - r0)
+            out.append((a[choose_by] + (b[choose_by] - a[choose_by]) * t, a[key] + (b[key] - a[key]) * t))
+    return out
+
+
+def cost_at_level(points, level, key, choose_by=None):
+    """Cost at the level read as in protocol section 6.1 (lowest cost over the crossings). None if not covered."""
+    found = crossings(points, level, key, choose_by)
+    return min(found)[1] if found else None
+
+
+def n_crossings(points, level):
+    return len(crossings(points, level, "total_km"))
+
+
+def grid_order(setting):
+    try:
+        return (0, float(setting))
+    except ValueError:
+        return (1, 0.0)
 
 
 def arm_points(rec, arm):
-    return list(rec["arms"][arm].values())
+    """The points of an arm in grid order (leads or cut-offs, from the first to the last), as section 6.1 needs."""
+    d = rec["arms"][arm]
+    keys = sorted(d, key=grid_order) if all(grid_order(k)[0] == 0 for k in d) else list(d)
+    return [d[k] for k in keys]
 
 
 def coverage(recs, arm, level):
@@ -79,6 +109,12 @@ def report(recs, arms_present):
     print(f"{'arm':6s}" + "".join(f"{lv:>8d}" for lv in LEVELS))
     for arm in arms_present:
         print(f"{arm:6s}" + "".join(f"{coverage(recs, arm, lv)[0]:8d}" for lv in LEVELS))
+
+    print(f"\nSeeds (of {n}) whose curve crosses a level more than once (the lowest cost is used, protocol section 6.1)")
+    print(f"{'arm':6s}" + "".join(f"{lv:>8d}" for lv in LEVELS))
+    for arm in arms_present:
+        print(f"{arm:6s}" + "".join(
+            f"{sum(n_crossings(arm_points(r, arm), lv) > 1 for r in recs):8d}" for lv in LEVELS))
 
     print("\nMean curve points over seeds (run-outs, kilometres, vehicle hours)")
     for arm in arms_present:
@@ -165,7 +201,7 @@ def extras_report(recs):
         for t in ("steady", "irregular"):
             vals = []
             for key in (f"runouts_per_100cm_{t}", f"deliveries_{t}", f"early_{t}"):
-                v = [cost_at_level(arm_points(r, arm), PRIMARY_LEVEL, key) for r in recs]
+                v = [cost_at_level(arm_points(r, arm), PRIMARY_LEVEL, key, choose_by="total_km") for r in recs]
                 v = [x for x in v if x is not None]
                 vals.append(np.mean(v) if v else float("nan"))
             print(f"{arm:4s}{t:11s}{vals[0]:16.1f}{vals[1]:12.1f}{vals[2]:8.1f}")

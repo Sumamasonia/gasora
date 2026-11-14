@@ -58,7 +58,7 @@ def run_metadata(variant=None):
         "python": sys.version.split()[0], "platform": platform.platform(), "processor": platform.processor(),
         "packages": {p: _version(p) for p in ("numpy", "scipy", "ortools", "networkx", "osmnx")},
         "settings": {"vehicles": config.N_VEHICLES, "capacity": config.CAPACITY, "shift_min": config.SHIFT_MIN,
-                     "service_min": config.SERVICE_MIN, "skip_penalty": config.EMERGENCY_COST,
+                     "service_min": config.SERVICE_MIN, "skip_penalty": config.EMERGENCY_COST, "gasora_skip_penalty": policies.SKIP_PENALTY or config.EMERGENCY_COST,
                      "plan_seconds": policies.PLAN_SECONDS, "early_days": EARLY_DAYS},
         "variant": variant or {},
     }

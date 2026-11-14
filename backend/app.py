@@ -4,14 +4,14 @@ import os
 from datetime import date, datetime
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend import cylinders, eventlog, security, services, settings
+from backend import accounts, cylinders, eventlog, expenses, security, services, settings, stock
 from planner.road_router import RoadRouter, StraightRouter
 from backend.models import Base, Customer, Cylinder, CylinderTransaction, Delivery, User
 
@@ -150,6 +150,48 @@ class DeliverIn(BaseModel):
     empties_collected: Optional[int] = Field(default=None, ge=0, le=20)
     serials_delivered: Optional[list[str]] = Field(default=None, max_length=20)    # all or none
     serials_collected: Optional[list[str]] = Field(default=None, max_length=20)
+    cash_received: Optional[int] = Field(default=None, ge=0, le=10_000_000)   # money taken at the door, in rupees
+
+
+class PriceIn(BaseModel):
+    unit_price: int = Field(ge=1, le=1_000_000)
+
+
+class PaymentIn(BaseModel):
+    customer_id: int
+    amount: int = Field(ge=1, le=10_000_000)
+    note: Optional[str] = Field(default=None, max_length=200)
+
+
+class AdjustmentIn(BaseModel):
+    customer_id: int
+    amount: int = Field(ge=-10_000_000, le=10_000_000)        # positive: the customer owes more
+    note: str = Field(min_length=1, max_length=200)
+
+
+class PurchaseIn(BaseModel):
+    quantity: int = Field(ge=1, le=100_000)
+    unit_cost: int = Field(ge=1, le=1_000_000)
+    supplier: Optional[str] = Field(default=None, max_length=100)
+    day: Optional[date] = None
+    note: Optional[str] = Field(default=None, max_length=200)
+
+
+class StockAdjustIn(BaseModel):
+    quantity: int = Field(ge=-100_000, le=100_000)           # positive adds to stock, negative removes
+    note: str = Field(min_length=1, max_length=200)
+    day: Optional[date] = None
+
+
+class ThresholdIn(BaseModel):
+    threshold: int = Field(ge=0, le=100_000)
+
+
+class ExpenseIn(BaseModel):
+    category: str = Field(max_length=20)
+    amount: int = Field(ge=-10_000_000, le=10_000_000)
+    day: Optional[date] = None
+    note: Optional[str] = Field(default=None, max_length=200)
 
 
 class AdjustEmptiesIn(BaseModel):
@@ -440,10 +482,10 @@ def my_routes(session: Session = Depends(get_session), me: User = Depends(requir
 
 
 def _stop_action(stop_id, action, request, session, me, cylinders=None, reason=None, empties_collected=None,
-                 serials_delivered=None, serials_collected=None):
+                 serials_delivered=None, serials_collected=None, cash_received=None):
     try:
         services.complete_stop(session, request.app.state.events, me, stop_id, action, cylinders, reason,
-                               empties_collected, serials_delivered, serials_collected)
+                               empties_collected, serials_delivered, serials_collected, cash_received)
     except LookupError as e:
         raise HTTPException(404, str(e))
     except PermissionError as e:
@@ -477,13 +519,130 @@ def deliver_stop(stop_id: int, body: DeliverIn, request: Request, session: Sessi
                  me: User = Depends(require("owner", "driver"))):
     return _stop_action(stop_id, "deliver", request, session, me, cylinders=body.cylinders,
                         empties_collected=body.empties_collected, serials_delivered=body.serials_delivered,
-                        serials_collected=body.serials_collected)
+                        serials_collected=body.serials_collected, cash_received=body.cash_received)
 
 
 @router.post("/route-stops/{stop_id}/skip")
 def skip_stop(stop_id: int, body: SkipIn, request: Request, session: Session = Depends(get_session),
               me: User = Depends(require("owner", "driver"))):
     return _stop_action(stop_id, "skip", request, session, me, reason=body.reason)
+
+
+# ---------- money: price, payments, ledger, invoices ----------
+@router.get("/settings/price")
+def get_price(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver"))):
+    return {"unit_price": accounts.get_price(session)}
+
+
+@router.put("/settings/price")
+def put_price(body: PriceIn, request: Request, session: Session = Depends(get_session),
+              me: User = Depends(require("owner"))):
+    accounts.set_price(session, request.app.state.events, me.username, body.unit_price)
+    session.commit()
+    return {"unit_price": body.unit_price}
+
+
+@router.post("/payments", status_code=201)
+def post_payment(body: PaymentIn, request: Request, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner", "driver"))):
+    try:
+        accounts.record_payment(session, request.app.state.events, me.username, body.customer_id, body.amount, body.note)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    session.commit()
+    return {"balance": accounts.balances(session).get(body.customer_id, 0)}
+
+
+@router.post("/ledger/adjust", status_code=201)
+def post_adjustment(body: AdjustmentIn, request: Request, session: Session = Depends(get_session),
+                    me: User = Depends(require("owner"))):
+    try:
+        accounts.adjust(session, request.app.state.events, me.username, body.customer_id, body.amount, body.note)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    session.commit()
+    return accounts.ledger_view(session, body.customer_id)
+
+
+@router.get("/ledger/{customer_id}")
+def get_ledger(customer_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    try:
+        return accounts.ledger_view(session, customer_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/receivables")
+def get_receivables(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    return accounts.receivables(session, date.today())
+
+
+@router.get("/invoices/{invoice_id}/pdf")
+def get_invoice_pdf(invoice_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    try:
+        pdf = accounts.invoice_pdf(session, invoice_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ImportError:
+        raise HTTPException(501, "PDF invoices need the reportlab package (pip install reportlab)")
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{accounts.invoice_number(invoice_id)}.pdf"'})
+
+
+# ---------- stock and expenses ----------
+@router.get("/stock")
+def get_stock(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    return stock.stock_view(session)
+
+
+@router.post("/stock/purchase", status_code=201)
+def post_purchase(body: PurchaseIn, request: Request, session: Session = Depends(get_session),
+                  me: User = Depends(require("owner"))):
+    try:
+        stock.record_purchase(session, request.app.state.events, me.username, body.quantity, body.unit_cost,
+                              body.supplier, body.day, body.note)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    session.commit()
+    return stock.stock_view(session)
+
+
+@router.post("/stock/adjust", status_code=201)
+def post_stock_adjust(body: StockAdjustIn, request: Request, session: Session = Depends(get_session),
+                      me: User = Depends(require("owner"))):
+    try:
+        stock.adjust(session, request.app.state.events, me.username, body.quantity, body.note, body.day)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    session.commit()
+    return stock.stock_view(session)
+
+
+@router.put("/settings/low-stock")
+def put_low_stock(body: ThresholdIn, request: Request, session: Session = Depends(get_session),
+                  me: User = Depends(require("owner"))):
+    stock.set_threshold(session, request.app.state.events, me.username, body.threshold)
+    session.commit()
+    return stock.stock_view(session)
+
+
+@router.get("/expenses")
+def get_expenses(start: Optional[date] = None, end: Optional[date] = None, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner"))):
+    return expenses.expenses_view(session, start, end)
+
+
+@router.post("/expenses", status_code=201)
+def post_expense(body: ExpenseIn, request: Request, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner"))):
+    try:
+        expenses.add_expense(session, request.app.state.events, me.username, body.category, body.amount, body.day, body.note)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    session.commit()
+    return expenses.expenses_view(session)
 
 
 # ---------- app factory ----------
