@@ -5,7 +5,7 @@ Every combination is written here with the seeds used and the result, whether or
 Only seeds 1 to 10 (development) have been used so far. Seeds 11 to 20 and 21 to 40 have not been run in the
 new information model.
 
-Used so far: **3 of 12** (variant 4 is planned, not yet run).
+Used so far: **4 of 12**.
 
 Not counted: the development checks on seeds 1 and 2 (`info_check`, gap-only information, `M = 4`) made before this
 log existed. They are described in protocol section 2.
@@ -17,14 +17,14 @@ with a 95% bootstrap interval (negative means Gasora is cheaper).
 
 ## Summary table
 
-`evaluation/freeze.py` counts the numbered rows of this table (at most 12), so every variant gets one row here.
-Variant 4 gets its row when it has been run.
+`evaluation/freeze.py` counts the numbered rows of this table (at most 12), so every variant gets one row here, once it has been run.
 
 | No. | Date | Variant (censored fit, memory M, spread floor, early pull) | Seeds | Primary result (G minus R0 and R1, km and vehicle hours at 15 run-outs) | Kept |
 |---|---|---|---|---|---|
 | 1 | up to 2026-11-11 | fit on, M = 4, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 0 of 10 seeds | no |
 | 2 | up to 2026-11-11 | fit on, M = 6, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 0 of 10 seeds | no |
 | 3 | up to 2026-11-11 | fit on, M = all, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | carried forward |
+| 4 | 2026-11-12 to 14 | fit on, M = all, floor 1, no pull, grid v1.2 (adds 0.01 and 0.02) | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | open (see entry) |
 
 ## Variant 1: memory length M = 4
 
@@ -71,16 +71,37 @@ Variant 4 gets its row when it has been run.
 Note on code version: variants 1 to 3 were run with the code before the backend and fingerprint changes
 (`gasora_must_backend.zip`). Development rows are never combined with rows from other code (protocol section 11).
 
-## Variant 4: memory length M = all, extended cut-off grid (planned)
+## Variant 4: memory length M = all, extended cut-off grid
 
 - Settings: `fit_m` = all, `fit_floor` = 1.0, `early_pull` = off. Cut-off grid of protocol v1.2 (0.01, 0.02, 0.03,
-  0.05, 0.10, 0.15, 0.20, 0.30) for G and A. Seeds 1 to 10.
-- Status: **not yet run**.
-- Result: to be filled in after the run (coverage at levels 15 / 25 / 40 / 10, primary comparison with intervals,
-  number of seeds where a curve crosses a level more than once, prediction quality).
-- Decision: to be filled in. If level 15 is still not covered on more than 2 of 10 seeds, see the condition in
-  protocol section 5 (version 1.3).
+  0.05, 0.10, 0.15, 0.20, 0.30) for G and A. Seeds 1 to 10. The run was interrupted and resumed once; the
+  checkpoint fingerprint was unchanged, so all 10 seeds come from the same code.
+- Reaching level 15 / 25 / 40 / 10 (seeds out of 10): R0 10 / 10 / 10 / 8, R1 10 / 10 / 10 / 10, R2 10 / 10 / 10 / 10,
+  **G 2 / 10 / 10 / 0**, A 10 / 10 / 10 / 10.
+- Primary comparison at level 15: **not evaluable** (G covers it on 2 of 10 seeds, below the 80% needed).
+- The curve of G is flat at its lower end: mean run-outs 16.8 (0.01), 16.7 (0.02), 16.8 (0.03), 18.8 (0.05);
+  kilometres 2602, 2608, 2602, 2818. Lowering the cut-off below 0.03 changes nothing, so the extension of the
+  grid in protocol v1.2 did not make level 15 reachable and a further extension (v1.3 in protocol section 5)
+  would not either. The ablation A (same selection, nearest neighbour) reaches 3.6 run-outs at 0.01.
+- Likely cause (read from `planner/routing.py` and `evaluation/arms.py`, not yet tested): the planner skips a
+  customer when the skip penalty, `int(1 + risk x 300)`, is smaller than the minutes it costs to visit them
+  (service 10 minutes plus detour). A customer with risk 0.03 has a penalty of 10 and is dropped. The rule arms give every
+  candidate risk 1.0, so their penalty is 301 and they are always visited. The skip penalty scale is therefore
+  what sets Gasora's floor, not the cut-off.
+- Curves that cross a level more than once (seeds out of 10, section 6.1): at level 15 R0 10, G 1, all others 0; at
+  level 25 R0 5; at level 10 R0 8.
+- Level 25 (10 of 10 seeds for every arm), G minus other arm, mean [95% interval], negative = Gasora cheaper:
+  kilometres vs R0 -666.5 [-784.0, -543.8], hours -80.9 [-97.7, -64.1]; vs R1 -262.7 [-304.8, -217.3], hours -19.2
+  [-21.9, -16.6]; vs R2 -308.1 [-354.8, -262.6], hours -26.8 [-29.8, -23.7]; vs A -648.4 [-691.2, -598.4].
+- Level 40: vs R0 kilometres -91.2 [-123.1, -64.2], hours -13.9 [-17.1, -10.5]; vs R1 kilometres -12.3 [-35.7, 9.5],
+  hours -2.3 [-3.5, -0.8]; vs R2 kilometres -12.2 [-40.8, 14.7], hours -2.0 [-4.2, 0.0]; vs A -397.9 [-417.1, -378.5].
+- Prediction quality (G at cut-off 0.1): forecast error 3.04 days (R1 average of exact records 2.84, R0 average of
+  gaps 5.01); Brier 0.0352 against 0.0382 (skill 0.078); refill window coverage 72.4% (nominal 80%). The fit
+  under-predicts the lowest risk band (mean predicted 0.015, observed 0.029).
+- Decision: **not evaluable, carried to protocol v1.3**. The grid extension is not repeated (flat below 0.03). The skip
+  penalty scale of Gasora is added as variant 6 with a pilot and a fixed choice rule (protocol section 9.2). Each scale
+  other than 300 that is tried gets its own row and entry below, and counts as one of the 12.
 
 ## Entries after variant 4
 
-(none yet)
+(none yet. Next: the pilot of protocol section 9.2, `python -m evaluation.pilot_penalty`, scales 600, 1200 and 2400 as needed.)

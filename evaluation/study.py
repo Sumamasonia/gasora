@@ -33,6 +33,9 @@ def apply_variant(variant):
     risk.FIT_M = variant.get("fit_m")
     risk.FIT_FLOOR = variant.get("fit_floor", 1.0)
     policies.POLICY_LATE_COST = LATE_COST_CRITICAL if variant.get("early_pull") else 0
+    # protocol v1.3: Gasora's skip penalty is int(1 + risk x scale); default scale config.EMERGENCY_COST (300).
+    # Only Gasora's selection uses it. The rule arms give every candidate risk 1.0 and keep the default scale.
+    policies.SKIP_PENALTY = variant.get("skip_penalty")
 
 
 def run_seed(static, days, warmup):
@@ -106,5 +109,9 @@ if __name__ == "__main__":
     ap.add_argument("--fit-m", type=int, default=0, help="records used by the censored fit; 0 = all (default)")
     ap.add_argument("--floor", type=float, default=1.0)
     ap.add_argument("--early-pull", action="store_true")
+    ap.add_argument("--skip-penalty", type=int, default=None, help="skip penalty scale (protocol v1.3); default 300")
     a = ap.parse_args()
-    main(a.stage, a.source, a.n, variant={"fit_m": a.fit_m or None, "fit_floor": a.floor, "early_pull": a.early_pull})
+    v = {"fit_m": a.fit_m or None, "fit_floor": a.floor, "early_pull": a.early_pull}
+    if a.skip_penalty is not None:
+        v["skip_penalty"] = a.skip_penalty
+    main(a.stage, a.source, a.n, variant=v)

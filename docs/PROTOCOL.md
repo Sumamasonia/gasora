@@ -1,7 +1,8 @@
-# Evaluation protocol, version 1.2
+# Evaluation protocol, version 1.3
 
-Version 1 was written on 2026-11-07. Version 1.1 amended it before any confirmation run. Version 1.2 (2026-11-11)
-amends it again, after the development runs on seeds 1 to 10 and before any confirmation run (see the change log).
+Version 1 was written on 2026-11-07. Version 1.1 amended it before any confirmation run. Versions 1.2 (2026-11-11)
+and 1.3 (2026-11-14) amend it again, after development runs on seeds 1 to 10 and before any run on seeds 11 to 20
+or 21 to 40 (see the change log).
 Status: **not yet frozen** (the freeze happens in step 6 of section 12).
 
 This document fixes how the delivery policies will be compared, before the confirmation runs are made. Commit it
@@ -48,8 +49,26 @@ three memory lengths (`M = 4`, `M = 6` and `M = all`; variants 1 to 3 in `docs/v
   crossed more than once.
 
 The changes in section 5 (grid), section 6.1 (reading a curve) and section 9.1 (choice among the three variants)
-were written **after** seeing these results. They concern coverage and how curves are read, not the comparison
+were written **after** seeing these results (version 1.2). They concern coverage and how curves are read, not the comparison
 itself, and no confirmation seed (21 to 40) has been run. The reader should still know that they came after.
+
+**Development run for version 1.3.** Variant 4 (`M = all` with the extended grid, seeds 1 to 10) showed:
+
+- The extended grid did not help. The mean run-outs of Gasora at cut-offs 0.01, 0.02 and 0.03 are 16.8, 16.7 and
+  16.8, and the kilometres are the same, so the curve is flat at its lower end. Level 15 is reached on 2 of 10 seeds
+  (the lowest value on each seed lies between 14.0 and 18.0). The primary comparison still cannot be computed.
+- This is not a capacity or shift limit: at the lowest cut-off Gasora uses about 1.05 vehicles a day and 290
+  vehicle hours (the two vehicles allow 960). The ablation A, which uses the same selection with nearest-neighbour
+  routing and never skips a selected customer, reaches 3.6 run-outs at cut-off 0.01.
+- The likely cause, read from the code and not yet tested: the planner drops a customer when the skip penalty
+  `int(1 + risk x 300)` is smaller than the minutes the visit costs (10 minutes of service plus the detour), so
+  customers with a risk below about 0.05 are dropped whatever the cut-off. The rule arms give every candidate
+  risk 1.0 (penalty 301), so they are not dropped. The scale 300 is a placeholder (section 14).
+
+The changes in sections 3, 5, 9 (item 6 and section 9.2) and 12 are **version 1.3** and were written after seeing
+these results. They add one setting to the allowed variants, the skip penalty scale `S`, and say in advance how it
+is chosen. The reader should know that this setting affects Gasora only (the rule arms keep the default scale), and that it
+was added because Gasora's curve did not reach the primary level without it.
 
 ## 3. Simulation setting (fixed)
 
@@ -59,7 +78,7 @@ itself, and no confirmation seed (21 to 40) has been run. The reader should stil
 | Vehicles | 2, capacity 40 cylinders, shift 480 minutes, service 10 minutes per stop |
 | Distances | road travel times with the speed table in `planner/road_matrix.py` |
 | Days | 30 warm-up days (not counted) and 60 counted days |
-| Solver | OR-Tools, 0.5 seconds per daily plan, skip penalty 300 |
+| Solver | OR-Tools, 0.5 seconds per daily plan, skip penalty `int(1 + risk x S)`: scale `S` = 300 for the rule arms always, and for Gasora unless section 9.2 chooses another value |
 | Early delivery | more than 5 days of gas left |
 | Seeds | see section 8 |
 
@@ -110,10 +129,13 @@ default `M = 4` of version 1.1, see section 9.1). **G and R2 always use the same
   reported level is not covered (section 6).
 - Gasora risk cut-offs (G and A): **0.01, 0.02**, 0.03, 0.05, 0.10, 0.15, 0.20, 0.30. The two lowest values are new
   in version 1.2 (see section 2). G and A always use the same grid.
-- One further extension of the Gasora grid downward (for example 0.005) is allowed in a version 1.3, but only if,
-  on seeds 1 to 10 with the version 1.2 grid, the curve of G still does not reach level 15 on more than 2 of the 10
-  seeds. Version 1.3 must be committed and tagged before the check stage. No other change of the grids is allowed,
-  and none after the freeze.
+- No further change of the grids is allowed, and none after the freeze. (Version 1.2 allowed one more extension
+  downward. The development run showed that it would have no effect, see section 2, and the allowance is withdrawn.)
+
+**Skip penalty scale `S`.** The planner skips a customer when the visit costs more minutes than the skip penalty,
+which is `int(1 + risk x S)` (`config.EMERGENCY_COST`). `S` is a setting of **Gasora only** (G and the oracle bound; the
+nearest-neighbour ablation A does not skip). The rule arms R0, R1 and R2 always use `S` = 300: every candidate has risk 1.0, so
+their penalty is 301 and they are visited whatever `S` is. Section 9.2 says how Gasora's `S` is chosen.
 
 ## 6. Primary and secondary comparisons
 
@@ -193,9 +215,10 @@ Only these changes may be tried during development, on seeds 1 to 10 and checked
 2. memory length `M` in {3, 4, 6, all},
 3. spread floor in {1, 2} days,
 4. early-arrival pull on or off,
-5. candidate threshold for the risk (the cut-off grid in section 5 is the curve, not a tuning choice).
+5. candidate threshold for the risk (the cut-off grid in section 5 is the curve, not a tuning choice),
+6. skip penalty scale `S` in {300, 600, 1200, 2400} (version 1.3, section 9.2).
 
-At most **12 combinations** may be tried in total. Each one is written in `docs/variant_log.md` with the seeds used
+At most **12 combinations** may be tried in total. Each value of `S` other than 300 counts as one combination, whether it is run in the pilot, in a full run, or both. Each one is written in `docs/variant_log.md` with the seeds used
 and the result, whether or not it is kept. The kept variant is chosen by the primary measure on seeds 1 to 10, and
 must pass the check on seeds 11 to 20.
 
@@ -214,6 +237,25 @@ skill and refill window coverage, was the only variant for which level 25 could 
 at level 40 it was not clearly worse than R1 in kilometres, while `M = 4` and `M = 6` were worse (by about 108 and
 48 km). This is a choice on secondary measures and is reported as such. The
 primary measure decides any further variant (floor, early-arrival pull) tried after variant 4.
+
+### 9.2 Choice of the skip penalty scale (version 1.3)
+
+Fixed now, before any run with another `S`:
+
+1. **Pilot.** Run Gasora (G only) on seeds 1 to 3 with `S` in {300, 600, 1200, 2400} at the cut-offs 0.01 and 0.03,
+   with `M = all`, floor 1 day, no early-arrival pull (`python -m evaluation.pilot_penalty`). The value 300 repeats
+   variant 4 and shows the run-to-run noise. Seeds above 10 are not used.
+2. **Rule.** The chosen `S` is the smallest value in the list for which G has fewer than 15 run-outs per 100
+   customer-months at cut-off 0.01 on every one of the three pilot seeds. Only the run-outs decide: kilometres and
+   vehicle hours do not enter the choice, and they are expected to rise with `S`.
+3. **Full development run.** With the chosen `S` for Gasora (the rule arms keep 300), run seeds 1 to 10 (variant row in the log), then the
+   check on seeds 11 to 20 as in section 8. The primary comparison is read as in section 6 and may turn out against
+   Gasora; it is reported as it comes.
+4. **If no value qualifies**, `S` stays 300, level 15 is reported as **not covered** for Gasora, the primary claim
+   is reported as **not assessable**, and the secondary levels are reported as described in section 6. No further
+   setting is tried to change this.
+5. The chosen `S` is stored in `docs/freeze.json` with the other variant settings. It applies to Gasora in the main
+   arm and in the secondary arms of section 10; the rule arms keep 300.
 
 ## 10. Arm D and other secondary arms (run on seeds 21 to 40 after the freeze, labelled secondary)
 
@@ -250,14 +292,14 @@ without changing the main result.
 
 ## 12. Order of work
 
-1. Write and commit this protocol. Tag it `protocol-v1.2`.
+1. Write and commit this protocol. Tag it `protocol-v1.3`.
 2. Build the main arm: the information model, the censored fit, the arms R0, R1, R2, G, A and P1, vehicle hours, the
    cost-curve analysis with a coverage table, the seed guard, and the result metadata. For version 1.2: extend the
    Gasora grid in the code and make the curve analysis follow section 6.1.
 3. Build arm D and the extra measures (Brier score, calibration, oracle bound, skewed durations). Arm D is built after
    the main arm works.
-4. Run seeds 1 to 10 and tune within section 9 (variant 4 first: `M = all` with the extended grid). Check on seeds
-   11 to 20.
+4. Run seeds 1 to 10 and tune within section 9 (variant 4, `M = all` with the extended grid, is done). Then the pilot
+   and the choice of `S` of section 9.2, a full run on seeds 1 to 10 with that `S`, and the check on seeds 11 to 20.
 5. Repeat the freeze checks: no uncommitted changes, `docs/variant_log.md` complete.
 6. Freeze: record the commit in `docs/freeze.json`, tag `eval-freeze-v1`, repeat one seed twice.
 7. Run seeds 21 to 40 once: the main comparison, the secondary arms, the empties study.
@@ -276,7 +318,9 @@ without changing the main result.
 
 Simulated customers, a predictor whose assumptions match the simulator in the base arm, assumed shift and vehicle
 numbers, road speeds without traffic, placeholder penalties, calling probabilities and ageing weights, and a
-timer-based solver.
+timer-based solver. The skip penalty scale in particular decides how many of the customers Gasora selects are
+actually visited, so the primary result depends on it; it is chosen by the rule in section 9.2 on development
+seeds only, and the report states its value.
 
 ## Change log
 
@@ -297,3 +341,13 @@ timer-based solver.
   `M = 4` to `M = all`.
   The measures, the primary level, the decision rule, the seeds, the simulation setting and the other arms are
   unchanged.
+- v1.3 (2026-11-14), written after the development run of variant 4 on seeds 1 to 10 and before any run on seeds
+  11 to 20 or 21 to 40. All changes were decided after seeing that result (section 2):
+  (1) the allowance for a further downward extension of the Gasora grid is withdrawn, because the curve of G is flat
+  below cut-off 0.03;
+  (2) the skip penalty scale `S` of Gasora is added to the allowed variants (section 9, item 6), for Gasora only (the
+  rule arms keep 300), with the values {300, 600, 1200, 2400} and a fixed pilot and selection rule (section 9.2), including what is reported if no
+  value qualifies;
+  (3) sections 3, 12 and 14 are updated accordingly.
+  The measures, the primary level, the decision rule, the seeds, the other arms and the reading of curves (section
+  6.1) are unchanged.

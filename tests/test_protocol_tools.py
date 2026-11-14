@@ -155,3 +155,16 @@ def test_the_study_runs_end_to_end_and_resumes(tmp_path, monkeypatch, capsys):
     assert (tmp_path / "data" / "study_dev_straight_points.csv").exists()
     study.main("dev", source="straight", n=30, days=3, warmup=2, seeds=[1, 2])
     assert "continuing" in capsys.readouterr().out
+
+
+def test_the_skip_penalty_scale_is_a_recorded_gasora_setting_and_resets_to_the_default():
+    import config
+    from evaluation import meta, policies
+    try:
+        study.apply_variant({"fit_m": None, "fit_floor": 1.0, "early_pull": False, "skip_penalty": 1200})
+        m = meta.run_metadata({"skip_penalty": 1200})["settings"]
+        assert m["gasora_skip_penalty"] == 1200 and m["skip_penalty"] == config.EMERGENCY_COST == 300
+        study.apply_variant({"fit_m": None, "fit_floor": 1.0, "early_pull": False})
+        assert meta.run_metadata()["settings"]["gasora_skip_penalty"] == 300
+    finally:
+        policies.SKIP_PENALTY = None

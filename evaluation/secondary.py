@@ -135,6 +135,9 @@ if __name__ == "__main__":
     ap.add_argument("--fit-m", type=int, default=0, help="0 = all records (default)")
     ap.add_argument("--floor", type=float, default=1.0)
     ap.add_argument("--early-pull", action="store_true")
+    ap.add_argument("--skip-penalty", type=int, default=None, help="skip penalty scale (protocol v1.3); default 300")
     a = ap.parse_args()
-    main(a.arm, a.stage, a.source, a.n,
-         variant={"fit_m": a.fit_m or None, "fit_floor": a.floor, "early_pull": a.early_pull})
+    v = {"fit_m": a.fit_m or None, "fit_floor": a.floor, "early_pull": a.early_pull}
+    if a.skip_penalty is not None:
+        v["skip_penalty"] = a.skip_penalty
+    main(a.arm, a.stage, a.source, a.n, variant=v)
