@@ -76,7 +76,7 @@ def main(arm, stage, source="road", n=200, days=60, warmup=30, variant=None, see
     freeze = guard.check_seeds(seeds)
     if stage in ("confirm", "spare"):
         variant = freeze["variant"]
-    variant = variant or {"fit_m": 4, "fit_floor": 1.0, "early_pull": False}
+    variant = variant or {"fit_m": None, "fit_floor": 1.0, "early_pull": False}
     study.apply_variant(variant)
     print(f"Secondary arm {arm}, stage {stage}, seeds {seeds[0]} to {seeds[-1]}, {n} customers, {source}. Variant: {variant}")
     key = sorted(variant.items(), key=str)
@@ -132,9 +132,12 @@ if __name__ == "__main__":
     ap.add_argument("--stage", choices=list(guard.STAGES), required=True)
     ap.add_argument("--source", choices=["straight", "road"], default="road")
     ap.add_argument("--n", type=int, default=200)
-    ap.add_argument("--fit-m", type=int, default=4)
+    ap.add_argument("--fit-m", type=int, default=0, help="0 = all records (default)")
     ap.add_argument("--floor", type=float, default=1.0)
     ap.add_argument("--early-pull", action="store_true")
+    ap.add_argument("--skip-penalty", type=int, default=None, help="skip penalty scale (protocol v1.3); default 300")
     a = ap.parse_args()
-    main(a.arm, a.stage, a.source, a.n,
-         variant={"fit_m": a.fit_m or None, "fit_floor": a.floor, "early_pull": a.early_pull})
+    v = {"fit_m": a.fit_m or None, "fit_floor": a.floor, "early_pull": a.early_pull}
+    if a.skip_penalty is not None:
+        v["skip_penalty"] = a.skip_penalty
+    main(a.arm, a.stage, a.source, a.n, variant=v)
