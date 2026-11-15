@@ -41,4 +41,5 @@ def oracle_gasora(static, state, day):
             min(1.0, max(0.0, (norm.cdf(t + 2, mu, sd) - norm.cdf(t, mu, sd)) / survive)))
     called = {c["id"] for c in state if is_called(c)}
     candidates = [c for c in state if is_called(c) or risk[c["id"]] >= policies.CANDIDATE_RISK]
-    return policies._ortools_routes(static, candidates, risk, called, late_cost=policies.POLICY_LATE_COST)
+    return policies._ortools_routes(static, candidates, risk, called, late_cost=policies.POLICY_LATE_COST,
+                                    skip_penalty=policies.SKIP_PENALTY)

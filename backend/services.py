@@ -5,7 +5,7 @@ from datetime import date
 import numpy as np
 from sqlalchemy import select
 
-from backend import eventlog
+from backend import accounts, eventlog, stock
 from backend import cylinders as cylinder_service
 from backend.models import Customer, Cylinder, Delivery, EmptiesLedger, Route, RouteStop, UrgentRequest, User
 from backend.settings import (DEPOT_LAT, DEPOT_LON, EMPTY_AGEING_TIERS, EMPTY_OVERDUE_DAYS,
@@ -60,6 +60,8 @@ def record_delivery(session, events, actor, customer_id, delivered_on, cylinders
         "delivery_id": d.id, "customer_id": customer_id,
         "delivered_on": delivered_on.isoformat(), "cylinders": cylinders})
     d.event_id = event_id
+    accounts.bill_delivery(session, events, actor, d)          # an invoice, once the owner has set a price
+    stock.record_sale(session, events, actor, d)               # takes the cylinders out of stock, once stock is tracked
     collected = cylinders if empties_collected is None else empties_collected
     ledger = EmptiesLedger(customer_id=customer_id, delivery_id=d.id, delivered=cylinders, collected=collected,
                            kind="delivery", actor=actor, created_on=delivered_on)
@@ -353,6 +355,7 @@ def publish_plan(session, events, actor, day, seconds, router=None):
 
 def routes_view(session, day, driver_id=None):
     emp = empties_state(session, day)
+    owed = accounts.balances(session)
     q = select(Route).where(Route.day == day).order_by(Route.vehicle)
     if driver_id is not None:
         q = q.where(Route.driver_id == driver_id)
@@ -364,6 +367,7 @@ def routes_view(session, day, driver_id=None):
         driver = session.get(User, r.driver_id) if r.driver_id else None
         stops = [{"stop_id": s.id, "seq": s.seq, "customer_id": c.id, "name": c.name, "address": c.address,
                   "phone": c.phone, "lat": c.lat, "lon": c.lon, "cylinders": c.demand, "risk": s.risk,
+                  "balance": owed.get(c.id, 0),
                   "empties_held": emp.get(c.id, NO_EMPTIES)["held"],
                   "empties_days": emp.get(c.id, NO_EMPTIES)["days_holding"],
                   "empties_bucket": emp.get(c.id, NO_EMPTIES)["bucket"],
@@ -392,7 +396,7 @@ def assign_route(session, events, actor, route_id, username):
 
 
 def complete_stop(session, events, user, stop_id, action, cylinders=None, reason=None, empties_collected=None,
-                  serials_delivered=None, serials_collected=None):
+                  serials_delivered=None, serials_collected=None, cash_received=None):
     """A driver (or the owner) marks a stop as delivered or skipped. Caller commits."""
     stop = session.get(RouteStop, stop_id)
     if stop is None:
@@ -409,6 +413,8 @@ def complete_stop(session, events, user, stop_id, action, cylinders=None, reason
         d = record_delivery(session, events, user.username, cust.id, date.today(), cylinders or cust.demand,
                             empties_collected, serials_delivered, serials_collected)
         stop.status, stop.delivery_id = "delivered", d.id
+        if cash_received:
+            accounts.record_payment(session, events, user.username, cust.id, cash_received, note="paid at delivery")
     else:
         stop.status, stop.reason = "skipped", reason
         eventlog.append(events, user.username, "stop.skipped",

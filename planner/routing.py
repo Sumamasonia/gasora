@@ -14,14 +14,15 @@ def travel_minutes(a, b):
 
 
 def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
-         urgent_late_cost=0, critical_late_cost=0, late_risks=None, n_vehicles=None):
+         urgent_late_cost=0, critical_late_cost=0, late_risks=None, n_vehicles=None, emergency_cost=None):
     """Returns (routes, visited) or None. routes = list of (stop list, minutes).
     tm = ready road-time matrix in minutes (index 0 = depot). If None, straight-line is used.
     seconds = solver time limit (default from config).
     urgent_late_cost / critical_late_cost = extra cost per minute of arrival time at urgent or Critical
     customers. It pulls them towards the start of their route. 0 (default) = no pull.
     late_risks = the run-out risks used to decide who is Critical for that pull (default: risks).
-    n_vehicles = number of vehicles (default from config); the API asks for one more when urgent requests do not fit."""
+    n_vehicles = number of vehicles (default from config); the API asks for one more when urgent requests do not fit.
+    emergency_cost = scale of the skip penalty, int(1 + risk x scale) (default: config.EMERGENCY_COST)."""
     depot = {"id": 0, "x": 0.0, "y": 0.0, "demand": 0}
     nodes = [depot] + customers
     n = len(nodes)
@@ -53,7 +54,7 @@ def plan(customers, risks, urgent_ids=(), tm=None, seconds=None,
         if c["id"] in urgent_ids:
             penalty = URGENT_PENALTY
         else:
-            penalty = int(1 + risks[k - 1] * EMERGENCY_COST)
+            penalty = int(1 + risks[k - 1] * (EMERGENCY_COST if emergency_cost is None else emergency_cost))
         routing.AddDisjunction([manager.NodeToIndex(k)], penalty)
 
     params = pywrapcp.DefaultRoutingSearchParameters()

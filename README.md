@@ -36,8 +36,18 @@ Gasora has two connected parts.
 - An empties ledger: cylinders delivered minus empties collected, with ageing buckets of 15, 30, 60 and 90+ days.
   Overdue empties become swap candidates in the plan. A swap is a normal delivery stop, not an extra trip.
 - Route publishing and driver assignment, an owner dispatch page with road routes, and a mobile-friendly driver
-  page where drivers mark stops delivered or skipped and enter the empties collected.
+  page with a load manifest (cylinders to load against van capacity, empties expected back) where drivers mark
+  stops delivered or skipped and enter the empties collected.
+- Owner pages to add and edit customers, to register cylinders and move them through their states (with each
+  cylinder's history), and to verify the event log and read the latest events.
 - A hash-chained, append-only event log with a verification endpoint.
+- Billing and accounts: the owner sets the price of a cylinder, every delivery then creates an invoice
+  automatically (PDF download), payments (also taken by drivers at the door) and an append-only customer
+  ledger in which mistakes are fixed with a noted adjustment, never by editing. A receivables report shows who
+  owes money and for how long (first in, first out).
+- Expenses by category, and stock of filled cylinders: purchases from the plant, automatic deduction for each
+  delivery once stock tracking has started, corrections with a noted adjustment, and a low-stock warning. Both
+  are append-only, like the ledger.
 
 ```mermaid
 flowchart LR
@@ -162,6 +172,8 @@ Most values are placeholders pending calibration (see Known limitations).
 | Driver | `GET /my-routes`, `POST /route-stops/{id}/deliver`, `POST /route-stops/{id}/skip` |
 | Urgent requests | `POST /urgent`, `GET /urgent` |
 | Empties | `GET /empties`, `POST /empties/adjust` |
+| Stock and expenses | `GET /stock`, `POST /stock/purchase`, `POST /stock/adjust`, `PUT /settings/low-stock`, `GET/POST /expenses` |
+| Money | `GET/PUT /settings/price`, `POST /payments`, `POST /ledger/adjust`, `GET /ledger/{customer_id}`, `GET /receivables`, `GET /invoices/{id}/pdf` |
 | Cylinder register | `/cylinders` (register, list, state changes, summary) |
 | Audit | `GET /audit/verify` |
 
@@ -254,15 +266,16 @@ Implemented:
 - [x] Cylinder register with audited state changes
 - [x] Empties ledger, ageing buckets, swap candidates in the plan
 - [x] Hash-chained event log with verification and tamper tests
-- [x] Owner dispatch page and driver page
+- [x] Owner dispatch page and driver page, with load manifest
+- [x] Owner pages for customers, the cylinder register, accounts and the audit log
+- [x] Customer balance and cash received at the door on the driver page
+- [x] Price, invoices (PDF), payments, customer ledger and receivables
+- [x] Expenses, and stock with purchases and low-stock warning
 
 Planned:
 
 - [ ] Empties study results (the study is implemented)
-- [ ] Customer balance and load manifest on the driver page
-- [ ] Payments, invoices and ledger
-- [ ] Stock and purchases, reports and dashboard, ageing PDF report, backup
-- [ ] Page to add and edit customers
+- [ ] Reports and dashboard, ageing PDF report, data export, backup
 - [ ] Deployment
 
 ## Known limitations

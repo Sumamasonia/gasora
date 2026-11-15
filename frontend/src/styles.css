@@ -48,3 +48,23 @@ input, select { padding: 7px 9px; border: 1px solid #bbb; border-radius: 6px; fo
 .links { display: flex; gap: 16px; font-size: 14px; }
 .actions { display: flex; gap: 10px; }
 .actions button { flex: 1; padding: 11px; font-size: 15px; }
+
+/* owner tabs and pages, driver manifest */
+.tabs { display: flex; gap: 4px; margin-left: 12px; }
+.tab { background: transparent; color: #333; border: 1px solid transparent; }
+.tab.active { background: #e3edf9; color: #0d47a1; font-weight: 600; }
+.page { max-width: 1000px; width: 100%; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.page h2 { font-size: 18px; margin: 0 0 6px; }
+.formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+th { color: #555; font-weight: 600; white-space: nowrap; }
+button.link { background: none; color: #1565c0; padding: 0; text-decoration: underline; }
+.history { background: #f7f9fc; }
+.history ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
+.okmsg { color: #2e7d32; margin: 8px 0 0; }
+.manifest { background: #fff; margin: 0 12px 8px; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); border-left: 5px solid #1565c0; display: flex; flex-direction: column; gap: 4px; }
+code { font-size: 12px; }
+.owes { color: #b00020; font-size: 13px; font-weight: 600; }
+.page h3 { margin: 16px 0 4px; font-size: 15px; }

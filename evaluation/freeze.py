@@ -25,7 +25,7 @@ def logged_variants(path=VARIANT_LOG):
         return sum(1 for line in f if re.match(r"\|\s*\d+\s*\|", line))
 
 
-def main(fit_m, floor, early_pull):
+def main(fit_m, floor, early_pull, skip_penalty=None):
     n = logged_variants()
     if n > MAX_VARIANTS:
         raise SystemExit(f"{n} variants are logged; the protocol allows {MAX_VARIANTS}.")
@@ -35,6 +35,8 @@ def main(fit_m, floor, early_pull):
     if dirty:
         raise SystemExit("There are uncommitted changes to tracked files. Commit them first, then freeze.")
     variant = {"fit_m": fit_m or None, "fit_floor": floor, "early_pull": early_pull}
+    if skip_penalty is not None:
+        variant["skip_penalty"] = skip_penalty
     data = {"created": datetime.now(timezone.utc).isoformat(timespec="seconds"), "code_hash": code_hash(),
             "commit_before_freeze": commit, "variants_logged": n, "variant": variant,
             "metadata": run_metadata(variant)}
@@ -47,8 +49,9 @@ def main(fit_m, floor, early_pull):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fit-m", type=int, default=4, help="records used by the censored fit; 0 = all")
+    ap.add_argument("--fit-m", type=int, default=0, help="records used by the censored fit; 0 = all (default)")
     ap.add_argument("--floor", type=float, default=1.0)
     ap.add_argument("--early-pull", action="store_true")
+    ap.add_argument("--skip-penalty", type=int, default=None, help="skip penalty scale (protocol v1.3); default 300")
     a = ap.parse_args()
-    main(a.fit_m, a.floor, a.early_pull)
+    main(a.fit_m, a.floor, a.early_pull, a.skip_penalty)

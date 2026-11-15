@@ -3,6 +3,12 @@ import {
   ApiError, assignRoute, createUrgent, getCustomers, getEmpties, getPaths, getPlan, getRoutes, getUrgent, getUsers, publishPlan,
 } from './api'
 import { BAND_COLOR, VEHICLE_COLORS } from './colors'
+import AccountsPage from './AccountsPage'
+import AuditPage from './AuditPage'
+import CustomersPage from './CustomersPage'
+import CylindersPage from './CylindersPage'
+import ExpensesPage from './ExpensesPage'
+import StockPage from './StockPage'
 import PlanMap from './PlanMap'
 import { EmptiesPanel, PublishedRoutes, UrgentForm } from './OwnerPanels'
 import { Badge, SwapTag, UrgentTag } from './ui'
@@ -77,6 +83,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
   const [openUrgent, setOpenUrgent] = useState([])
   const [emptiesInfo, setEmptiesInfo] = useState(null)
   const [seconds, setSeconds] = useState(2)
+  const [tab, setTab] = useState('dispatch')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -114,20 +121,35 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
       <header>
         <strong>Gasora Dispatch</strong>
         <span className="muted">{auth.username} ({auth.role})</span>
+        <nav className="tabs">
+          {[['dispatch', 'Dispatch'], ['customers', 'Customers'], ['cylinders', 'Cylinders'], ['accounts', 'Accounts'], ['stock', 'Stock'], ['expenses', 'Expenses'], ['audit', 'Audit']].map(([k, label]) => (
+            <button key={k} className={tab === k ? 'tab active' : 'tab'} onClick={() => setTab(k)}>{label}</button>
+          ))}
+        </nav>
         <span className="spacer" />
-        <label>
-          Solver time
-          <select value={seconds} onChange={(e) => setSeconds(Number(e.target.value))}>
-            <option value={1}>1 s</option>
-            <option value={2}>2 s</option>
-            <option value={5}>5 s</option>
-          </select>
-        </label>
-        <button disabled={busy} onClick={() => guard(loadAll)}>{busy ? 'Working...' : 'Refresh plan'}</button>
+        {tab === 'dispatch' && (
+          <>
+            <label>
+              Solver time
+              <select value={seconds} onChange={(e) => setSeconds(Number(e.target.value))}>
+                <option value={1}>1 s</option>
+                <option value={2}>2 s</option>
+                <option value={5}>5 s</option>
+              </select>
+            </label>
+            <button disabled={busy} onClick={() => guard(loadAll)}>{busy ? 'Working...' : 'Refresh plan'}</button>
+          </>
+        )}
         <button className="secondary" onClick={onSignOut}>Sign out</button>
       </header>
-      {error && <p className="error banner">{error}</p>}
-      {plan && (
+      {tab === 'customers' && <CustomersPage auth={auth} onExpired={onExpired} />}
+      {tab === 'cylinders' && <CylindersPage auth={auth} onExpired={onExpired} />}
+      {tab === 'accounts' && <AccountsPage auth={auth} onExpired={onExpired} />}
+      {tab === 'stock' && <StockPage auth={auth} onExpired={onExpired} />}
+      {tab === 'expenses' && <ExpensesPage auth={auth} onExpired={onExpired} />}
+      {tab === 'audit' && <AuditPage auth={auth} onExpired={onExpired} />}
+      {tab === 'dispatch' && error && <p className="error banner">{error}</p>}
+      {tab === 'dispatch' && plan && (
         <main>
           <PlanMap plan={plan} coords={coords} published={routes} paths={paths} />
           <aside className="panel">
