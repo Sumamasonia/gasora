@@ -5,7 +5,7 @@ Every combination is written here with the seeds used and the result, whether or
 Only seeds 1 to 10 (development) have been used so far. Seeds 11 to 20 and 21 to 40 have not been run in the
 new information model.
 
-Used so far: **4 of 12**.
+Used so far: **7 of 12** (variants 5 to 7 are pilot scales of the skip penalty, protocol section 9.2).
 
 Not counted: the development checks on seeds 1 and 2 (`info_check`, gap-only information, `M = 4`) made before this
 log existed. They are described in protocol section 2.
@@ -25,6 +25,9 @@ with a 95% bootstrap interval (negative means Gasora is cheaper).
 | 2 | up to 2026-11-11 | fit on, M = 6, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 0 of 10 seeds | no |
 | 3 | up to 2026-11-11 | fit on, M = all, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | carried forward |
 | 4 | 2026-11-12 to 14 | fit on, M = all, floor 1, no pull, grid v1.2 (adds 0.01 and 0.02) | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | open (see entry) |
+| 5 | pilot, 2026-11 | as variant 4, Gasora skip penalty scale S = 600 | 1 to 3 (G only) | pilot: level 15 reached on 3 of 3 seeds; G minus R0 -1216 km, -197 h; G minus R1 -349 km, -49 h (3 seeds, exploratory) | carried forward (full run on seeds 1 to 10 next) |
+| 6 | pilot, 2026-11 | as variant 4, S = 1200 | 1 to 3 (G only) | pilot: level 15 reached on 3 of 3 seeds; G minus R0 -1109 km, -191 h; G minus R1 -243 km, -44 h | no (not needed; the rule takes the smallest S) |
+| 7 | pilot, 2026-11 | as variant 4, S = 2400 | 1 to 3 (G only) | pilot: level 15 reached on 3 of 3 seeds; G minus R0 -1114 km, -192 h; G minus R1 -247 km, -44 h | no (not needed) |
 
 ## Variant 1: memory length M = 4
 
@@ -102,6 +105,36 @@ Note on code version: variants 1 to 3 were run with the code before the backend 
   penalty scale of Gasora is added as variant 6 with a pilot and a fixed choice rule (protocol section 9.2). Each scale
   other than 300 that is tried gets its own row and entry below, and counts as one of the 12.
 
-## Entries after variant 4
+## Entries after variant 4: pilot of the skip penalty scale (protocol section 9.2)
 
-(none yet. Next: the pilot of protocol section 9.2, `python -m evaluation.pilot_penalty`, scales 600, 1200 and 2400 as needed.)
+Common to variants 5 to 7: `python -m evaluation.pilot_penalty` (G only, dev seeds 1 to 3, 200 customers, road distances,
+cut-off grid of v1.2). Rule arms were read from the dev run of variant 4 (S = 300 for them always). Exploratory:
+three seeds only, so the intervals are weak. The repeat at S = 300 reproduces variant 4 (G floor about 16 to 17
+run-outs, level 15 reached on 0 of 3 seeds) and is not counted again.
+Mean run-outs / kilometres of G at cut-off 0.01 / 0.02 / 0.03 are shown for each scale.
+
+## Variant 5: S = 600
+
+- Run-outs / km: 8.2 / 2891, 9.0 / 2963, 10.8 / 3195. Run-outs of G at cut-off 0.01 per seed: 8.0, 9.0, 7.8.
+- Level 15 reached on 3 of 3 seeds. Rule of section 9.2 (below 15 at cut-off 0.01 on every pilot seed): **met**.
+- G minus R0 at level 15: km -1215.7 [-1323.2, -1152.1], hours -196.5 [-217.2, -164.8]; G minus R1: km -348.8
+  [-388.0, -300.8], hours -49.1 [-54.1, -43.3] (3 seeds).
+- Decision: **carried forward**. It is the smallest scale that meets the rule. The formal evaluation is the full dev run
+  on seeds 1 to 10 with `--skip-penalty 600`, then the check on seeds 11 to 20.
+
+## Variant 6: S = 1200
+
+- Run-outs / km: 4.2 / 3451, 6.8 / 3612, 10.0 / 3441. Per seed at 0.01: 4.5, 5.2, 2.8. Level 15 on 3 of 3 seeds; rule met.
+- G minus R0 km -1109.4 [-1195.3, -1049.1], hours -191.4; G minus R1 km -242.6 [-260.1, -212.9], hours -44.0.
+- Decision: **pilot only, not carried forward**. Not needed, since 600 already meets the rule, and it costs more
+  kilometres at the lowest cut-offs.
+
+## Variant 7: S = 2400
+
+- Run-outs / km: 3.2 / 4255, 6.4 / 3682, 9.9 / 3431. Per seed at 0.01: 3.8, 4.5, 1.5. Level 15 on 3 of 3 seeds; rule met.
+- G minus R0 km -1113.8 [-1201.6, -1059.9], hours -191.7; G minus R1 km -247.0 [-266.4, -209.1], hours -44.3.
+- Decision: **pilot only, not carried forward**.
+
+## Entries after variant 7
+
+(none yet. Next: full dev run with `--skip-penalty 600`, written up as the result of variant 5.)
