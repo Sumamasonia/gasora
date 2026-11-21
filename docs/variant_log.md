@@ -5,7 +5,7 @@ Every combination is written here with the seeds used and the result, whether or
 Only seeds 1 to 10 (development) have been used so far. Seeds 11 to 20 and 21 to 40 have not been run in the
 new information model.
 
-Used so far: **4 of 12**.
+Used so far: **7 of 12** (variants 5 to 7 are pilot scales of the skip penalty, protocol section 9.2).
 
 Not counted: the development checks on seeds 1 and 2 (`info_check`, gap-only information, `M = 4`) made before this
 log existed. They are described in protocol section 2.
@@ -25,6 +25,9 @@ with a 95% bootstrap interval (negative means Gasora is cheaper).
 | 2 | up to 2026-11-11 | fit on, M = 6, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 0 of 10 seeds | no |
 | 3 | up to 2026-11-11 | fit on, M = all, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | carried forward |
 | 4 | 2026-11-12 to 14 | fit on, M = all, floor 1, no pull, grid v1.2 (adds 0.01 and 0.02) | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | open (see entry) |
+| 5 | 2026-11-15 | as variant 4, Gasora skip penalty scale S = 600 (pilot on seeds 1 to 3, full run on 1 to 10) | 1 to 10 | level 15 reached on 10 of 10 seeds; G minus R0 -1204.8 km, -197.4 h; G minus R1 -287.1 km, -40.2 h; graded supported on dev seeds; check seeds 11 to 20: level 15 on 10 of 10, G minus R0 -1239.8 km, -219.1 h; G minus R1 -348.1 km, -45.1 h, supported | **kept** (passed the check; freeze next) |
+| 6 | pilot, 2026-11 | as variant 4, S = 1200 | 1 to 3 (G only) | pilot: level 15 reached on 3 of 3 seeds; G minus R0 -1109 km, -191 h; G minus R1 -243 km, -44 h | no (not needed; the rule takes the smallest S) |
+| 7 | pilot, 2026-11 | as variant 4, S = 2400 | 1 to 3 (G only) | pilot: level 15 reached on 3 of 3 seeds; G minus R0 -1114 km, -192 h; G minus R1 -247 km, -44 h | no (not needed) |
 
 ## Variant 1: memory length M = 4
 
@@ -102,6 +105,59 @@ Note on code version: variants 1 to 3 were run with the code before the backend 
   penalty scale of Gasora is added as variant 6 with a pilot and a fixed choice rule (protocol section 9.2). Each scale
   other than 300 that is tried gets its own row and entry below, and counts as one of the 12.
 
-## Entries after variant 4
+## Entries after variant 4: pilot of the skip penalty scale (protocol section 9.2)
 
-(none yet. Next: the pilot of protocol section 9.2, `python -m evaluation.pilot_penalty`, scales 600, 1200 and 2400 as needed.)
+Common to variants 5 to 7: `python -m evaluation.pilot_penalty` (G only, dev seeds 1 to 3, 200 customers, road distances,
+cut-off grid of v1.2). Rule arms were read from the dev run of variant 4 (S = 300 for them always). Exploratory:
+three seeds only, so the intervals are weak. The repeat at S = 300 reproduces variant 4 (G floor about 16 to 17
+run-outs, level 15 reached on 0 of 3 seeds) and is not counted again.
+Mean run-outs / kilometres of G at cut-off 0.01 / 0.02 / 0.03 are shown for each scale.
+
+## Variant 5: S = 600
+
+- Run-outs / km: 8.2 / 2891, 9.0 / 2963, 10.8 / 3195. Run-outs of G at cut-off 0.01 per seed: 8.0, 9.0, 7.8.
+- Level 15 reached on 3 of 3 seeds. Rule of section 9.2 (below 15 at cut-off 0.01 on every pilot seed): **met**.
+- G minus R0 at level 15: km -1215.7 [-1323.2, -1152.1], hours -196.5 [-217.2, -164.8]; G minus R1: km -348.8
+  [-388.0, -300.8], hours -49.1 [-54.1, -43.3] (3 seeds).
+- Full dev run, seeds 1 to 10, `--skip-penalty 600` (output `data/dev_v5_S600.txt`). Reaching level 15 / 25 / 40 / 10:
+  G 10 / 10 / 10 / 9 (R0 10 / 10 / 10 / 9, R1, R2 and A 10 on every level). Curves crossing a level more than once: R0 10 at
+  level 15, 5 at level 25 and 9 at level 10; G 1 at level 10; others 0.
+- Mean curve of G, run-outs / km: 0.01 8.4 / 2862, 0.02 8.6 / 2927, 0.03 10.6 / 3183, 0.05 17.4 / 3218, 0.10 30.6 / 3037.
+- Primary comparison at level 15, G minus other arm, mean [95% interval]: R0 km -1204.8 [-1343.9, -1036.1], hours
+  -197.4 [-239.4, -162.7]; R1 km -287.1 [-346.0, -222.7], hours -40.2 [-46.8, -33.3]. Grade on development seeds:
+  **supported** against both (not the confirmation result).
+- Level 25: R0 km -470.4 [-564.2, -368.5], R1 km -67.2 [-89.6, -39.5]. Level 40: R0 km -89.0 [-123.4, -60.1]; R1 km
+  -9.9 [-33.5, 13.2] (interval includes 0), hours -2.1 [-3.4, -0.6]. Against A at level 15: km -593.5 [-637.2, -545.9].
+- By customer type at level 15: G run-outs per 100 customer-months 2.8 for steady and 33.2 for irregular customers
+  (R1: 0.0 and 37.2). Prediction quality is unchanged from variant 4 (S does not touch the predictor).
+- Caveat: S was chosen on development seeds for Gasora only, while the rule arms keep 300. It is a tuned setting of G
+  and must be reported as such.
+- Check run, seeds 11 to 20, same settings (output `data/check_v5_S600.txt`). Reaching level 15 / 25 / 40 / 10: G 10 / 10 / 10 / 7
+  (R0 10 / 10 / 10 / 8; R1, R2 and A 10 on all). Curves crossing a level more than once: R0 9 at level 15, 8 at level 25, 7 at
+  level 10; none for G.
+- Primary comparison at level 15, G minus other arm: R0 km -1239.8 [-1390.6, -1095.1], hours -219.1 [-254.4, -184.4]; R1 km
+  -348.1 [-409.4, -288.9], hours -45.1 [-53.2, -37.8]. Grade: **supported** against both.
+- Level 25: R0 km -523.5 [-592.1, -450.9], R1 km -68.1 [-91.4, -46.3]. Level 40: R0 km -75.1 [-113.8, -39.9]; R1 km -2.7
+  [-19.9, 13.6] (interval includes 0), hours -1.4 [-3.2, 0.2]. Against A at level 15: km -648.0 [-691.9, -606.6].
+- Level 10 is **not reported**: G reaches it on 7 of 10 seeds, below the 80% needed.
+- Prediction quality (G at cut-off 0.1): forecast error 3.18 days (R1 2.96, R0 5.02); Brier 0.0369 against 0.0396 (skill 0.067);
+  refill window coverage 73.2%. By type at level 15, run-outs per 100 customer-months: G 2.0 steady, 31.7 irregular (R1 0.0 and 34.3).
+- Decision: **kept**. The result agrees with the development seeds. Next: freeze with `--skip-penalty 600`, tag
+  `eval-freeze-v1`, then the confirmation run on seeds 21 to 40 (once).
+
+## Variant 6: S = 1200
+
+- Run-outs / km: 4.2 / 3451, 6.8 / 3612, 10.0 / 3441. Per seed at 0.01: 4.5, 5.2, 2.8. Level 15 on 3 of 3 seeds; rule met.
+- G minus R0 km -1109.4 [-1195.3, -1049.1], hours -191.4; G minus R1 km -242.6 [-260.1, -212.9], hours -44.0.
+- Decision: **pilot only, not carried forward**. Not needed, since 600 already meets the rule, and it costs more
+  kilometres at the lowest cut-offs.
+
+## Variant 7: S = 2400
+
+- Run-outs / km: 3.2 / 4255, 6.4 / 3682, 9.9 / 3431. Per seed at 0.01: 3.8, 4.5, 1.5. Level 15 on 3 of 3 seeds; rule met.
+- G minus R0 km -1113.8 [-1201.6, -1059.9], hours -191.7; G minus R1 km -247.0 [-266.4, -209.1], hours -44.3.
+- Decision: **pilot only, not carried forward**.
+
+## Entries after variant 7
+
+(none yet. Next: freeze, then the confirmation run on seeds 21 to 40.)

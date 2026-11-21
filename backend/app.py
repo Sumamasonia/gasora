@@ -11,9 +11,9 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend import accounts, cylinders, eventlog, expenses, security, services, settings, stock
+from backend import accounts, assistant, backup, cylinders, eventlog, expenses, reports, security, services, settings, staff, stock
 from planner.road_router import RoadRouter, StraightRouter
-from backend.models import Base, Customer, Cylinder, CylinderTransaction, Delivery, User
+from backend.models import Base, Customer, Cylinder, CylinderTransaction, DailyNote, Delivery, Invoice, User
 
 log = logging.getLogger("gasora")
 router = APIRouter()
@@ -35,7 +35,7 @@ class TokenOut(BaseModel):
 class UserIn(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=100)
-    role: Literal["owner", "driver"]
+    role: Literal["owner", "driver", "ceo"]
 
 
 class UserOut(BaseModel):
@@ -43,6 +43,7 @@ class UserOut(BaseModel):
     id: int
     username: str
     role: str
+    active: bool = True
 
 
 class CustomerIn(BaseModel):
@@ -225,7 +226,7 @@ def current_user(request: Request,
         user = session.get(User, int(data["sub"]))
     except Exception:
         raise HTTPException(401, "invalid or expired token")
-    if user is None:
+    if user is None or not user.active:
         raise HTTPException(401, "invalid or expired token")
     return user
 
@@ -248,7 +249,7 @@ def health():
 def login(body: LoginIn, request: Request, session: Session = Depends(get_session)):
     user = session.scalar(select(User).where(User.username == body.username))
     ok = security.verify_password(body.password, user.password_hash if user else security.DUMMY_HASH)
-    if user is None or not ok:
+    if user is None or not ok or not user.active:
         raise HTTPException(401, "wrong username or password")
     token = security.create_token(user.id, user.role, request.app.state.secret, settings.TOKEN_MINUTES)
     return TokenOut(access_token=token, role=user.role)
@@ -645,7 +646,147 @@ def post_expense(body: ExpenseIn, request: Request, session: Session = Depends(g
     return expenses.expenses_view(session)
 
 
+# ---------- reports, exports and backup ----------
+@router.get("/reports/dashboard")
+def get_dashboard(session: Session = Depends(get_session), me: User = Depends(require("owner", "ceo"))):
+    return reports.dashboard(session, date.today())
+
+
+@router.get("/reports/receivables.pdf")
+def get_receivables_pdf(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    try:
+        pdf = reports.receivables_pdf(session, date.today())
+    except ImportError:
+        raise HTTPException(501, "PDF reports need the reportlab package (pip install reportlab)")
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="amounts-owed-{date.today().isoformat()}.pdf"'})
+
+
+@router.get("/export/{kind}.csv")
+def get_export(kind: Literal["customers", "deliveries", "invoices", "ledger", "expenses", "stock"],
+               start: Optional[date] = None, end: Optional[date] = None,
+               session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    text = reports.export_csv(session, kind, start, end)
+    return Response(text.encode("utf-8"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="gasora-{kind}-{date.today().isoformat()}.csv"'})
+
+
+@router.get("/backup")
+def get_backup(request: Request, me: User = Depends(require("owner"))):
+    if not str(request.app.state.engine.url).startswith("sqlite"):
+        raise HTTPException(501, "backup is implemented for SQLite only")
+    data, manifest = backup.make_backup(request.app.state.engine, request.app.state.events)
+    eventlog.append(request.app.state.events, me.username, "backup.created",
+                    {"events_in_backup": manifest["events"], "chain_ok": manifest["event_chain_ok"]})
+    stamp = manifest["created"][:19].replace(":", "").replace("-", "").replace("T", "-")
+    return Response(data, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="gasora-backup-{stamp}.zip"',
+        "X-Backup-Events": str(manifest["events"]), "X-Backup-Chain-Ok": str(manifest["event_chain_ok"]).lower(),
+        "X-Backup-Head": manifest["event_head"][:16]})
+
+
+# ---------- Could tier: staff, notes, invoice sharing, assistant ----------
+class ActiveIn(BaseModel):
+    active: bool
+
+
+class NoteIn(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+    label: Optional[str] = Field(default=None, max_length=30)
+
+
+class QuestionIn(BaseModel):
+    question: str = Field(min_length=1, max_length=assistant.MAX_QUESTION)
+
+
+@router.patch("/users/{user_id}", response_model=UserOut)
+def patch_user(user_id: int, body: ActiveIn, request: Request, session: Session = Depends(get_session),
+               me: User = Depends(require("owner"))):
+    try:
+        user = staff.set_active(session, request.app.state.events, me.username, user_id, body.active)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    session.commit()
+    return user
+
+
+@router.get("/staff/activity")
+def staff_activity(request: Request, days: int = Query(30, ge=1, le=365), session: Session = Depends(get_session),
+                   me: User = Depends(require("owner"))):
+    return staff.activity(session, request.app.state.events, days)
+
+
+@router.get("/notes")
+def list_notes(limit: int = Query(100, ge=1, le=500), session: Session = Depends(get_session),
+               me: User = Depends(require("owner"))):
+    rows = session.scalars(select(DailyNote).order_by(DailyNote.day.desc(), DailyNote.id.desc()).limit(limit)).all()
+    return [{"id": n.id, "day": n.day.isoformat(), "label": n.label, "text": n.text, "actor": n.actor} for n in rows]
+
+
+@router.post("/notes", status_code=201)
+def add_note(body: NoteIn, session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    if not body.text.strip():
+        raise HTTPException(422, "write something in the note")
+    n = DailyNote(day=date.today(), label=(body.label or "").strip() or None, text=body.text.strip(), actor=me.username)
+    session.add(n)
+    session.commit()
+    return {"id": n.id, "day": n.day.isoformat(), "label": n.label, "text": n.text, "actor": n.actor}
+
+
+@router.delete("/notes/{note_id}", status_code=204)
+def delete_note(note_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    n = session.get(DailyNote, note_id)
+    if n is None:
+        raise HTTPException(404, "note not found")
+    session.delete(n)
+    session.commit()
+    return Response(status_code=204)
+
+
+@router.get("/invoices/{invoice_id}/share")
+def share_invoice(invoice_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    """A WhatsApp link with the invoice details as text. The owner taps it and sends the message from their own phone."""
+    inv = session.get(Invoice, invoice_id)
+    if inv is None:
+        raise HTTPException(404, "invoice not found")
+    customer = session.get(Customer, inv.customer_id)
+    return accounts.whatsapp_share(inv, customer, accounts.balances(session).get(inv.customer_id, 0))
+
+
+@router.get("/assistant")
+def assistant_status(me: User = Depends(require("owner"))):
+    return {"configured": assistant.configured(), "model": assistant.MODEL}
+
+
+@router.post("/assistant")
+def assistant_ask(body: QuestionIn, request: Request, session: Session = Depends(get_session),
+                  me: User = Depends(require("owner"))):
+    if not assistant.configured():
+        raise HTTPException(501, "the assistant is not set up: set GASORA_GEMINI_KEY and restart the server")
+    try:
+        answer = assistant.ask(session, date.today(), body.question)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except ConnectionError as e:
+        raise HTTPException(502, str(e))
+    eventlog.append(request.app.state.events, me.username, "assistant.asked", {"question_chars": len(body.question)})
+    return {"answer": answer}
+
+
 # ---------- app factory ----------
+def _add_missing_columns(engine):
+    """create_all does not change existing tables. Add the columns that later versions need (SQLite only)."""
+    if engine.dialect.name != "sqlite":
+        return
+    from sqlalchemy import inspect, text
+    cols = {c["name"] for c in inspect(engine).get_columns("users")}
+    if "active" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1"))
+
+
 def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_path=None, cache_path=None):
     db_url = db_url or settings.DB_URL
     events_path = events_path or settings.EVENTS_PATH
@@ -665,8 +806,10 @@ def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_p
 
     engine = create_engine(db_url, **kwargs)
     Base.metadata.create_all(engine)
+    _add_missing_columns(engine)
 
     app = FastAPI(title="Gasora API")
+    app.state.engine = engine
     app.state.SessionLocal = sessionmaker(engine, expire_on_commit=False)
     app.state.events = eventlog.connect(events_path)
     app.state.secret = secret

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { login } from './api'
+import CeoView from './CeoView'
 import DriverView from './DriverView'
 import OwnerView from './OwnerView'
 import './styles.css'
@@ -50,7 +51,7 @@ export default function App() {
   const expired = () => { setAuth(null); setError('Your session ended. Please sign in again.') }
 
   if (!auth) return <LoginForm onLogin={handleLogin} error={error} busy={busy} />
-  return auth.role === 'driver'
-    ? <DriverView auth={auth} onSignOut={signOut} onExpired={expired} />
-    : <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} />
+  if (auth.role === 'driver') return <DriverView auth={auth} onSignOut={signOut} onExpired={expired} />
+  if (auth.role === 'ceo') return <CeoView auth={auth} onSignOut={signOut} onExpired={expired} />
+  return <OwnerView auth={auth} onSignOut={signOut} onExpired={expired} />
 }

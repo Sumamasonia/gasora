@@ -8,6 +8,10 @@ import AuditPage from './AuditPage'
 import CustomersPage from './CustomersPage'
 import CylindersPage from './CylindersPage'
 import ExpensesPage from './ExpensesPage'
+import AssistantPage from './AssistantPage'
+import NotesPage from './NotesPage'
+import ReportsPage from './ReportsPage'
+import StaffPage from './StaffPage'
 import StockPage from './StockPage'
 import PlanMap from './PlanMap'
 import { EmptiesPanel, PublishedRoutes, UrgentForm } from './OwnerPanels'
@@ -122,7 +126,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
         <strong>Gasora Dispatch</strong>
         <span className="muted">{auth.username} ({auth.role})</span>
         <nav className="tabs">
-          {[['dispatch', 'Dispatch'], ['customers', 'Customers'], ['cylinders', 'Cylinders'], ['accounts', 'Accounts'], ['stock', 'Stock'], ['expenses', 'Expenses'], ['audit', 'Audit']].map(([k, label]) => (
+          {[['dispatch', 'Dispatch'], ['customers', 'Customers'], ['cylinders', 'Cylinders'], ['accounts', 'Accounts'], ['stock', 'Stock'], ['expenses', 'Expenses'], ['reports', 'Reports'], ['notes', 'Notes & tools'], ['assistant', 'Assistant'], ['staff', 'Staff'], ['audit', 'Audit']].map(([k, label]) => (
             <button key={k} className={tab === k ? 'tab active' : 'tab'} onClick={() => setTab(k)}>{label}</button>
           ))}
         </nav>
@@ -147,6 +151,10 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
       {tab === 'accounts' && <AccountsPage auth={auth} onExpired={onExpired} />}
       {tab === 'stock' && <StockPage auth={auth} onExpired={onExpired} />}
       {tab === 'expenses' && <ExpensesPage auth={auth} onExpired={onExpired} />}
+      {tab === 'reports' && <ReportsPage auth={auth} onExpired={onExpired} />}
+      {tab === 'notes' && <NotesPage auth={auth} onExpired={onExpired} />}
+      {tab === 'assistant' && <AssistantPage auth={auth} onExpired={onExpired} />}
+      {tab === 'staff' && <StaffPage auth={auth} onExpired={onExpired} />}
       {tab === 'audit' && <AuditPage auth={auth} onExpired={onExpired} />}
       {tab === 'dispatch' && error && <p className="error banner">{error}</p>}
       {tab === 'dispatch' && plan && (

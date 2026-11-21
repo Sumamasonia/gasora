@@ -13,7 +13,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(50), unique=True)
     password_hash: Mapped[str] = mapped_column(String(300))
-    role: Mapped[str] = mapped_column(String(20))            # "owner" or "driver"
+    role: Mapped[str] = mapped_column(String(20))            # "owner", "driver" or "ceo" (read-only summary)
+    active: Mapped[bool] = mapped_column(default=True)       # an inactive user cannot sign in; the account is never deleted
 
 
 class Customer(Base):
@@ -217,3 +218,13 @@ def _append_only(table, name, columns):
 
 _append_only(Expense.__table__, "expense", ("day", "category", "amount", "note", "actor"))
 _append_only(StockMovement.__table__, "stock", ("day", "kind", "quantity", "unit_cost", "supplier", "note", "delivery_id", "actor"))
+
+
+class DailyNote(Base):
+    """Free-text notes for the owner. Not part of the accounts, so they may be deleted."""
+    __tablename__ = "daily_notes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[date] = mapped_column(Date)
+    label: Mapped[str | None] = mapped_column(String(30), default=None)
+    text: Mapped[str] = mapped_column(String(500))
+    actor: Mapped[str] = mapped_column(String(50))

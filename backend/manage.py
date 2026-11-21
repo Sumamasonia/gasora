@@ -2,9 +2,12 @@
 
   python -m backend.manage create-owner NAME      ask for a password, make an owner account
   python -m backend.manage create-driver NAME     ask for a password, make a driver account
+  python -m backend.manage create-ceo NAME        ask for a password, make a read-only summary account
   python -m backend.manage seed-demo              fill an empty database with fake customers
   python -m backend.manage warm-roads             compute road times for all customers (once)
   python -m backend.manage tamper-demo            show how the event log detects changes (for demonstrations)
+  python -m backend.manage backup FILE.zip        write a backup of the database and the event log
+  python -m backend.manage restore FILE.zip [--force]   restore a backup (stop the server first; current files are kept)
 """
 import sys
 from datetime import date, timedelta
@@ -98,6 +101,28 @@ def tamper_demo():
     print("The log is tamper-evident, not tamper-proof: keep the newest hash somewhere else.")
 
 
+def backup_now(app, path):
+    from backend import backup
+    data, m = backup.make_backup(app.state.engine, app.state.events)
+    with open(path, "wb") as f:
+        f.write(data)
+    print(f"Backup written to {path}: {m['events']} events, chain {'OK' if m['event_chain_ok'] else 'FAILED'}.")
+    print("Newest event hash (keep a copy somewhere else):", m["event_head"])
+
+
+def restore_now(path, force):
+    from backend import backup, settings
+    db = settings.DB_URL.replace("sqlite:///", "")
+    try:
+        r = backup.restore_backup(path, db, settings.EVENTS_PATH, force=force)
+    except ValueError as e:
+        print("Not restored:", e)
+        return
+    print(f"Restored {r['events']} events from the backup made {r['created']}. {r['message']}.")
+    for k in r["kept"]:
+        print("The previous file was kept as", k)
+
+
 def warm_roads(app):
     import time
     from backend.models import Customer
@@ -116,13 +141,17 @@ def warm_roads(app):
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    app = create_app() if cmd != "tamper-demo" else None
-    if cmd in ("create-owner", "create-driver") and len(sys.argv) == 3:
+    app = create_app() if cmd not in ("tamper-demo", "restore") else None
+    if cmd in ("create-owner", "create-driver", "create-ceo") and len(sys.argv) == 3:
         create_user(app, sys.argv[2], getpass("Password (min 8 characters): "), cmd.split("-")[1])
     elif cmd == "seed-demo":
         seed_demo(app)
     elif cmd == "warm-roads":
         warm_roads(app)
+    elif cmd == "backup" and len(sys.argv) == 3:
+        backup_now(app, sys.argv[2])
+    elif cmd == "restore" and len(sys.argv) in (3, 4):
+        restore_now(sys.argv[2], "--force" in sys.argv[3:])
     elif cmd == "tamper-demo":
         tamper_demo()
     else:

@@ -173,6 +173,8 @@ Most values are placeholders pending calibration (see Known limitations).
 | Urgent requests | `POST /urgent`, `GET /urgent` |
 | Empties | `GET /empties`, `POST /empties/adjust` |
 | Stock and expenses | `GET /stock`, `POST /stock/purchase`, `POST /stock/adjust`, `PUT /settings/low-stock`, `GET/POST /expenses` |
+| Staff, notes, sharing, assistant | `PATCH /users/{id}` (switch on or off), `GET /staff/activity`, `GET/POST/DELETE /notes`, `GET /invoices/{id}/share`, `GET/POST /assistant` |
+| Reports and backup (owner) | `GET /reports/dashboard`, `GET /reports/receivables.pdf`, `GET /export/{customers,deliveries,invoices,ledger,expenses,stock}.csv?start&end`, `GET /backup` |
 | Money | `GET/PUT /settings/price`, `POST /payments`, `POST /ledger/adjust`, `GET /ledger/{customer_id}`, `GET /receivables`, `GET /invoices/{id}/pdf` |
 | Cylinder register | `/cylinders` (register, list, state changes, summary) |
 | Audit | `GET /audit/verify` |
@@ -272,10 +274,24 @@ Implemented:
 - [x] Price, invoices (PDF), payments, customer ledger and receivables
 - [x] Expenses, and stock with purchases and low-stock warning
 
+The optional assistant (Assistant tab) uses Google Gemini. It stays off until a key is set (PowerShell:
+`$env:GASORA_GEMINI_KEY = "your-key"`, then start the API). It is sent totals and counts only, never names, phone
+numbers or addresses, and it cannot change anything. A read-only summary account is made with
+`python -m backend.manage create-ceo NAME`, or on the Staff tab.
+
+Backup and restore (the Reports tab downloads the same file):
+
+```powershell
+python -m backend.manage backup backup.zip            # database and event log, with checksums
+python -m backend.manage restore backup.zip --force   # stop the server first; current files are kept under a new name
+```
+
 Planned:
 
 - [ ] Empties study results (the study is implemented)
-- [ ] Reports and dashboard, ageing PDF report, data export, backup
+- [x] Reports tab: dashboard, ageing PDF report, CSV export, backup (download) and restore (command)
+- [x] Could tier: notes and calculators, staff on/off with activity, CEO read-only login, WhatsApp share of invoices, read-only AI assistant (optional, needs a key)
+- [ ] Backup to a second location on a schedule (backups are manual downloads for now)
 - [ ] Deployment
 
 ## Known limitations
