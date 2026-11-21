@@ -1,0 +1,44 @@
+{
+  "created": "2026-11-21T13:46:34+00:00",
+  "code_hash": "71e9cc3c0185",
+  "commit_before_freeze": "97402dba023666c659ac984a397229f4be373a10",
+  "variants_logged": 7,
+  "variant": {
+    "fit_m": null,
+    "fit_floor": 1.0,
+    "early_pull": false,
+    "skip_penalty": 600
+  },
+  "metadata": {
+    "commit": "97402dba023666c659ac984a397229f4be373a10",
+    "uncommitted_changes": false,
+    "code_hash": "71e9cc3c0185",
+    "time": "2026-11-21T13:46:38+00:00",
+    "python": "3.14.6",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "processor": "Intel64 Family 6 Model 142 Stepping 9, GenuineIntel",
+    "packages": {
+      "numpy": "2.5.4",
+      "scipy": "1.18.1",
+      "ortools": "9.15.6755",
+      "networkx": "3.7",
+      "osmnx": "2.1.1"
+    },
+    "settings": {
+      "vehicles": 2,
+      "capacity": 40,
+      "shift_min": 480,
+      "service_min": 10,
+      "skip_penalty": 300,
+      "gasora_skip_penalty": 300,
+      "plan_seconds": 0.5,
+      "early_days": 5
+    },
+    "variant": {
+      "fit_m": null,
+      "fit_floor": 1.0,
+      "early_pull": false,
+      "skip_penalty": 600
+    }
+  }
+}
