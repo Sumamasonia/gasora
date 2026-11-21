@@ -25,7 +25,7 @@ with a 95% bootstrap interval (negative means Gasora is cheaper).
 | 2 | up to 2026-11-11 | fit on, M = 6, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 0 of 10 seeds | no |
 | 3 | up to 2026-11-11 | fit on, M = all, floor 1, no pull, grid v1.1 | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | carried forward |
 | 4 | 2026-11-12 to 14 | fit on, M = all, floor 1, no pull, grid v1.2 (adds 0.01 and 0.02) | 1 to 10 | not evaluable: level 15 reached on 2 of 10 seeds | open (see entry) |
-| 5 | 2026-11-15 | as variant 4, Gasora skip penalty scale S = 600 (pilot on seeds 1 to 3, full run on 1 to 10) | 1 to 10 | level 15 reached on 10 of 10 seeds; G minus R0 -1204.8 km, -197.4 h; G minus R1 -287.1 km, -40.2 h; graded supported on dev seeds | open (check on seeds 11 to 20 next) |
+| 5 | 2026-11-15 | as variant 4, Gasora skip penalty scale S = 600 (pilot on seeds 1 to 3, full run on 1 to 10) | 1 to 10 | level 15 reached on 10 of 10 seeds; G minus R0 -1204.8 km, -197.4 h; G minus R1 -287.1 km, -40.2 h; graded supported on dev seeds; check seeds 11 to 20: level 15 on 10 of 10, G minus R0 -1239.8 km, -219.1 h; G minus R1 -348.1 km, -45.1 h, supported | **kept** (passed the check; freeze next) |
 | 6 | pilot, 2026-11 | as variant 4, S = 1200 | 1 to 3 (G only) | pilot: level 15 reached on 3 of 3 seeds; G minus R0 -1109 km, -191 h; G minus R1 -243 km, -44 h | no (not needed; the rule takes the smallest S) |
 | 7 | pilot, 2026-11 | as variant 4, S = 2400 | 1 to 3 (G only) | pilot: level 15 reached on 3 of 3 seeds; G minus R0 -1114 km, -192 h; G minus R1 -247 km, -44 h | no (not needed) |
 
@@ -132,7 +132,18 @@ Mean run-outs / kilometres of G at cut-off 0.01 / 0.02 / 0.03 are shown for each
   (R1: 0.0 and 37.2). Prediction quality is unchanged from variant 4 (S does not touch the predictor).
 - Caveat: S was chosen on development seeds for Gasora only, while the rule arms keep 300. It is a tuned setting of G
   and must be reported as such.
-- Decision: **carried forward**. Next: the check on seeds 11 to 20 with `--skip-penalty 600`.
+- Check run, seeds 11 to 20, same settings (output `data/check_v5_S600.txt`). Reaching level 15 / 25 / 40 / 10: G 10 / 10 / 10 / 7
+  (R0 10 / 10 / 10 / 8; R1, R2 and A 10 on all). Curves crossing a level more than once: R0 9 at level 15, 8 at level 25, 7 at
+  level 10; none for G.
+- Primary comparison at level 15, G minus other arm: R0 km -1239.8 [-1390.6, -1095.1], hours -219.1 [-254.4, -184.4]; R1 km
+  -348.1 [-409.4, -288.9], hours -45.1 [-53.2, -37.8]. Grade: **supported** against both.
+- Level 25: R0 km -523.5 [-592.1, -450.9], R1 km -68.1 [-91.4, -46.3]. Level 40: R0 km -75.1 [-113.8, -39.9]; R1 km -2.7
+  [-19.9, 13.6] (interval includes 0), hours -1.4 [-3.2, 0.2]. Against A at level 15: km -648.0 [-691.9, -606.6].
+- Level 10 is **not reported**: G reaches it on 7 of 10 seeds, below the 80% needed.
+- Prediction quality (G at cut-off 0.1): forecast error 3.18 days (R1 2.96, R0 5.02); Brier 0.0369 against 0.0396 (skill 0.067);
+  refill window coverage 73.2%. By type at level 15, run-outs per 100 customer-months: G 2.0 steady, 31.7 irregular (R1 0.0 and 34.3).
+- Decision: **kept**. The result agrees with the development seeds. Next: freeze with `--skip-penalty 600`, tag
+  `eval-freeze-v1`, then the confirmation run on seeds 21 to 40 (once).
 
 ## Variant 6: S = 1200
 
@@ -149,4 +160,4 @@ Mean run-outs / kilometres of G at cut-off 0.01 / 0.02 / 0.03 are shown for each
 
 ## Entries after variant 7
 
-(none yet. Next: the check stage, seeds 11 to 20.)
+(none yet. Next: freeze, then the confirmation run on seeds 21 to 40.)
