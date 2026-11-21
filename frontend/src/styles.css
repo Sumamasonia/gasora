@@ -50,7 +50,7 @@ input, select { padding: 7px 9px; border: 1px solid #bbb; border-radius: 6px; fo
 .actions button { flex: 1; padding: 11px; font-size: 15px; }
 
 /* owner tabs and pages, driver manifest */
-.tabs { display: flex; gap: 4px; margin-left: 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 12px; }
 .tab { background: transparent; color: #333; border: 1px solid transparent; }
 .tab.active { background: #e3edf9; color: #0d47a1; font-weight: 600; }
 .page { max-width: 1000px; width: 100%; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
@@ -68,3 +68,10 @@ button.link { background: none; color: #1565c0; padding: 0; text-decoration: und
 code { font-size: 12px; }
 .owes { color: #b00020; font-size: 13px; font-weight: 600; }
 .page h3 { margin: 16px 0 4px; font-size: 15px; }
+
+/* reports */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { border: 1px solid #d9dde3; border-radius: 8px; padding: 10px 12px; }
+.tile.warn { border-color: #d98a00; background: #fff8e8; }
+.tilevalue { font-size: 20px; font-weight: 600; }
+label.inline { flex-direction: row; align-items: center; gap: 6px; }

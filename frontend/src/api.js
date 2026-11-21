@@ -27,6 +27,7 @@ async function request(path, { token, method = 'GET', body } = {}) {
     }
     throw new ApiError(res.status, detail)
   }
+  if (res.status === 204) return null
   return res.json()
 }
 
@@ -81,11 +82,11 @@ export const postPayment = (token, customer_id, amount, note) =>
 export const postAdjustment = (token, customer_id, amount, note) =>
   request('/ledger/adjust', { token, method: 'POST', body: { customer_id, amount, note } })
 
-// The invoice PDF needs the login token, so it is fetched and saved as a file instead of opened as a link.
-export async function downloadInvoice(token, invoiceId, number) {
+// Files need the login token, so they are fetched and saved instead of opened as links.
+export async function downloadFile(token, path, filename) {
   let res
   try {
-    res = await fetch(`${BASE}/invoices/${invoiceId}/pdf`, { headers: { Authorization: `Bearer ${token}` } })
+    res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } })
   } catch {
     throw new ApiError(0, 'Cannot reach the server. Is the API running on port 8000?')
   }
@@ -97,12 +98,13 @@ export async function downloadInvoice(token, invoiceId, number) {
   const url = URL.createObjectURL(await res.blob())
   const a = document.createElement('a')
   a.href = url
-  a.download = `${number}.pdf`
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
 }
+export const downloadInvoice = (token, invoiceId, number) => downloadFile(token, `/invoices/${invoiceId}/pdf`, `${number}.pdf`)
 
 // stock and expenses
 export const getStock = (token) => request('/stock', { token })
@@ -116,3 +118,17 @@ export const getExpenses = (token, start, end) => {
   return request(`/expenses${q ? `?${q}` : ''}`, { token })
 }
 export const postExpense = (token, body) => request('/expenses', { token, method: 'POST', body })
+
+// reports
+export const getDashboard = (token) => request('/reports/dashboard', { token })
+
+// staff, notes, sharing, assistant
+export const createUser = (token, body) => request('/users', { token, method: 'POST', body })
+export const setUserActive = (token, id, active) => request(`/users/${id}`, { token, method: 'PATCH', body: { active } })
+export const getStaffActivity = (token, days = 30) => request(`/staff/activity?days=${days}`, { token })
+export const getNotes = (token) => request('/notes', { token })
+export const postNote = (token, text, label) => request('/notes', { token, method: 'POST', body: { text, label: label || null } })
+export const deleteNote = (token, id) => request(`/notes/${id}`, { token, method: 'DELETE' })
+export const getInvoiceShare = (token, id) => request(`/invoices/${id}/share`, { token })
+export const getAssistant = (token) => request('/assistant', { token })
+export const askAssistant = (token, question) => request('/assistant', { token, method: 'POST', body: { question } })

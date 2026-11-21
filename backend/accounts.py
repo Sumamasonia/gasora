@@ -207,3 +207,24 @@ def invoice_pdf(session, invoice_id):
     c.showPage()
     c.save()
     return buf.getvalue()
+
+
+# ---------- sharing by WhatsApp ----------
+def whatsapp_number(phone):
+    """Digits for a wa.me link, assuming Pakistan when the number starts with 0 (0300 1234567 -> 923001234567)."""
+    digits = "".join(ch for ch in (phone or "") if ch.isdigit())
+    if digits.startswith("00"):
+        digits = digits[2:]
+    elif digits.startswith("0"):
+        digits = "92" + digits[1:]
+    return digits if 10 <= len(digits) <= 15 else None
+
+
+def whatsapp_share(inv, customer, balance):
+    from urllib.parse import quote
+    text = (f"Gasora LPG Agency\nInvoice {invoice_number(inv.id)} dated {inv.issued_on.isoformat()}\n"
+            f"{inv.cylinders} cylinder(s) x Rs {inv.unit_price:,} = Rs {inv.total:,}\n"
+            f"Account balance: Rs {balance:,}" + (" (owing)" if balance > 0 else ""))
+    number = whatsapp_number(customer.phone) if customer else None
+    base = f"https://wa.me/{number}" if number else "https://wa.me/"
+    return {"url": f"{base}?text={quote(text)}", "text": text, "has_number": number is not None}

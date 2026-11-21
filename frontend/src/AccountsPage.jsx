@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  downloadInvoice, getCustomers, getLedger, getPrice, getReceivables, postAdjustment, postPayment, setPrice,
+  downloadInvoice, getCustomers, getInvoiceShare, getLedger, getPrice, getReceivables, postAdjustment, postPayment, setPrice,
 } from './api'
 import { useGuard } from './hooks'
 
@@ -108,6 +108,10 @@ export default function AccountsPage({ auth, onExpired }) {
                         {e.invoice_id && (
                           <button className="secondary" disabled={busy}
                             onClick={() => run(() => downloadInvoice(auth.token, e.invoice_id, e.invoice_number))}>PDF</button>
+                        )}
+                        {e.invoice_id && (
+                          <button className="secondary" disabled={busy} title="Opens WhatsApp with the invoice details as text"
+                            onClick={() => run(async () => { const sh = await getInvoiceShare(auth.token, e.invoice_id); window.open(sh.url, '_blank', 'noopener') })}>WhatsApp</button>
                         )}
                       </td>
                     </tr>
