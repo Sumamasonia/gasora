@@ -132,3 +132,15 @@ export const deleteNote = (token, id) => request(`/notes/${id}`, { token, method
 export const getInvoiceShare = (token, id) => request(`/invoices/${id}/share`, { token })
 export const getAssistant = (token) => request('/assistant', { token })
 export const askAssistant = (token, question) => request('/assistant', { token, method: 'POST', body: { question } })
+
+// settings, customer app, requests, sales
+export const getSettings = (token) => request('/settings', { token })
+export const putSettings = (token, body) => request('/settings', { token, method: 'PUT', body })
+export const getPublicSettings = (token) => request('/settings/public', { token })
+export const getMe = (token) => request('/me', { token })
+export const postMyRequest = (token, urgent, note) => request('/me/requests', { token, method: 'POST', body: { urgent, note: note || null } })
+export const getRequests = (token) => request('/requests', { token })
+export const closeRequest = (token, id, make_urgent) => request(`/requests/${id}/done`, { token, method: 'POST', body: { make_urgent } })
+export const postDelivery = (token, body) => request('/deliveries', { token, method: 'POST', body })
+export const changePassword = (token, old_password, new_password) => request('/auth/password', { token, method: 'POST', body: { old_password, new_password } })
+export const resetUserPassword = (token, id, new_password) => request(`/users/${id}/password`, { token, method: 'POST', body: { new_password } })

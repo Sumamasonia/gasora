@@ -173,6 +173,8 @@ Most values are placeholders pending calibration (see Known limitations).
 | Urgent requests | `POST /urgent`, `GET /urgent` |
 | Empties | `GET /empties`, `POST /empties/adjust` |
 | Stock and expenses | `GET /stock`, `POST /stock/purchase`, `POST /stock/adjust`, `PUT /settings/low-stock`, `GET/POST /expenses` |
+| Settings, customer app, requests | `GET/PUT /settings`, `GET /settings/public`, `GET /me`, `POST /me/requests`, `GET /me/invoices/{id}/pdf`, `GET /requests`, `POST /requests/{id}/done` |
+| Passwords | `POST /auth/password`, `POST /users/{id}/password` (owner) |
 | Staff, notes, sharing, assistant | `PATCH /users/{id}` (switch on or off), `GET /staff/activity`, `GET/POST/DELETE /notes`, `GET /invoices/{id}/share`, `GET/POST /assistant` |
 | Reports and backup (owner) | `GET /reports/dashboard`, `GET /reports/receivables.pdf`, `GET /export/{customers,deliveries,invoices,ledger,expenses,stock}.csv?start&end`, `GET /backup` |
 | Money | `GET/PUT /settings/price`, `POST /payments`, `POST /ledger/adjust`, `GET /ledger/{customer_id}`, `GET /receivables`, `GET /invoices/{id}/pdf` |
@@ -274,6 +276,9 @@ Implemented:
 - [x] Price, invoices (PDF), payments, customer ledger and receivables
 - [x] Expenses, and stock with purchases and low-stock warning
 
+Roles: **owner** (everything), **manager** (sales, payments, purchases, expenses; no prices, corrections, staff or reports),
+**driver** (own routes), **ceo** (read-only summary), **customer** (own bills, balance, requests). Putting it online: see `docs/DEPLOY.md`.
+
 The optional assistant (Assistant tab) uses Google Gemini. It stays off until a key is set (PowerShell:
 `$env:GASORA_GEMINI_KEY = "your-key"`, then start the API). It is sent totals and counts only, never names, phone
 numbers or addresses, and it cannot change anything. A read-only summary account is made with
@@ -291,7 +296,10 @@ Planned:
 - [ ] Empties study results (the study is implemented)
 - [x] Reports tab: dashboard, ageing PDF report, CSV export, backup (download) and restore (command)
 - [x] Could tier: notes and calculators, staff on/off with activity, CEO read-only login, WhatsApp share of invoices, read-only AI assistant (optional, needs a key)
-- [ ] Backup to a second location on a schedule (backups are manual downloads for now)
+- [x] Settings page (currency, depot, overdue days, low-stock level), manager role, customer app (own bills, balance, requests)
+- [x] Deployment: one container (API and web app), production checks, login lockout, password change and reset, daily backups (docs/DEPLOY.md)
+- [ ] Copying backups off the server automatically (manual for now)
+- [ ] Customer self-registration, SMS or email messages, online payments (not planned)
 - [ ] Deployment
 
 ## Known limitations

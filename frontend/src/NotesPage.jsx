@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { deleteNote, getNotes, getPrice, postNote } from './api'
 import { useGuard } from './hooks'
+import { currency, rs } from './ui'
 
-const rs = (n) => `Rs ${Math.round(n).toLocaleString('en-US')}`
 
 // Pure helpers (exported so that they can be checked on their own)
 export function costPerCylinder({ purchase, transport, other, price }) {
@@ -53,10 +53,10 @@ function CostCalculator({ defaultPrice }) {
   return (
     <div className="card" style={{ flex: 1, minWidth: 260 }}>
       <h2>Cost of one cylinder</h2>
-      {field('purchase', 'Bought from the plant (Rs)')}
-      {field('transport', 'Transport per cylinder (Rs)')}
-      {field('other', 'Other cost per cylinder (Rs)')}
-      {field('price', 'Selling price (Rs, blank = current price)')}
+      {field('purchase', `Bought from the plant (${currency()})`)}
+      {field('transport', `Transport per cylinder (${currency()})`)}
+      {field('other', `Other cost per cylinder (${currency()})`)}
+      {field('price', `Selling price (${currency()}, blank = current price)`)}
       <div className="counts">
         <div>Cost: <strong>{rs(r.cost)}</strong></div>
         <div>Margin: <strong>{rs(r.margin)}</strong>{r.percent !== null && ` (${r.percent.toFixed(1)}% of the price)`}</div>

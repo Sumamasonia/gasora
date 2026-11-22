@@ -130,3 +130,19 @@ def restore_backup(zip_path, db_path, events_path, force=False, now=None):
         shutil.copyfile(os.path.join(tmp, DB_NAME), db_path)
         shutil.copyfile(os.path.join(tmp, EVENTS_NAME), events_path)
     return {"events": manifest["events"], "created": manifest["created"], "kept": kept, "message": message}
+
+
+def write_scheduled(engine, events_conn, directory, keep=14, now=None):
+    """Write one backup file into `directory` and delete the oldest ones beyond `keep`. Returns the new file's path."""
+    data, manifest = make_backup(engine, events_conn, now)
+    os.makedirs(directory, exist_ok=True)
+    stamp = manifest["created"][:19].replace(":", "").replace("-", "").replace("T", "-")
+    path = os.path.join(directory, f"gasora-backup-{stamp}.zip")
+    tmp = path + ".part"
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.replace(tmp, path)                                  # a half-written file never has the final name
+    old = sorted(n for n in os.listdir(directory) if n.startswith("gasora-backup-") and n.endswith(".zip"))
+    for name in old[:max(0, len(old) - max(1, keep))]:
+        os.remove(os.path.join(directory, name))
+    return path

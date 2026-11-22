@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getStock, postPurchase, postStockAdjust, putLowStock } from './api'
 import { useGuard } from './hooks'
+import { currency, rs } from './ui'
 
 const whole = (s) => /^\d+$/.test(s.trim()) && Number(s) > 0
-const rs = (n) => `Rs ${Number(n).toLocaleString('en-US')}`
 
 export default function StockPage({ auth, onExpired }) {
+  const isOwner = auth.role === 'owner'
   const { busy, error, run } = useGuard(onExpired)
   const [stock, setStock] = useState(null)
   const [qty, setQty] = useState('')
@@ -40,13 +41,15 @@ export default function StockPage({ auth, onExpired }) {
               </p>
             </>
           )}
+          {isOwner && (
           <div className="row">
-            <span className="muted">Warn when stock is at or below</span>
-            <input style={{ maxWidth: 90 }} inputMode="numeric" placeholder={String(stock.threshold)} value={threshold}
-              onChange={(e) => setThreshold(e.target.value)} />
-            <button className="secondary" disabled={busy || !/^\d+$/.test(threshold.trim())}
-              onClick={() => run(async () => { setStock(await putLowStock(auth.token, Number(threshold))); setThreshold('') })}>Save</button>
-          </div>
+              <span className="muted">Warn when stock is at or below</span>
+              <input style={{ maxWidth: 90 }} inputMode="numeric" placeholder={String(stock.threshold)} value={threshold}
+                onChange={(e) => setThreshold(e.target.value)} />
+              <button className="secondary" disabled={busy || !/^\d+$/.test(threshold.trim())}
+                onClick={() => run(async () => { setStock(await putLowStock(auth.token, Number(threshold))); setThreshold('') })}>Save</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -54,7 +57,7 @@ export default function StockPage({ auth, onExpired }) {
         <h2>Record a purchase from the plant</h2>
         <div className="row">
           <input style={{ maxWidth: 120 }} placeholder="Cylinders" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} />
-          <input style={{ maxWidth: 140 }} placeholder="Rs per cylinder" inputMode="numeric" value={cost} onChange={(e) => setCost(e.target.value)} />
+          <input style={{ maxWidth: 140 }} placeholder={`${currency()} per cylinder`} inputMode="numeric" value={cost} onChange={(e) => setCost(e.target.value)} />
           <input placeholder="Supplier (optional)" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
           <button disabled={busy || !whole(qty) || !whole(cost)} onClick={() => run(async () => {
             setStock(await postPurchase(auth.token, { quantity: Number(qty), unit_cost: Number(cost), supplier: supplier.trim() || null }))
@@ -63,24 +66,26 @@ export default function StockPage({ auth, onExpired }) {
         </div>
       </div>
 
+      {isOwner && (
       <div className="card">
-        <h2>Correct the stock</h2>
-        <p className="muted">
-          For opening stock, damage, loss or a count that does not match. Entries are never edited or deleted. Use a
-          positive number to add and a negative number (for example -3) to remove.
-        </p>
-        <div className="row">
-          <input style={{ maxWidth: 140 }} placeholder="e.g. -3" inputMode="numeric" value={adj} onChange={(e) => setAdj(e.target.value)} />
-          <input placeholder="Reason (required)" value={adjNote} onChange={(e) => setAdjNote(e.target.value)} />
-          <button className="secondary" disabled={busy} onClick={() => {
-            if (!/^-?\d+$/.test(adj.trim()) || Number(adj) === 0) return setFormError('Enter a whole number that is not zero.')
-            if (!adjNote.trim()) return setFormError('A reason is required.')
-            setFormError('')
-            run(async () => { setStock(await postStockAdjust(auth.token, Number(adj), adjNote.trim())); setAdj(''); setAdjNote('') })
-          }}>Add correction</button>
+          <h2>Correct the stock</h2>
+          <p className="muted">
+            For opening stock, damage, loss or a count that does not match. Entries are never edited or deleted. Use a
+            positive number to add and a negative number (for example -3) to remove.
+          </p>
+          <div className="row">
+            <input style={{ maxWidth: 140 }} placeholder="e.g. -3" inputMode="numeric" value={adj} onChange={(e) => setAdj(e.target.value)} />
+            <input placeholder="Reason (required)" value={adjNote} onChange={(e) => setAdjNote(e.target.value)} />
+            <button className="secondary" disabled={busy} onClick={() => {
+              if (!/^-?\d+$/.test(adj.trim()) || Number(adj) === 0) return setFormError('Enter a whole number that is not zero.')
+              if (!adjNote.trim()) return setFormError('A reason is required.')
+              setFormError('')
+              run(async () => { setStock(await postStockAdjust(auth.token, Number(adj), adjNote.trim())); setAdj(''); setAdjNote('') })
+            }}>Add correction</button>
+          </div>
+          {formError && <p className="error">{formError}</p>}
         </div>
-        {formError && <p className="error">{formError}</p>}
-      </div>
+      )}
 
       {stock && (
         <div className="card">

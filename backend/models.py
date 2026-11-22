@@ -13,8 +13,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(50), unique=True)
     password_hash: Mapped[str] = mapped_column(String(300))
-    role: Mapped[str] = mapped_column(String(20))            # "owner", "driver" or "ceo" (read-only summary)
+    role: Mapped[str] = mapped_column(String(20))            # owner, driver, manager, ceo (read-only summary) or customer
     active: Mapped[bool] = mapped_column(default=True)       # an inactive user cannot sign in; the account is never deleted
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id"), default=None)   # set for role "customer"
 
 
 class Customer(Base):
@@ -228,3 +229,14 @@ class DailyNote(Base):
     label: Mapped[str | None] = mapped_column(String(30), default=None)
     text: Mapped[str] = mapped_column(String(500))
     actor: Mapped[str] = mapped_column(String(50))
+
+
+class DeliveryRequest(Base):
+    """A normal (not urgent) request from a customer. The owner sees it, plans for it and marks it done."""
+    __tablename__ = "delivery_requests"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"))
+    note: Mapped[str | None] = mapped_column(String(200), default=None)
+    status: Mapped[str] = mapped_column(String(10), default="open")      # open or done
+    created_by: Mapped[str] = mapped_column(String(50))
+    created_on: Mapped[date]

@@ -16,6 +16,7 @@ function toBody(f) {
 }
 
 export default function CustomersPage({ auth, onExpired }) {
+  const isOwner = auth.role === 'owner'
   const { busy, error, run } = useGuard(onExpired)
   const [customers, setCustomers] = useState([])
   const [form, setForm] = useState(EMPTY)
@@ -50,23 +51,25 @@ export default function CustomersPage({ auth, onExpired }) {
   return (
     <div className="page">
       {error && <p className="error banner">{error}</p>}
+      {isOwner && (
       <div className="card">
-        <h2>{editing ? `Edit customer ${editing}` : 'Add a customer'}</h2>
-        <div className="formgrid">
-          <label>Name<input value={form.name} onChange={set('name')} /></label>
-          <label>Phone<input value={form.phone} onChange={set('phone')} /></label>
-          <label>Address<input value={form.address} onChange={set('address')} /></label>
-          <label>Latitude<input value={form.lat} onChange={set('lat')} inputMode="decimal" /></label>
-          <label>Longitude<input value={form.lon} onChange={set('lon')} inputMode="decimal" /></label>
-          <label>Cylinders per refill<input type="number" min="1" max="10" value={form.demand} onChange={set('demand')} /></label>
+          <h2>{editing ? `Edit customer ${editing}` : 'Add a customer'}</h2>
+          <div className="formgrid">
+            <label>Name<input value={form.name} onChange={set('name')} /></label>
+            <label>Phone<input value={form.phone} onChange={set('phone')} /></label>
+            <label>Address<input value={form.address} onChange={set('address')} /></label>
+            <label>Latitude<input value={form.lat} onChange={set('lat')} inputMode="decimal" /></label>
+            <label>Longitude<input value={form.lon} onChange={set('lon')} inputMode="decimal" /></label>
+            <label>Cylinders per refill<input type="number" min="1" max="10" value={form.demand} onChange={set('demand')} /></label>
+          </div>
+          {formError && <p className="error">{formError}</p>}
+          <div className="row">
+            <button disabled={busy} onClick={save}>{editing ? 'Save changes' : 'Add customer'}</button>
+            {editing && <button className="secondary" onClick={reset}>Cancel</button>}
+          </div>
+          <p className="muted">Coordinates can be copied from a map: right-click the place in Google Maps and click the numbers.</p>
         </div>
-        {formError && <p className="error">{formError}</p>}
-        <div className="row">
-          <button disabled={busy} onClick={save}>{editing ? 'Save changes' : 'Add customer'}</button>
-          {editing && <button className="secondary" onClick={reset}>Cancel</button>}
-        </div>
-        <p className="muted">Coordinates can be copied from a map: right-click the place in Google Maps and click the numbers.</p>
-      </div>
+      )}
 
       <div className="card">
         <div className="row">
@@ -81,11 +84,11 @@ export default function CustomersPage({ auth, onExpired }) {
                 <tr key={c.id}>
                   <td>{c.id}</td><td>{c.name}</td><td>{c.phone || ''}</td><td>{c.address || ''}</td><td>{c.demand}</td>
                   <td>
-                    <button className="secondary" onClick={() => {
+                    {isOwner && <button className="secondary" onClick={() => {
                       setEditing(c.id)
                       setForm({ name: c.name, phone: c.phone || '', address: c.address || '', lat: c.lat, lon: c.lon, demand: c.demand })
                       window.scrollTo({ top: 0 })
-                    }}>Edit</button>
+                    }}>Edit</button>}
                   </td>
                 </tr>
               ))}

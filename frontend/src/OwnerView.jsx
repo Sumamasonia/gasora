@@ -11,6 +11,9 @@ import ExpensesPage from './ExpensesPage'
 import AssistantPage from './AssistantPage'
 import NotesPage from './NotesPage'
 import ReportsPage from './ReportsPage'
+import RequestsPage from './RequestsPage'
+import SalesPage from './SalesPage'
+import SettingsPage from './SettingsPage'
 import StaffPage from './StaffPage'
 import StockPage from './StockPage'
 import PlanMap from './PlanMap'
@@ -118,7 +121,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
     setDrivers(users.filter((x) => x.role === 'driver'))
   }, [auth.token, seconds])
 
-  useEffect(() => { guard(loadAll) }, [guard, loadAll])
+  useEffect(() => { if (tab === 'dispatch') guard(loadAll) }, [guard, loadAll, tab])      // reload when coming back to Dispatch
 
   return (
     <div className="app">
@@ -126,7 +129,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
         <strong>Gasora Dispatch</strong>
         <span className="muted">{auth.username} ({auth.role})</span>
         <nav className="tabs">
-          {[['dispatch', 'Dispatch'], ['customers', 'Customers'], ['cylinders', 'Cylinders'], ['accounts', 'Accounts'], ['stock', 'Stock'], ['expenses', 'Expenses'], ['reports', 'Reports'], ['notes', 'Notes & tools'], ['assistant', 'Assistant'], ['staff', 'Staff'], ['audit', 'Audit']].map(([k, label]) => (
+          {[['dispatch', 'Dispatch'], ['requests', 'Requests'], ['sales', 'Sales'], ['customers', 'Customers'], ['cylinders', 'Cylinders'], ['accounts', 'Accounts'], ['stock', 'Stock'], ['expenses', 'Expenses'], ['reports', 'Reports'], ['notes', 'Notes & tools'], ['assistant', 'Assistant'], ['staff', 'Staff'], ['settings', 'Settings'], ['audit', 'Audit']].map(([k, label]) => (
             <button key={k} className={tab === k ? 'tab active' : 'tab'} onClick={() => setTab(k)}>{label}</button>
           ))}
         </nav>
@@ -155,6 +158,9 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
       {tab === 'notes' && <NotesPage auth={auth} onExpired={onExpired} />}
       {tab === 'assistant' && <AssistantPage auth={auth} onExpired={onExpired} />}
       {tab === 'staff' && <StaffPage auth={auth} onExpired={onExpired} />}
+      {tab === 'requests' && <RequestsPage auth={auth} onExpired={onExpired} />}
+      {tab === 'sales' && <SalesPage auth={auth} onExpired={onExpired} />}
+      {tab === 'settings' && <SettingsPage auth={auth} onExpired={onExpired} />}
       {tab === 'audit' && <AuditPage auth={auth} onExpired={onExpired} />}
       {tab === 'dispatch' && error && <p className="error banner">{error}</p>}
       {tab === 'dispatch' && plan && (

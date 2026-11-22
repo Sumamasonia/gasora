@@ -41,6 +41,21 @@ def create_user(app, username, password, role):
         print(f"{role.capitalize()} created:", username)
 
 
+def reset_password(app, username, password):
+    if len(password) < 8:
+        print("The password needs at least 8 characters. Nothing changed.")
+        return
+    with app.state.SessionLocal() as s:
+        u = s.scalar(select(User).where(User.username == username))
+        if u is None:
+            print("No such user. Nothing changed.")
+            return
+        u.password_hash = security.hash_password(password)
+        eventlog.append(app.state.events, "system", "password.reset", {"user_id": u.id})
+        s.commit()
+        print("Password changed for", username, "(all earlier logins for this user stop working).")
+
+
 def seed_demo(app, n=60, seed=1):
     with app.state.SessionLocal() as s:
         if s.scalar(select(Customer).limit(1)):
@@ -142,8 +157,10 @@ def warm_roads(app):
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     app = create_app() if cmd not in ("tamper-demo", "restore") else None
-    if cmd in ("create-owner", "create-driver", "create-ceo") and len(sys.argv) == 3:
+    if cmd in ("create-owner", "create-driver", "create-ceo", "create-manager") and len(sys.argv) == 3:
         create_user(app, sys.argv[2], getpass("Password (min 8 characters): "), cmd.split("-")[1])
+    elif cmd == "reset-password" and len(sys.argv) == 3:
+        reset_password(app, sys.argv[2], getpass("New password (min 8 characters): "))
     elif cmd == "seed-demo":
         seed_demo(app)
     elif cmd == "warm-roads":
