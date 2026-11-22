@@ -11,8 +11,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend import accounts, assistant, backup, cylinders, eventlog, expenses, reports, security, services, settings, staff, stock
-from planner.road_router import RoadRouter, StraightRouter
+from backend import accounts, assistant, backup, cylinders, eventlog, expenses, portal, reports, runtime, security, services, settings, staff, stock
+from backend.routers import StraightRouter
 from backend.models import Base, Customer, Cylinder, CylinderTransaction, DailyNote, Delivery, Invoice, User
 
 log = logging.getLogger("gasora")
@@ -35,7 +35,8 @@ class TokenOut(BaseModel):
 class UserIn(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=100)
-    role: Literal["owner", "driver", "ceo"]
+    role: Literal["owner", "driver", "manager", "ceo", "customer"]
+    customer_id: Optional[int] = None
 
 
 class UserOut(BaseModel):
@@ -44,6 +45,7 @@ class UserOut(BaseModel):
     username: str
     role: str
     active: bool = True
+    customer_id: Optional[int] = None
 
 
 class CustomerIn(BaseModel):
@@ -226,7 +228,7 @@ def current_user(request: Request,
         user = session.get(User, int(data["sub"]))
     except Exception:
         raise HTTPException(401, "invalid or expired token")
-    if user is None or not user.active:
+    if user is None or not user.active or data.get("pv") != security.password_version(user.password_hash):
         raise HTTPException(401, "invalid or expired token")
     return user
 
@@ -245,14 +247,64 @@ def health():
     return {"status": "ok"}
 
 
+class PasswordIn(BaseModel):
+    old_password: str
+    new_password: str = Field(min_length=8, max_length=100)
+
+
+class ResetPasswordIn(BaseModel):
+    new_password: str = Field(min_length=8, max_length=100)
+
+
+def _address(request):
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/auth/login", response_model=TokenOut)
 def login(body: LoginIn, request: Request, session: Session = Depends(get_session)):
+    limiter, address = request.app.state.limiter, _address(request)
+    if limiter.blocked(address, body.username):
+        raise HTTPException(429, "too many failed attempts; wait ten minutes and try again")
     user = session.scalar(select(User).where(User.username == body.username))
     ok = security.verify_password(body.password, user.password_hash if user else security.DUMMY_HASH)
     if user is None or not ok or not user.active:
+        limiter.fail(address, body.username)
         raise HTTPException(401, "wrong username or password")
-    token = security.create_token(user.id, user.role, request.app.state.secret, settings.TOKEN_MINUTES)
+    limiter.clear(address, body.username)
+    token = security.create_token(user.id, user.role, request.app.state.secret, settings.TOKEN_MINUTES,
+                                  pv=security.password_version(user.password_hash))
     return TokenOut(access_token=token, role=user.role)
+
+
+@router.post("/auth/password")
+def change_password(body: PasswordIn, request: Request, session: Session = Depends(get_session),
+                    me: User = Depends(current_user)):
+    limiter, address = request.app.state.limiter, _address(request)
+    if limiter.blocked(address, me.username):
+        raise HTTPException(429, "too many failed attempts; wait ten minutes and try again")
+    if not security.verify_password(body.old_password, me.password_hash):
+        limiter.fail(address, me.username)
+        raise HTTPException(401, "the current password is wrong")
+    if body.new_password == body.old_password:
+        raise HTTPException(422, "choose a password different from the current one")
+    me.password_hash = security.hash_password(body.new_password)
+    eventlog.append(request.app.state.events, me.username, "password.changed", {"user_id": me.id})
+    session.commit()
+    token = security.create_token(me.id, me.role, request.app.state.secret, settings.TOKEN_MINUTES,
+                                  pv=security.password_version(me.password_hash))
+    return TokenOut(access_token=token, role=me.role)          # the old token stops working; this one replaces it
+
+
+@router.post("/users/{user_id}/password")
+def reset_password(user_id: int, body: ResetPasswordIn, request: Request, session: Session = Depends(get_session),
+                   me: User = Depends(require("owner"))):
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "user not found")
+    user.password_hash = security.hash_password(body.new_password)
+    eventlog.append(request.app.state.events, me.username, "password.reset", {"user_id": user.id})
+    session.commit()
+    return {"ok": True}
 
 
 @router.post("/users", response_model=UserOut, status_code=201)
@@ -260,11 +312,19 @@ def create_user(body: UserIn, request: Request, session: Session = Depends(get_s
                 me: User = Depends(require("owner"))):
     if session.scalar(select(User).where(User.username == body.username)):
         raise HTTPException(409, "username already exists")
-    user = User(username=body.username, password_hash=security.hash_password(body.password), role=body.role)
+    if body.role == "customer":
+        if body.customer_id is None or session.get(Customer, body.customer_id) is None:
+            raise HTTPException(422, "a customer account needs an existing customer")
+        if session.scalar(select(User).where(User.customer_id == body.customer_id)):
+            raise HTTPException(409, "that customer already has a login")
+    elif body.customer_id is not None:
+        raise HTTPException(422, "only customer accounts are linked to a customer")
+    user = User(username=body.username, password_hash=security.hash_password(body.password), role=body.role,
+                customer_id=body.customer_id)
     session.add(user)
     session.flush()
     eventlog.append(request.app.state.events, me.username, "user.created",
-                    {"user_id": user.id, "username": user.username, "role": user.role})
+                    {"user_id": user.id, "username": user.username, "role": user.role, "customer_id": user.customer_id})
     session.commit()
     return user
 
@@ -298,7 +358,7 @@ def update_customer(customer_id: int, body: CustomerIn, request: Request, sessio
 
 
 @router.get("/customers", response_model=list[CustomerOut])
-def list_customers(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver"))):
+def list_customers(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver", "manager"))):
     return session.scalars(select(Customer).order_by(Customer.id)).all()
 
 
@@ -376,7 +436,7 @@ def transition_cylinder_endpoint(id: int, body: CylinderTransitionIn, request: R
 
 @router.post("/deliveries", response_model=DeliveryOut, status_code=201)
 def create_delivery(body: DeliveryIn, request: Request, session: Session = Depends(get_session),
-                    me: User = Depends(require("owner", "driver"))):
+                    me: User = Depends(require("owner", "driver", "manager"))):
     day = body.delivered_on or date.today()
     if day > date.today():
         raise HTTPException(400, "delivery date is in the future")
@@ -531,7 +591,7 @@ def skip_stop(stop_id: int, body: SkipIn, request: Request, session: Session = D
 
 # ---------- money: price, payments, ledger, invoices ----------
 @router.get("/settings/price")
-def get_price(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver"))):
+def get_price(session: Session = Depends(get_session), me: User = Depends(require("owner", "driver", "manager"))):
     return {"unit_price": accounts.get_price(session)}
 
 
@@ -545,7 +605,7 @@ def put_price(body: PriceIn, request: Request, session: Session = Depends(get_se
 
 @router.post("/payments", status_code=201)
 def post_payment(body: PaymentIn, request: Request, session: Session = Depends(get_session),
-                 me: User = Depends(require("owner", "driver"))):
+                 me: User = Depends(require("owner", "driver", "manager"))):
     try:
         accounts.record_payment(session, request.app.state.events, me.username, body.customer_id, body.amount, body.note)
     except LookupError as e:
@@ -568,7 +628,7 @@ def post_adjustment(body: AdjustmentIn, request: Request, session: Session = Dep
 
 
 @router.get("/ledger/{customer_id}")
-def get_ledger(customer_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+def get_ledger(customer_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner", "manager"))):
     try:
         return accounts.ledger_view(session, customer_id)
     except LookupError as e:
@@ -576,12 +636,12 @@ def get_ledger(customer_id: int, session: Session = Depends(get_session), me: Us
 
 
 @router.get("/receivables")
-def get_receivables(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+def get_receivables(session: Session = Depends(get_session), me: User = Depends(require("owner", "manager"))):
     return accounts.receivables(session, date.today())
 
 
 @router.get("/invoices/{invoice_id}/pdf")
-def get_invoice_pdf(invoice_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+def get_invoice_pdf(invoice_id: int, session: Session = Depends(get_session), me: User = Depends(require("owner", "manager"))):
     try:
         pdf = accounts.invoice_pdf(session, invoice_id)
     except LookupError as e:
@@ -594,13 +654,13 @@ def get_invoice_pdf(invoice_id: int, session: Session = Depends(get_session), me
 
 # ---------- stock and expenses ----------
 @router.get("/stock")
-def get_stock(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+def get_stock(session: Session = Depends(get_session), me: User = Depends(require("owner", "manager"))):
     return stock.stock_view(session)
 
 
 @router.post("/stock/purchase", status_code=201)
 def post_purchase(body: PurchaseIn, request: Request, session: Session = Depends(get_session),
-                  me: User = Depends(require("owner"))):
+                  me: User = Depends(require("owner", "manager"))):
     try:
         stock.record_purchase(session, request.app.state.events, me.username, body.quantity, body.unit_cost,
                               body.supplier, body.day, body.note)
@@ -631,13 +691,13 @@ def put_low_stock(body: ThresholdIn, request: Request, session: Session = Depend
 
 @router.get("/expenses")
 def get_expenses(start: Optional[date] = None, end: Optional[date] = None, session: Session = Depends(get_session),
-                 me: User = Depends(require("owner"))):
+                 me: User = Depends(require("owner", "manager"))):
     return expenses.expenses_view(session, start, end)
 
 
 @router.post("/expenses", status_code=201)
 def post_expense(body: ExpenseIn, request: Request, session: Session = Depends(get_session),
-                 me: User = Depends(require("owner"))):
+                 me: User = Depends(require("owner", "manager"))):
     try:
         expenses.add_expense(session, request.app.state.events, me.username, body.category, body.amount, body.day, body.note)
     except ValueError as e:
@@ -775,6 +835,97 @@ def assistant_ask(body: QuestionIn, request: Request, session: Session = Depends
     return {"answer": answer}
 
 
+# ---------- settings, customer app, requests ----------
+class SettingsIn(BaseModel):
+    currency: Optional[str] = None
+    depot_lat: Optional[float] = None
+    depot_lon: Optional[float] = None
+    overdue_days: Optional[int] = None
+
+
+class CustomerRequestIn(BaseModel):
+    urgent: bool = False
+    note: Optional[str] = Field(default=None, max_length=200)
+
+
+class RequestDoneIn(BaseModel):
+    make_urgent: bool = False
+
+
+@router.get("/settings/public")
+def public_settings(me: User = Depends(current_user)):
+    return {"currency": runtime.currency()}
+
+
+@router.get("/settings")
+def get_settings(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    lat, lon = runtime.depot()
+    return {"currency": runtime.currency(), "depot_lat": lat, "depot_lon": lon, "overdue_days": runtime.overdue_days(),
+            "low_stock_threshold": stock.get_threshold(session), "unit_price": accounts.get_price(session)}
+
+
+@router.put("/settings")
+def put_settings(body: SettingsIn, request: Request, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner"))):
+    values = {k: v for k, v in body.model_dump().items() if v is not None}
+    try:
+        runtime.save(session, request.app.state.events, me.username, values)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    session.commit()
+    return get_settings(session, me)
+
+
+@router.get("/me")
+def my_overview(session: Session = Depends(get_session), me: User = Depends(require("customer"))):
+    try:
+        return portal.overview(session, me)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/me/requests", status_code=201)
+def my_request(body: CustomerRequestIn, request: Request, session: Session = Depends(get_session),
+               me: User = Depends(require("customer"))):
+    try:
+        out = portal.make_request(session, request.app.state.events, me, body.urgent, body.note)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(429, str(e))
+    session.commit()
+    return out
+
+
+@router.get("/me/invoices/{invoice_id}/pdf")
+def my_invoice_pdf(invoice_id: int, session: Session = Depends(get_session), me: User = Depends(require("customer"))):
+    try:
+        inv_id = portal.own_invoice(session, me, invoice_id)
+        pdf = accounts.invoice_pdf(session, inv_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ImportError:
+        raise HTTPException(501, "PDF invoices need the reportlab package (pip install reportlab)")
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{accounts.invoice_number(inv_id)}.pdf"'})
+
+
+@router.get("/requests")
+def list_requests(session: Session = Depends(get_session), me: User = Depends(require("owner"))):
+    return portal.open_requests(session)
+
+
+@router.post("/requests/{request_id}/done")
+def request_done(request_id: int, body: RequestDoneIn, request: Request, session: Session = Depends(get_session),
+                 me: User = Depends(require("owner"))):
+    try:
+        portal.close_request(session, request.app.state.events, me.username, request_id, body.make_urgent)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    session.commit()
+    return portal.open_requests(session)
+
+
 # ---------- app factory ----------
 def _add_missing_columns(engine):
     """create_all does not change existing tables. Add the columns that later versions need (SQLite only)."""
@@ -785,9 +936,12 @@ def _add_missing_columns(engine):
     if "active" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE users ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1"))
+    if "customer_id" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN customer_id INTEGER REFERENCES customers(id)"))
 
 
-def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_path=None, cache_path=None):
+def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_path=None, cache_path=None, expose_docs=True):
     db_url = db_url or settings.DB_URL
     events_path = events_path or settings.EVENTS_PATH
     secret = secret or settings.SECRET
@@ -808,9 +962,13 @@ def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_p
     Base.metadata.create_all(engine)
     _add_missing_columns(engine)
 
-    app = FastAPI(title="Gasora API")
+    app = FastAPI(title="Gasora API", docs_url="/docs" if expose_docs else None, redoc_url=None,
+                  openapi_url="/openapi.json" if expose_docs else None)
+    app.state.limiter = security.LoginLimiter()
     app.state.engine = engine
     app.state.SessionLocal = sessionmaker(engine, expire_on_commit=False)
+    with app.state.SessionLocal() as s0:
+        runtime.load(s0)                                      # owner-editable settings (currency, depot, overdue days)
     app.state.events = eventlog.connect(events_path)
     app.state.secret = secret
     graph_path = graph_path or settings.ROAD_GRAPH
@@ -818,6 +976,7 @@ def create_app(db_url=None, events_path=None, secret=None, routing=None, graph_p
     if routing == "auto":
         routing = "road" if os.path.exists(graph_path) else "straight"
     if routing == "road":
+        from planner.road_router import RoadRouter          # needs osmnx; imported only when road routing is on
         app.state.router = RoadRouter(graph_path, cache_path or settings.ROAD_CACHE)
     else:
         app.state.router = StraightRouter()

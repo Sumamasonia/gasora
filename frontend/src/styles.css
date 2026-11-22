@@ -75,3 +75,10 @@ code { font-size: 12px; }
 .tile.warn { border-color: #d98a00; background: #fff8e8; }
 .tilevalue { font-size: 20px; font-weight: 600; }
 label.inline { flex-direction: row; align-items: center; gap: 6px; }
+
+/* password dialog */
+.pwbutton { position: fixed; right: 12px; bottom: 12px; z-index: 20; }
+.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 30; padding: 16px; }
+.modal .card { background: #fff; max-width: 380px; width: 100%; }
+.toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: #1d2733; color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 40; }
+@media (prefers-color-scheme: dark) { .modal .card { background: #1d2733; } }

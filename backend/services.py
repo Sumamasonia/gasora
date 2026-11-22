@@ -5,11 +5,10 @@ from datetime import date
 import numpy as np
 from sqlalchemy import select
 
-from backend import accounts, eventlog, stock
+from backend import accounts, eventlog, runtime, stock
 from backend import cylinders as cylinder_service
 from backend.models import Customer, Cylinder, Delivery, EmptiesLedger, Route, RouteStop, UrgentRequest, User
-from backend.settings import (DEPOT_LAT, DEPOT_LON, EMPTY_AGEING_TIERS, EMPTY_OVERDUE_DAYS,
-                              LATE_COST_CRITICAL, LATE_COST_URGENT)
+from backend.settings import LATE_COST_CRITICAL, LATE_COST_URGENT
 from evaluation.policies import CANDIDATE_RISK
 from config import CAPACITY, N_VEHICLES, SERVICE_MIN
 from planner.greedy import nearest_neighbour_routes
@@ -104,7 +103,7 @@ NO_EMPTIES = {"held": 0, "days_holding": None, "overdue": False, "bucket": None,
 def _tier(days):
     """(skip-penalty weight, label) of the ageing tier for this many days, or (None, None) if under the first tier."""
     found = (None, None)
-    for min_days, weight, label in EMPTY_AGEING_TIERS:
+    for min_days, weight, label in runtime.ageing_tiers():
         if days >= min_days:
             found = (weight, label)
     return found
@@ -139,14 +138,14 @@ def empties_summary(session, today):
     names = {c.id: c.name for c in session.scalars(select(Customer))}
     rows = [{"customer_id": cid, "name": names.get(cid, "?"), **v} for cid, v in state.items()]
     rows.sort(key=lambda r: (not r["overdue"], -r["days_holding"], r["customer_id"]))
-    buckets = [{"label": "under %d" % EMPTY_OVERDUE_DAYS, "customers": 0, "empties": 0}] + [
-        {"label": label, "customers": 0, "empties": 0} for _, _, label in EMPTY_AGEING_TIERS]
+    buckets = [{"label": "under %d" % runtime.overdue_days(), "customers": 0, "empties": 0}] + [
+        {"label": label, "customers": 0, "empties": 0} for _, _, label in runtime.ageing_tiers()]
     for r in rows:
         b = next(x for x in buckets if x["label"] == (r["bucket"] or buckets[0]["label"]))
         b["customers"] += 1
         b["empties"] += r["held"]
     return {"total_held": sum(r["held"] for r in rows), "customers_holding": len(rows), "buckets": buckets,
-            "customers_overdue": sum(r["overdue"] for r in rows), "overdue_after_days": EMPTY_OVERDUE_DAYS,
+            "customers_overdue": sum(r["overdue"] for r in rows), "overdue_after_days": runtime.overdue_days(),
             "customers": rows}
 
 
@@ -190,8 +189,9 @@ def _greedy_result(candidates, tm):
 
 
 def _xy_km(lat, lon):
-    x = (lon - DEPOT_LON) * 111.32 * math.cos(math.radians(DEPOT_LAT))
-    y = (lat - DEPOT_LAT) * 110.57
+    dlat, dlon = runtime.depot()
+    x = (lon - dlon) * 111.32 * math.cos(math.radians(dlat))
+    y = (lat - dlat) * 110.57
     return x, y
 
 
@@ -249,7 +249,7 @@ def build_plan(session, today, seconds=2.0, router=None):
     if candidates:
         tm = km_matrix = None
         if road:
-            m = router.matrix([(DEPOT_LAT, DEPOT_LON)] + [(r["lat"], r["lon"]) for r in candidates])
+            m = router.matrix([runtime.depot()] + [(r["lat"], r["lon"]) for r in candidates])
             tm, km_matrix = m["minutes"], m["km"]
             if m["far"]:
                 warnings.append("%d place(s) are more than 1 km from the downloaded road map, "
@@ -304,12 +304,12 @@ def build_plan(session, today, seconds=2.0, router=None):
     ranked = sorted(rows, key=lambda r: (-r["urgent"], -r["risk"]))
     return {
         "date": today.isoformat(),
-        "depot": {"lat": DEPOT_LAT, "lon": DEPOT_LON},
+        "depot": {"lat": runtime.depot()[0], "lon": runtime.depot()[1]},
         "routing": "road" if road else "straight",
         "fallback": fallback,
         "warnings": warnings,
         "settings_note": "%s travel times; candidates are customers with risk >= %.2f, plus urgent requests and swap candidates (empties held %d+ days)"
-                         % ("road" if road else "straight-line", CANDIDATE_RISK, EMPTY_OVERDUE_DAYS),
+                         % ("road" if road else "straight-line", CANDIDATE_RISK, runtime.overdue_days()),
         "risk_table": [{"customer_id": r["id"], "name": r["name"], "risk": round(r["risk"], 3),
                         "band": r["band"], "urgent": r["urgent"], "days_since_delivery": r["days_since"],
                         "window_days": r["window"],
@@ -425,7 +425,7 @@ def route_paths(session, router, sequences):
     """Road paths (lists of [lat, lon]) for routes given as lists of customer ids, depot to depot."""
     ids = {cid for seq in sequences for cid in seq}
     pos = {c.id: (c.lat, c.lon) for c in session.scalars(select(Customer).where(Customer.id.in_(ids)))} if ids else {}
-    depot = (DEPOT_LAT, DEPOT_LON)
+    depot = runtime.depot()
     out = []
     for seq in sequences:
         stops = [depot] + [pos[c] for c in seq if c in pos] + [depot]

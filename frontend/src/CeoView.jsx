@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getDashboard } from './api'
 import { useGuard } from './hooks'
+import { rs } from './ui'
 
-const rs = (n) => `Rs ${Number(n).toLocaleString('en-US')}`
 
 export default function CeoView({ auth, onSignOut, onExpired }) {
   const { busy, error, run } = useGuard(onExpired)

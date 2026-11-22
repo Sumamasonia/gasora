@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getExpenses, postExpense } from './api'
 import { useGuard } from './hooks'
+import { rs } from './ui'
 
-const rs = (n) => `Rs ${Number(n).toLocaleString('en-US')}`
 const iso = (d) => d.toISOString().slice(0, 10)
 const RANGES = {
   all: { label: 'All time', start: () => '' },

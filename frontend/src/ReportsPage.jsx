@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { downloadFile, getDashboard } from './api'
 import { useGuard } from './hooks'
+import { rs } from './ui'
 
-const rs = (n) => `Rs ${Number(n).toLocaleString('en-US')}`
 const KINDS = [['deliveries', 'Deliveries'], ['invoices', 'Invoices'], ['ledger', 'Customer ledger'],
   ['expenses', 'Expenses'], ['stock', 'Stock movements'], ['customers', 'Customers']]
 

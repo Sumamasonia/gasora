@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { createUser, getStaffActivity, setUserActive } from './api'
+import { createUser, getCustomers, getStaffActivity, resetUserPassword, setUserActive } from './api'
 import { useGuard } from './hooks'
 
-const ROLE_HELP = { owner: 'Everything', driver: 'Own routes and deliveries only', ceo: 'Read-only summary (Reports numbers)' }
+const ROLE_HELP = {
+  owner: 'Everything',
+  manager: 'Enters sales, payments, purchases and expenses; cannot set prices, correct balances or manage staff',
+  driver: 'Own routes and deliveries only',
+  ceo: 'Read-only summary numbers',
+  customer: 'Sees own bills, balance and next delivery; can place requests (link to a customer record)',
+}
 
 export default function StaffPage({ auth, onExpired }) {
   const { busy, error, run } = useGuard(onExpired)
@@ -11,16 +17,30 @@ export default function StaffPage({ auth, onExpired }) {
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('driver')
+  const [customers, setCustomers] = useState([])
+  const [customerId, setCustomerId] = useState('')
   const [formError, setFormError] = useState('')
 
   const load = useCallback(async () => { setData(await getStaffActivity(auth.token, days)) }, [auth.token, days])
   useEffect(() => { run(load) }, [run, load])
+  useEffect(() => { run(async () => setCustomers(await getCustomers(auth.token))) }, [run, auth.token])
 
   const add = () => {
     if (name.trim().length < 3) return setFormError('The username needs at least 3 characters.')
     if (password.length < 8) return setFormError('The password needs at least 8 characters.')
+    if (role === 'customer' && !customerId) return setFormError('Choose which customer this login belongs to.')
     setFormError('')
-    run(async () => { await createUser(auth.token, { username: name.trim(), password, role }); setName(''); setPassword(''); await load() })
+    run(async () => {
+      await createUser(auth.token, { username: name.trim(), password, role, customer_id: role === 'customer' ? Number(customerId) : null })
+      setName(''); setPassword(''); setCustomerId(''); await load()
+    })
+  }
+  const reset = (u) => {
+    const pw = window.prompt(`New password for ${u.username} (8+ characters). They will be signed out everywhere.`)
+    if (pw === null) return
+    if (pw.length < 8) return setFormError('The password needs at least 8 characters.')
+    setFormError('')
+    run(async () => { await resetUserPassword(auth.token, u.user_id, pw); setFormError(`Password changed for ${u.username}. Tell them the new password in person or by phone.`) })
   }
   const toggle = (u) => run(async () => { await setUserActive(auth.token, u.user_id, !u.active); await load() })
 
@@ -35,6 +55,12 @@ export default function StaffPage({ auth, onExpired }) {
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             {Object.keys(ROLE_HELP).map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
+          {role === 'customer' && (
+            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <option value="">Customer...</option>
+              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
           <button disabled={busy} onClick={add}>Add</button>
         </div>
         <p className="muted">{role}: {ROLE_HELP[role]}.</p>
@@ -57,7 +83,10 @@ export default function StaffPage({ auth, onExpired }) {
                   <td>{u.events}</td><td className="muted">{u.last_event ? u.last_event.slice(0, 16).replace('T', ' ') : 'none'}</td>
                   <td className="muted">{u.top_types.map(([t, n]) => `${t} (${n})`).join(', ')}</td>
                   <td>{u.username !== auth.username && (
-                    <button className="secondary" disabled={busy} onClick={() => toggle(u)}>{u.active ? 'Switch off' : 'Switch on'}</button>)}</td>
+                    <>
+                      <button className="secondary" disabled={busy} onClick={() => toggle(u)}>{u.active ? 'Switch off' : 'Switch on'}</button>{' '}
+                      <button className="secondary" disabled={busy} onClick={() => reset(u)}>Reset password</button>
+                    </>)}</td>
                 </tr>
               ))}
             </tbody>

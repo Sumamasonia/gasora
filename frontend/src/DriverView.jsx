@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, deliverStop, getMyRoutes, getPrice, skipStop } from './api'
-import { Badge, SwapTag, UrgentTag } from './ui'
+import { Badge, SwapTag, UrgentTag, currency } from './ui'
 
 function Manifest({ route }) {
   const m = route.manifest
@@ -73,8 +73,8 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
                 <Badge band={s.band} />
               </div>
               <div className="muted">{s.address || 'No address saved'} &middot; {s.cylinders} cylinder(s)</div>
-              {s.balance > 0 && <div className="owes">This customer owes Rs {s.balance.toLocaleString('en-US')} from earlier. Ask for it.</div>}
-              {price !== null && s.status === 'pending' && <div className="muted">This visit: {s.cylinders} x Rs {price.toLocaleString('en-US')} = Rs {(s.cylinders * price).toLocaleString('en-US')}</div>}
+              {s.balance > 0 && <div className="owes">This customer owes {currency()} {s.balance.toLocaleString('en-US')} from earlier. Ask for it.</div>}
+              {price !== null && s.status === 'pending' && <div className="muted">This visit: {s.cylinders} x {currency()} {price.toLocaleString('en-US')} = {currency()} {(s.cylinders * price).toLocaleString('en-US')}</div>}
               {s.empties_held > 0 && (
                 <div className="muted">This customer holds {s.empties_held} empty cylinder(s), outstanding for {s.empties_days} days. Collect them on this visit.</div>
               )}
@@ -94,7 +94,7 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
                 </label>
                 {price !== null && (
                   <label className="muted">
-                    Cash received (Rs){' '}
+                    Cash received ({currency()}){' '}
                     <input type="number" min="0" style={{ width: 96 }} value={cash[s.stop_id] ?? ''} placeholder="0"
                       onChange={(e) => setCash({ ...cash, [s.stop_id]: e.target.value })} />
                   </label>

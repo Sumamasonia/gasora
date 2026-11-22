@@ -3,10 +3,11 @@ import {
   downloadInvoice, getCustomers, getInvoiceShare, getLedger, getPrice, getReceivables, postAdjustment, postPayment, setPrice,
 } from './api'
 import { useGuard } from './hooks'
+import { rs } from './ui'
 
-const rs = (n) => `Rs ${Number(n).toLocaleString('en-US')}`
 
 export default function AccountsPage({ auth, onExpired }) {
+  const isOwner = auth.role === 'owner'
   const { busy, error, run } = useGuard(onExpired)
   const [price, setPriceValue] = useState(null)
   const [priceInput, setPriceInput] = useState('')
@@ -38,21 +39,23 @@ export default function AccountsPage({ auth, onExpired }) {
     <div className="page">
       {error && <p className="error banner">{error}</p>}
 
+      {isOwner && (
       <div className="card">
-        <h2>Price of one cylinder</h2>
-        <p className="muted">
-          {price === null
-            ? 'No price is set yet, so deliveries are not billed. Set the price to start invoicing every delivery automatically.'
-            : `Current price: ${rs(price)}. A change applies to new deliveries only; old invoices keep their price.`}
-        </p>
-        <div className="row">
-          <input style={{ maxWidth: 160 }} placeholder="Rupees" inputMode="numeric" value={priceInput}
-            onChange={(e) => setPriceInput(e.target.value)} />
-          <button disabled={busy || !positiveInt(priceInput)} onClick={() => run(async () => {
-            await setPrice(auth.token, Number(priceInput)); setPriceInput(''); await load()
-          })}>Set price</button>
+          <h2>Price of one cylinder</h2>
+          <p className="muted">
+            {price === null
+              ? 'No price is set yet, so deliveries are not billed. Set the price to start invoicing every delivery automatically.'
+              : `Current price: ${rs(price)}. A change applies to new deliveries only; old invoices keep their price.`}
+          </p>
+          <div className="row">
+            <input style={{ maxWidth: 160 }} placeholder="Rupees" inputMode="numeric" value={priceInput}
+              onChange={(e) => setPriceInput(e.target.value)} />
+            <button disabled={busy || !positiveInt(priceInput)} onClick={() => run(async () => {
+              await setPrice(auth.token, Number(priceInput)); setPriceInput(''); await load()
+            })}>Set price</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {rec && (
         <div className="card">
@@ -131,6 +134,8 @@ export default function AccountsPage({ auth, onExpired }) {
               })}>Add payment</button>
             </div>
 
+            {isOwner && (
+              <>
             <h3>Correct the balance</h3>
             <p className="muted">
               Entries are never edited or deleted. To fix a mistake, add an adjustment with a reason. A positive amount
@@ -150,6 +155,8 @@ export default function AccountsPage({ auth, onExpired }) {
               }}>Add adjustment</button>
             </div>
             {formError && <p className="error">{formError}</p>}
+              </>
+            )}
           </>
         )}
       </div>

@@ -9,7 +9,7 @@ from datetime import timedelta
 
 from sqlalchemy import func, select
 
-from backend import accounts, stock
+from backend import accounts, runtime, stock
 from backend.models import Customer, Delivery, Expense, Invoice, LedgerEntry, StockMovement, UrgentRequest
 
 EXPORTS = ["customers", "deliveries", "invoices", "ledger", "expenses", "stock"]
@@ -148,18 +148,18 @@ def receivables_pdf(session, today):
 
     y = header()
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(left, y, f"Total owed: Rs {rec['total_owed']:,}   Customers owing: {rec['customers_owing']}")
+    c.drawString(left, y, f"Total owed: {runtime.currency()} {rec['total_owed']:,}   Customers owing: {rec['customers_owing']}")
     y -= 7 * mm
     c.setFont("Helvetica", 9)
     for b in rec["buckets"]:
-        c.drawString(left, y, f"{b['label']} days: {b['customers']} customers, Rs {b['amount']:,}")
+        c.drawString(left, y, f"{b['label']} days: {b['customers']} customers, {runtime.currency()} {b['amount']:,}")
         y -= 5 * mm
     y -= 5 * mm
 
     def columns(y):
         c.setFont("Helvetica-Bold", 9)
         c.drawString(left, y, "Customer")
-        c.drawRightString(left + 105 * mm, y, "Owes (Rs)")
+        c.drawRightString(left + 105 * mm, y, f"Owes ({runtime.currency()})")
         c.drawRightString(left + 125 * mm, y, "Days")
         c.drawString(left + 130 * mm, y, "Last payment")
         c.line(left, y - 1.5 * mm, right, y - 1.5 * mm)
