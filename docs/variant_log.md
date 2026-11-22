@@ -158,6 +158,29 @@ Mean run-outs / kilometres of G at cut-off 0.01 / 0.02 / 0.03 are shown for each
 - G minus R0 km -1113.8 [-1201.6, -1059.9], hours -191.7; G minus R1 km -247.0 [-266.4, -209.1], hours -44.3.
 - Decision: **pilot only, not carried forward**.
 
-## Entries after variant 7
+## Confirmation run (seeds 21 to 40, run once after the freeze `eval-freeze-v1`)
 
-(none yet. Next: freeze, then the confirmation run on seeds 21 to 40.)
+- Command: `python -m evaluation.study --stage confirm` (variant read from `docs/freeze.json`: M = all, floor 1, no early pull,
+  skip penalty scale S = 600 for Gasora). Output `data/confirm_S600.txt`. The run was interrupted once after seed 27 and
+  resumed from its checkpoint (same code fingerprint); it was not repeated.
+- Reaching level 15 / 25 / 40 / 10 (of 20 seeds): G 20 / 20 / 20 / 15; R0 20 / 20 / 20 / 19; R1, R2, A 20 on all.
+  Level 10 is **not covered** (G reaches it on 15 of 20 seeds, below 80%) and is not reported.
+- **Primary comparison at level 15**, G minus other arm, mean [95% interval], 20 seeds:
+  R0 kilometres -1113.8 [-1204.1, -1010.4], vehicle hours -194.7 [-219.0, -171.0];
+  R1 kilometres -294.2 [-341.9, -248.4], vehicle hours -41.1 [-47.0, -35.8].
+  Grade: **supported** against both (overall: supported).
+- Level 25: R0 km -452.9 [-514.9, -392.5], R1 km -79.6 [-105.7, -53.1]. Level 40: R0 km -79.8 [-95.6, -64.6], R1 km -21.6
+  [-35.7, -8.6], R1 hours -2.2 [-3.2, -1.1].
+- Supplementary, against R2 at level 15: km -376.8 [-424.6, -332.7], hours -54.2 [-60.9, -48.6]. Against A (routing effect)
+  at level 15: km -597.9 [-631.3, -567.1], hours -24.7 [-26.0, -23.4].
+- Prediction quality (G at cut-off 0.1): forecast error 3.00 days (R1 2.78, R0 4.87); Brier 0.0349 against 0.0376 (skill
+  0.072); refill window coverage 73.2% (nominal 80%); the 48-hour risk is under-predicted in the lowest bands (predicted
+  0.014, observed 0.029). By type at level 15, run-outs per 100 customer-months: G 2.0 steady and 34.7 irregular; R1 0.0 and 37.7.
+- Limits to state with this result: S = 600 was chosen on development seeds for Gasora only (rule arms keep S = 300); the
+  result is from the simulator, not real data; the fit is not a better forecaster than the R1 average; irregular
+  customers are served little better than by R1; level 10 and level 15 on R0 (curve crosses the level on all 20 seeds,
+  lowest cost used, which favours R0) as defined in protocol section 6.1.
+
+## Entries after the confirmation run
+
+(none)
