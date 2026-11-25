@@ -2,23 +2,19 @@ import { useCallback, useEffect, useState } from 'react'
 import { getDashboard } from './api'
 import { useGuard } from './hooks'
 import { rs } from './ui'
+import { RefreshCw } from 'lucide-react'
+import Shell from './Shell'
 
 
-export default function CeoView({ auth, onSignOut, onExpired }) {
+export default function CeoView({ auth, onSignOut, onExpired, onPassword }) {
   const { busy, error, run } = useGuard(onExpired)
   const [d, setD] = useState(null)
   const load = useCallback(async () => { setD(await getDashboard(auth.token)) }, [auth.token])
   useEffect(() => { run(load) }, [run, load])
   const m = d?.money_30_days
   return (
-    <div className="app">
-      <header>
-        <strong>Gasora Summary</strong>
-        <span className="muted">{auth.username} (read only)</span>
-        <span className="spacer" />
-        <button className="secondary" disabled={busy} onClick={() => run(load)}>Refresh</button>
-        <button className="secondary" onClick={onSignOut}>Sign out</button>
-      </header>
+    <Shell brand="Gasora Summary" title="Summary" user={{ username: auth.username, role: 'read only', onPassword, onSignOut }}
+      actions={<button className="secondary" disabled={busy} onClick={() => run(load)}><RefreshCw size={15} /> Refresh</button>}>
       <div className="page">
         {error && <p className="error banner">{error}</p>}
         {d && (
@@ -51,6 +47,6 @@ export default function CeoView({ auth, onSignOut, onExpired }) {
           </>
         )}
       </div>
-    </div>
+    </Shell>
   )
 }

@@ -1,84 +1,125 @@
-:root { font-family: system-ui, Segoe UI, Roboto, sans-serif; color: #1c1c1c; background: #f4f5f7; }
-* { box-sizing: border-box; }
-body { margin: 0; }
-.app { display: flex; flex-direction: column; height: 100vh; }
-header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #ddd; }
-header label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
-.spacer { flex: 1; }
-main { flex: 1; display: flex; min-height: 0; }
-.map { flex: 1; min-width: 0; height: 100%; }
-.panel { width: 380px; overflow-y: auto; padding: 16px; background: #fff; border-left: 1px solid #ddd; }
-.panel h2 { margin: 0 0 6px; font-size: 18px; }
-.panel h3 { margin: 18px 0 6px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.panel ol, .panel ul { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.7; }
-.counts { display: flex; gap: 14px; margin: 10px 0; font-size: 14px; }
-.muted { color: #666; font-size: 13px; }
-.chip { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
-.badge { color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
-button { padding: 7px 14px; border: 0; border-radius: 6px; background: #1565c0; color: #fff; font-size: 14px; cursor: pointer; }
-button.secondary { background: #e0e0e0; color: #222; }
-button:disabled { opacity: 0.6; cursor: default; }
-input, select { padding: 7px 9px; border: 1px solid #bbb; border-radius: 6px; font-size: 14px; }
-.login { max-width: 360px; margin: 12vh auto; padding: 0 16px; }
-.card { background: #fff; padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
-.card label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
-.error { color: #b00020; margin: 0; }
-.banner { padding: 8px 16px; background: #fdecea; }
-@media (max-width: 800px) {
-  main { flex-direction: column; }
-  .map { height: 55vh; flex: none; }
-  .panel { width: 100%; border-left: 0; }
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --color-brand-50: #f3f1ff;
+  --color-brand-100: #e6e2ff;
+  --color-brand-200: #cfc8ff;
+  --color-brand-400: #8b7cf6;
+  --color-brand-500: #6d5ef0;
+  --color-brand-600: #5a48e0;
+  --color-brand-700: #4938c4;
+  --color-brand-900: #1e1b4b;
+  --color-ink: #14123a;
+  --shadow-soft: 0 1px 2px rgb(20 18 58 / 0.04), 0 8px 24px -8px rgb(20 18 58 / 0.10);
 }
 
-/* published routes, urgent form, driver view */
-.row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
-.row input { flex: 1; min-width: 120px; }
-.routecard { border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
-.panel li.done { color: #888; }
-.panel section { margin-bottom: 14px; }
-.driver { max-width: 560px; margin: 0 auto; min-height: 100vh; background: #f4f5f7; }
-.driver header { position: sticky; top: 0; z-index: 5; }
-.driver h2 { font-size: 16px; margin: 16px 12px 8px; }
-.empty { padding: 24px 16px; color: #555; }
-.stop { background: #fff; margin: 8px 12px; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); display: flex; flex-direction: column; gap: 6px; }
-.stop.delivered { opacity: 0.6; border-left: 5px solid #2e7d32; }
-.stop.skipped { opacity: 0.6; border-left: 5px solid #9e9e9e; }
-.stophead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.seq { width: 26px; height: 26px; border-radius: 50%; background: #1565c0; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
-.links { display: flex; gap: 16px; font-size: 14px; }
-.actions { display: flex; gap: 10px; }
-.actions button { flex: 1; padding: 11px; font-size: 15px; }
+@layer base {
+  html, body, #root { height: 100%; }
+  body { @apply bg-slate-50 text-slate-800 antialiased; margin: 0; background-image: radial-gradient(1200px 400px at 80% -10%, rgb(109 94 240 / 0.08), transparent); }
+  button { @apply cursor-pointer; }
+  a { @apply text-brand-600 hover:underline; }
+  code { @apply rounded bg-slate-100 px-1 text-xs; }
+  h1, h2, h3 { @apply text-slate-900; }
+}
 
-/* owner tabs and pages, driver manifest */
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 12px; }
-.tab { background: transparent; color: #333; border: 1px solid transparent; }
-.tab.active { background: #e3edf9; color: #0d47a1; font-weight: 600; }
-.page { max-width: 1000px; width: 100%; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
-.page h2 { font-size: 18px; margin: 0 0 6px; }
-.formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
-.tablewrap { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
-th { color: #555; font-weight: 600; white-space: nowrap; }
-button.link { background: none; color: #1565c0; padding: 0; text-decoration: underline; }
-.history { background: #f7f9fc; }
-.history ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
-.okmsg { color: #2e7d32; margin: 8px 0 0; }
-.manifest { background: #fff; margin: 0 12px 8px; padding: 12px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); border-left: 5px solid #1565c0; display: flex; flex-direction: column; gap: 4px; }
-code { font-size: 12px; }
-.owes { color: #b00020; font-size: 13px; font-weight: 600; }
-.page h3 { margin: 16px 0 4px; font-size: 15px; }
+/* ---------- form controls and buttons (every page uses these plain tags) ---------- */
+@layer components {
+  button {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-brand-600/25 transition
+           hover:from-brand-600 hover:to-brand-700 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  button.secondary { @apply bg-none bg-white text-slate-700 shadow-none ring-1 ring-inset ring-slate-200 hover:bg-slate-50; }
+  button.link { @apply bg-transparent p-0 text-brand-600 shadow-none underline ring-0 hover:bg-transparent hover:text-brand-700; }
+  input, select, textarea {
+    @apply w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
+           placeholder:text-slate-400 focus:border-brand-500 focus:outline-2 focus:outline-brand-100;
+  }
+  input[type="checkbox"], input[type="radio"] { @apply h-4 p-0 shadow-none; width: 1rem; }
+  input[type="number"] { @apply w-auto; }
+  .row input, .row select { @apply w-auto; }
 
-/* reports */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.tile { border: 1px solid #d9dde3; border-radius: 8px; padding: 10px 12px; }
-.tile.warn { border-color: #d98a00; background: #fff8e8; }
-.tilevalue { font-size: 20px; font-weight: 600; }
-label.inline { flex-direction: row; align-items: center; gap: 6px; }
+  /* text helpers */
+  .muted { @apply text-[13px] text-slate-500; }
+  .error { @apply m-0 text-sm text-red-700; }
+  .okmsg { @apply mt-2 text-sm text-emerald-700; }
+  .owes { @apply text-[13px] font-semibold text-red-700; }
+  .banner { @apply rounded-lg bg-red-50 px-4 py-2 ring-1 ring-red-200; }
+  .empty { @apply p-6 text-slate-500; }
 
-/* password dialog */
-.pwbutton { position: fixed; right: 12px; bottom: 12px; z-index: 20; }
-.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; z-index: 30; padding: 16px; }
-.modal .card { background: #fff; max-width: 380px; width: 100%; }
-.toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: #1d2733; color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 40; }
-@media (prefers-color-scheme: dark) { .modal .card { background: #1d2733; } }
+  /* cards and layout */
+  .card { @apply flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-soft ring-1 ring-slate-200/70; }
+  .card h2 { @apply m-0 text-base font-semibold; }
+  .card label, .formgrid label { @apply flex flex-col gap-1 text-sm font-medium text-slate-600; }
+  label.inline { @apply flex-row items-center gap-2 font-normal; }
+  .page { @apply mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-6; }
+  .page > * { @apply shrink-0; }
+  .page h2 { @apply m-0 text-base font-semibold; }
+  .page h3 { @apply mb-1 mt-4 text-sm font-semibold text-slate-700; }
+  .row { @apply my-1.5 flex flex-wrap items-center gap-2; }
+  .row input { @apply min-w-[120px] flex-1; }
+  .formgrid { @apply grid gap-3; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+  /* tables */
+  .tablewrap { @apply overflow-x-auto rounded-xl ring-1 ring-slate-200; }
+  table { @apply w-full border-collapse text-sm; }
+  th, td { @apply border-b border-slate-100 px-3 py-2 text-left align-top; }
+  thead th { @apply whitespace-nowrap bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500; }
+  tbody tr:hover { @apply bg-slate-50/70; }
+  tr.history, .history { @apply bg-slate-50; }
+  .history ul { @apply mb-0 mt-1.5 list-disc pl-5 leading-relaxed; }
+
+  /* numbers */
+  .tiles { @apply grid gap-3; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .tile { @apply relative overflow-hidden rounded-xl bg-gradient-to-br from-white to-brand-50/60 p-3.5 ring-1 ring-slate-200 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-brand-500; }
+  .tile.warn { @apply from-amber-50 to-amber-50 ring-amber-300 before:bg-amber-500; }
+  .tilevalue { @apply my-0.5 text-2xl font-semibold tracking-tight text-slate-900; }
+
+  .badge { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold leading-4; }
+  .chip { @apply inline-block h-3.5 w-3.5 rounded; }
+
+  /* dispatch */
+  .dispatch { @apply flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden; }
+  .map { @apply isolate relative z-0 h-full min-h-[55vh] w-full min-w-0 flex-1 lg:min-h-0; }
+  .panel { @apply w-full shrink-0 border-slate-200 bg-slate-50 p-4 lg:w-[400px] lg:overflow-y-auto lg:border-l; }
+  .panel h2 { @apply mb-1.5 mt-0 text-lg font-semibold; }
+  .panel h3 { @apply mb-1.5 mt-5 flex items-center gap-2 text-sm font-semibold text-slate-800; }
+  .panel ol, .panel ul { @apply m-0 list-decimal pl-5 text-sm leading-7; }
+  .panel ul { @apply list-disc; }
+  .panel section { @apply mb-3 rounded-2xl bg-white p-4 shadow-soft ring-1 ring-slate-200/70; }
+  .panel section h3:first-child { @apply mt-0; }
+  .panel li.done { @apply text-slate-400; }
+  .counts { @apply my-3 flex flex-wrap gap-4 text-sm; }
+  .routecard { @apply my-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200; }
+
+  /* driver */
+  .driver { @apply mx-auto min-h-0 w-full max-w-xl flex-1 pb-6; }
+  .driver h2 { @apply mx-3 mb-2 mt-5 text-base font-semibold; }
+  .stop { @apply mx-3 my-2 flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-soft ring-1 ring-slate-200/70; }
+  .stop.delivered { @apply border-l-4 border-emerald-600 opacity-70; }
+  .stop.skipped { @apply border-l-4 border-slate-400 opacity-70; }
+  .stophead { @apply flex flex-wrap items-center gap-2; }
+  .seq { @apply inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-600 text-[13px] font-semibold text-white; }
+  .links { @apply flex gap-4 text-sm; }
+  .actions { @apply flex gap-2.5; }
+  .actions button { @apply flex-1 py-3 text-[15px]; }
+  .manifest { @apply mx-3 mb-2 flex flex-col gap-1 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-700 p-4 text-white shadow-soft; }
+  .manifest .muted { @apply text-brand-100; }
+  .manifest strong:first-child { @apply text-white; }
+
+  /* login, dialogs */
+  .modal { @apply fixed inset-0 z-[3000] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px]; }
+  .modal .card { @apply w-full max-w-sm shadow-xl; }
+  .toast { @apply fixed bottom-4 left-1/2 z-[3000] -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg; }
+}
+
+/* Tailwind's reset makes images fluid, which breaks Leaflet map tiles; undo that inside the map. */
+.leaflet-container img, .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; }
+.leaflet-container { font-family: inherit; }
+
+/* chart tooltips and page entrance */
+.recharts-tooltip-wrapper { outline: none; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .35s ease both; }
+.skeleton { @apply animate-pulse rounded-xl bg-slate-200/70; }

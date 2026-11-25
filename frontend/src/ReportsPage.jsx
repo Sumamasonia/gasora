@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { downloadFile, getDashboard } from './api'
+import { DeliveriesChart } from './charts'
 import { useGuard } from './hooks'
 import { rs } from './ui'
 
@@ -13,25 +14,6 @@ function Tile({ label, value, sub, warn }) {
       <div className="tilevalue">{value}</div>
       {sub && <div className="muted">{sub}</div>}
     </div>
-  )
-}
-
-function Bars({ series }) {
-  const max = Math.max(1, ...series.map((d) => d.cylinders))
-  const w = 28, gap = 6, h = 90
-  return (
-    <svg role="img" aria-label="Cylinders delivered per day, last 14 days" width={series.length * (w + gap)} height={h + 34}>
-      {series.map((d, i) => {
-        const bar = Math.round((d.cylinders / max) * h)
-        return (
-          <g key={d.day} transform={`translate(${i * (w + gap)},0)`}>
-            <rect x="0" y={h - bar} width={w} height={bar} rx="3" fill="#2f6fdb"><title>{`${d.day}: ${d.cylinders} cylinders, ${d.deliveries} deliveries`}</title></rect>
-            <text x={w / 2} y={h - bar - 3} textAnchor="middle" fontSize="10" fill="currentColor">{d.cylinders || ''}</text>
-            <text x={w / 2} y={h + 14} textAnchor="middle" fontSize="10" fill="currentColor">{d.day.slice(8)}</text>
-          </g>
-        )
-      })}
-    </svg>
   )
 }
 
@@ -65,7 +47,7 @@ export default function ReportsPage({ auth, onExpired }) {
               <Tile label="Filled stock" value={d.stock.tracking ? d.stock.on_hand : 'not tracked'}
                 sub={d.stock.negative ? 'below zero: check the count' : d.stock.low ? 'low' : ''} warn={d.stock.low || d.stock.negative} />
             </div>
-            <div className="tablewrap"><Bars series={d.series} /></div>
+            <DeliveriesChart series={d.series} height={220} />
           </div>
 
           <div className="card">
