@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  BarChart3, Boxes, Cylinder, Inbox, Landmark, Map as MapIcon, Receipt, Settings, ShieldCheck,
+  ShoppingCart, Sparkles, StickyNote, UserCog, Users, RefreshCw, LayoutDashboard, Route as RouteIcon, Clock, MapPin,
+} from 'lucide-react'
+import Shell from './Shell'
+import Overview from './Overview'
+import {
   ApiError, assignRoute, createUrgent, getCustomers, getEmpties, getPaths, getPlan, getRoutes, getUrgent, getUsers, publishPlan,
 } from './api'
 import { BAND_COLOR, VEHICLE_COLORS } from './colors'
@@ -42,25 +48,37 @@ function PlanPanel({ plan, published }) {
       </div>
       {plan.warnings && plan.warnings.map((w) => <p key={w} className="error">{w}</p>)}
       {plan.routes.length === 0 && <p>No deliveries planned for today.</p>}
-      {plan.routes.map((route, i) => (
-        <section key={route.vehicle}>
-          <h3>
-            <span className="chip" style={{ background: VEHICLE_COLORS[i % VEHICLE_COLORS.length] }} />
-            Vehicle {route.vehicle}: {route.stops.length} stops, about {route.minutes} min{route.km ? `, ${route.km} km` : ''}
-          </h3>
-          <ol>
-            {route.stops.map((s) => (
-              <li key={s.customer_id}>
-                {s.name} {s.urgent && <UrgentTag />} {s.swap && <SwapTag />} <Badge band={s.band} />{' '}
-                <span className="muted">
-                  {Math.round(s.risk * 100)}%
-                  {s.window_days && ` \u00b7 empty in ${s.window_days[0]} to ${s.window_days[1]} days`}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))}
+      {plan.routes.map((route, i) => {
+        const color = VEHICLE_COLORS[i % VEHICLE_COLORS.length]
+        return (
+          <section key={route.vehicle} style={{ borderTop: `4px solid ${color}` }}>
+            <h3 className="!mb-3 flex-wrap">
+              <span className="chip" style={{ background: color }} />
+              Vehicle {route.vehicle}
+              <span className="ml-auto flex gap-1.5 text-[11px] font-medium text-slate-600">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5">{route.stops.length} stops</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5">{route.minutes} min</span>
+                {route.km ? <span className="rounded-full bg-slate-100 px-2 py-0.5">{route.km} km</span> : null}
+              </span>
+            </h3>
+            <ol className="relative !m-0 list-none !p-0">
+              {route.stops.map((s, n) => (
+                <li key={s.customer_id} className="relative flex gap-3 pb-3 last:pb-0 !leading-snug">
+                  {n < route.stops.length - 1 && <span className="absolute left-[11px] top-6 h-full w-0.5" style={{ background: `${color}40` }} />}
+                  <span className="z-[1] flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: color }}>{n + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5"><span className="font-medium">{s.name}</span> {s.urgent && <UrgentTag />} {s.swap && <SwapTag />} <Badge band={s.band} /></div>
+                    <div className="muted">
+                      {Math.round(s.risk * 100)}% risk
+                      {s.window_days && ` \u00b7 empty in ${s.window_days[0]} to ${s.window_days[1]} days`}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )
+      })}
       {plan.candidates_not_visited.length > 0 && (
         <section>
           <h3>Not visited today ({plan.candidates_not_visited.length})</h3>
@@ -81,7 +99,17 @@ function PlanPanel({ plan, published }) {
   )
 }
 
-export default function OwnerView({ auth, onSignOut, onExpired }) {
+const GROUPS = [
+  { label: 'Overview', items: [['overview', 'Overview', LayoutDashboard]] },
+  { label: 'Operations', items: [['dispatch', 'Dispatch', MapIcon], ['requests', 'Requests', Inbox], ['sales', 'Sales', ShoppingCart], ['customers', 'Customers', Users]] },
+  { label: 'Cylinders & stock', items: [['cylinders', 'Cylinders', Cylinder], ['stock', 'Stock', Boxes]] },
+  { label: 'Money', items: [['accounts', 'Accounts', Landmark], ['expenses', 'Expenses', Receipt], ['reports', 'Reports', BarChart3]] },
+  { label: 'Tools', items: [['notes', 'Notes & tools', StickyNote], ['assistant', 'Assistant', Sparkles]] },
+  { label: 'Admin', items: [['staff', 'Staff', UserCog], ['settings', 'Settings', Settings], ['audit', 'Audit', ShieldCheck]] },
+]
+const TITLES = Object.fromEntries(GROUPS.flatMap((g) => g.items.map(([k, label]) => [k, label])))
+
+export default function OwnerView({ auth, onSignOut, onExpired, onPassword }) {
   const [plan, setPlan] = useState(null)
   const [coords, setCoords] = useState({})
   const [routes, setRoutes] = useState([])
@@ -90,7 +118,7 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
   const [openUrgent, setOpenUrgent] = useState([])
   const [emptiesInfo, setEmptiesInfo] = useState(null)
   const [seconds, setSeconds] = useState(2)
-  const [tab, setTab] = useState('dispatch')
+  const [tab, setTab] = useState('overview')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -124,31 +152,22 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
   useEffect(() => { if (tab === 'dispatch') guard(loadAll) }, [guard, loadAll, tab])      // reload when coming back to Dispatch
 
   return (
-    <div className="app">
-      <header>
-        <strong>Gasora Dispatch</strong>
-        <span className="muted">{auth.username} ({auth.role})</span>
-        <nav className="tabs">
-          {[['dispatch', 'Dispatch'], ['requests', 'Requests'], ['sales', 'Sales'], ['customers', 'Customers'], ['cylinders', 'Cylinders'], ['accounts', 'Accounts'], ['stock', 'Stock'], ['expenses', 'Expenses'], ['reports', 'Reports'], ['notes', 'Notes & tools'], ['assistant', 'Assistant'], ['staff', 'Staff'], ['settings', 'Settings'], ['audit', 'Audit']].map(([k, label]) => (
-            <button key={k} className={tab === k ? 'tab active' : 'tab'} onClick={() => setTab(k)}>{label}</button>
-          ))}
-        </nav>
-        <span className="spacer" />
-        {tab === 'dispatch' && (
-          <>
-            <label>
-              Solver time
-              <select value={seconds} onChange={(e) => setSeconds(Number(e.target.value))}>
-                <option value={1}>1 s</option>
-                <option value={2}>2 s</option>
-                <option value={5}>5 s</option>
-              </select>
-            </label>
-            <button disabled={busy} onClick={() => guard(loadAll)}>{busy ? 'Working...' : 'Refresh plan'}</button>
-          </>
-        )}
-        <button className="secondary" onClick={onSignOut}>Sign out</button>
-      </header>
+    <Shell brand="Gasora" title={TITLES[tab]} groups={GROUPS} tab={tab} setTab={setTab}
+      user={{ username: auth.username, role: auth.role, onPassword, onSignOut }}
+      actions={tab === 'dispatch' && (
+        <>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            Solver time
+            <select className="!w-auto" value={seconds} onChange={(e) => setSeconds(Number(e.target.value))}>
+              <option value={1}>1 s</option>
+              <option value={2}>2 s</option>
+              <option value={5}>5 s</option>
+            </select>
+          </label>
+          <button disabled={busy} onClick={() => guard(loadAll)}><RefreshCw size={15} className={busy ? 'animate-spin' : ''} />{busy ? 'Working...' : 'Refresh plan'}</button>
+        </>
+      )}>
+      {tab === 'overview' && <Overview auth={auth} onExpired={onExpired} go={setTab} />}
       {tab === 'customers' && <CustomersPage auth={auth} onExpired={onExpired} />}
       {tab === 'cylinders' && <CylindersPage auth={auth} onExpired={onExpired} />}
       {tab === 'accounts' && <AccountsPage auth={auth} onExpired={onExpired} />}
@@ -162,10 +181,24 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
       {tab === 'sales' && <SalesPage auth={auth} onExpired={onExpired} />}
       {tab === 'settings' && <SettingsPage auth={auth} onExpired={onExpired} />}
       {tab === 'audit' && <AuditPage auth={auth} onExpired={onExpired} />}
-      {tab === 'dispatch' && error && <p className="error banner">{error}</p>}
+      {tab === 'dispatch' && error && <p className="error banner m-3">{error}</p>}
       {tab === 'dispatch' && plan && (
-        <main>
-          <PlanMap plan={plan} coords={coords} published={routes} paths={paths} />
+        <main className="dispatch">
+          <div className="relative flex min-h-[55vh] min-w-0 flex-1 lg:min-h-0">
+            <PlanMap plan={plan} coords={coords} published={routes} paths={paths} />
+            <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-wrap gap-2 pl-12">
+              {[[RouteIcon, `${plan.routes.length} vehicles`], [MapPin, `${plan.routes.reduce((n, r) => n + r.stops.length, 0)} stops`],
+                [Clock, `${plan.routes.reduce((n, r) => n + (r.minutes || 0), 0)} min`], [null, `${Math.round(plan.routes.reduce((n, r) => n + (r.km || 0), 0) * 10) / 10} km`]]
+                .map(([Icon, text]) => (
+                  <span key={text} className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-soft ring-1 ring-slate-200/70 backdrop-blur">
+                    {Icon && <Icon size={13} className="text-brand-600" />}{text}
+                  </span>
+                ))}
+            </div>
+            <div className="pointer-events-none absolute bottom-6 left-3 z-10 flex gap-3 rounded-xl bg-white/90 px-3 py-2 text-[11px] font-medium text-slate-600 shadow-soft ring-1 ring-slate-200/70 backdrop-blur">
+              {Object.entries(BAND_COLOR).map(([k, c]) => <span key={k} className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />{k}</span>)}
+            </div>
+          </div>
           <aside className="panel">
             <PublishedRoutes
               routes={routes} drivers={drivers} busy={busy}
@@ -181,6 +214,6 @@ export default function OwnerView({ auth, onSignOut, onExpired }) {
           </aside>
         </main>
       )}
-    </div>
+    </Shell>
   )
 }

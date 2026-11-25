@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, deliverStop, getMyRoutes, getPrice, skipStop } from './api'
 import { Badge, SwapTag, UrgentTag, currency } from './ui'
+import { RefreshCw } from 'lucide-react'
+import Shell from './Shell'
 
 function Manifest({ route }) {
   const m = route.manifest
@@ -21,7 +23,7 @@ function Manifest({ route }) {
   )
 }
 
-export default function DriverView({ auth, onSignOut, onExpired }) {
+export default function DriverView({ auth, onSignOut, onExpired, onPassword }) {
   const [routes, setRoutes] = useState(null)
   const [empties, setEmpties] = useState({})                // stop id -> empties collected (as typed)
   const [cash, setCash] = useState({})                      // stop id -> cash received (as typed)
@@ -49,14 +51,9 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
   useEffect(() => { run(load) }, [run, load])
 
   return (
-    <div className="driver">
-      <header>
-        <strong>My route</strong>
-        <span className="muted">{auth.username}</span>
-        <span className="spacer" />
-        <button disabled={busy} onClick={() => run(load)}>Refresh</button>
-        <button className="secondary" onClick={onSignOut}>Sign out</button>
-      </header>
+    <Shell brand="Gasora" title="My route" user={{ username: auth.username, role: 'driver', onPassword, onSignOut }}
+      actions={<button className="secondary" disabled={busy} onClick={() => run(load)}><RefreshCw size={15} /> Refresh</button>}>
+    <div className="driver overflow-y-auto">
       {error && <p className="error banner">{error}</p>}
       {routes && routes.length === 0 && <p className="empty">No route assigned to you for today.</p>}
       {routes && routes.map((r) => (
@@ -122,5 +119,6 @@ export default function DriverView({ auth, onSignOut, onExpired }) {
         </section>
       ))}
     </div>
+    </Shell>
   )
 }

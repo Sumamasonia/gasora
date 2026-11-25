@@ -1,2 +1,2 @@
-export const BAND_COLOR = { Normal: '#6b8f71', High: '#e08a00', Critical: '#c62828', Urgent: '#7b1fa2', Swap: '#00838f' }
-export const VEHICLE_COLORS = ['#1565c0', '#6a1b9a', '#00838f', '#ef6c00']
+export const BAND_COLOR = { Normal: '#16a34a', High: '#ea8a00', Critical: '#dc2626', Urgent: '#9333ea', Swap: '#0891b2' }
+export const VEHICLE_COLORS = ['#5a48e0', '#0ea5e9', '#f97316', '#10b981']

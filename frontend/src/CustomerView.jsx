@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { downloadFile, getMe, postMyRequest } from './api'
 import { rs } from './ui'
 import { useGuard } from './hooks'
+import { RefreshCw } from 'lucide-react'
+import Shell from './Shell'
 
-export default function CustomerView({ auth, onSignOut, onExpired }) {
+export default function CustomerView({ auth, onSignOut, onExpired, onPassword }) {
   const { busy, error, run } = useGuard(onExpired)
   const [me, setMe] = useState(null)
   const [note, setNote] = useState('')
@@ -20,14 +22,8 @@ export default function CustomerView({ auth, onSignOut, onExpired }) {
   })
 
   return (
-    <div className="app">
-      <header>
-        <strong>Gasora</strong>
-        <span className="muted">{me ? me.name : auth.username}</span>
-        <span className="spacer" />
-        <button className="secondary" disabled={busy} onClick={() => run(load)}>Refresh</button>
-        <button className="secondary" onClick={onSignOut}>Sign out</button>
-      </header>
+    <Shell brand="Gasora" title={me ? me.name : 'Your account'} user={{ username: auth.username, role: 'customer', onPassword, onSignOut }}
+      actions={<button className="secondary" disabled={busy} onClick={() => run(load)}><RefreshCw size={15} /> Refresh</button>}>
       <div className="page">
         {error && <p className="error banner">{error}</p>}
         {me && (
@@ -78,6 +74,6 @@ export default function CustomerView({ auth, onSignOut, onExpired }) {
           </>
         )}
       </div>
-    </div>
+    </Shell>
   )
 }
